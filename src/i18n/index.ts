@@ -34,3 +34,14 @@ export function t(key: string, params?: Record<string, string | number>): string
   if (params) for (const [k, v] of Object.entries(params)) s = s.replaceAll(`{${k}}`, String(v));
   return s;
 }
+
+/** Plural-aware translation: picks `<key>.one` or `<key>.other` by the language's rules for `count`. */
+export function tn(key: string, count: number, params?: Record<string, string | number>): string {
+  const form = new Intl.PluralRules(current).select(count) === 'one' ? 'one' : 'other';
+  return t(`${key}.${form}`, params);
+}
+
+/** Number formatted for the current language. */
+export function num(n: number, maxDecimals = 0): string {
+  return n.toLocaleString(current === 'fr' ? 'fr-FR' : 'en-GB', { maximumFractionDigits: maxDecimals });
+}

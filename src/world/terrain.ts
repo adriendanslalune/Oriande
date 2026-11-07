@@ -3,6 +3,11 @@ import { fbm } from './noise';
 /** Size of a map tile in world units. Settlements and landmarks are laid out per tile. */
 export const TILE = 256;
 
+/** From this altitude up the land is mountains, drawn as peaks. */
+export const MOUNTAIN_ALTITUDE = 0.6;
+/** Roads cross a low ridge through a pass (the peaks along it are not drawn), never higher. */
+export const ROAD_MAX_ALTITUDE = 0.7;
+
 /** Continental-scale bias: pushes whole regions under or above the sea. */
 export const ocean = (x: number, y: number): number => (fbm(x / 5200 + 91, y / 5200 - 37, 4) - 0.5) * 3.2;
 

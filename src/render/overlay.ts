@@ -126,15 +126,23 @@ export class Overlay {
     const { ctx } = this;
     ctx.strokeStyle = INK; ctx.fillStyle = INK;
     const time = now / 1000;
-    ctx.lineWidth = 0.8;
+    // Waves: small crests that rise, roll a little and fade.
+    ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgb(40,70,90)';
     for (const tl of tiles) for (const [X, Y, ph] of tl.waves) {
       if (!isSeen(s, X, Y)) continue;
       const a = Math.sin(time * 1.3 + ph);
       if (a < 0) continue;
-      const [x, y] = screen(X + Math.sin(time * 0.7 + ph) * 3, Y), w = 4 * v.zoom;
-      ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x - w, y, w, 0.2, Math.PI - 0.2); ctx.arc(x + w, y, w, 0.2, Math.PI - 0.2); ctx.stroke();
+      const [x, y] = screen(X + Math.sin(time * 0.7 + ph) * 3, Y), w = 5 * v.zoom, hgt = w * (0.35 + 0.25 * a);
+      ctx.globalAlpha = a * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x - w, y);
+      ctx.quadraticCurveTo(x - w * 0.35, y - hgt * 1.3, x + w * 0.2, y - hgt); // the rising face
+      ctx.quadraticCurveTo(x + w * 0.5, y - hgt * 0.9, x + w * 0.45, y - hgt * 0.45); // curling crest
+      ctx.moveTo(x + w * 0.2, y - hgt);
+      ctx.quadraticCurveTo(x + w * 0.7, y - hgt * 0.6, x + w, y); // the back of the wave
+      ctx.stroke();
     }
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1; ctx.strokeStyle = INK;
 
     this.leafTimer += dt;
     const trees: [number, number][] = [];
@@ -172,10 +180,10 @@ export class Overlay {
       }
     }
     ctx.globalAlpha = 1;
-    for (const { p, q, c } of roadsAround(Math.floor(v.x / TILE), Math.floor(v.y / TILE), Math.ceil(Math.max(v.W, v.H) / v.zoom / TILE / 2) + 1)) {
-      const L = Math.hypot(q.x - p.x, q.y - p.y), nb = 1 + Math.floor(hash2(p.ti + q.ti, p.tj - q.tj) * 2);
+    for (const road of roadsAround(Math.floor(v.x / TILE), Math.floor(v.y / TILE), Math.ceil(Math.max(v.W, v.H) / v.zoom / TILE / 2) + 1)) {
+      const { p, q } = road, L = road.lengths[road.lengths.length - 1], nb = 1 + Math.floor(hash2(p.ti + q.ti, p.tj - q.tj) * 2);
       for (let k = 0; k < nb; k++) {
-        const sp = 10 / L, ph = hash2(p.ti * 3 + k, q.tj * 7 - k), w = ((time * sp + ph) % 2 + 2) % 2, u = w < 1 ? w : 2 - w, pt = pointOnRoad(p, q, c, u);
+        const sp = 10 / L, ph = hash2(p.ti * 3 + k, q.tj * 7 - k), w = ((time * sp + ph) % 2 + 2) % 2, u = w < 1 ? w : 2 - w, pt = pointOnRoad(road, u);
         if (!isSeen(s, pt.x, pt.y)) continue;
         const [x, y] = screen(pt.x, pt.y);
         if (x < -20 || y < -20 || x > v.W + 20 || y > v.H + 20) continue;

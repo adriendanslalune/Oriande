@@ -10,7 +10,7 @@ export interface ProtoWorld {
   nomPropre(i: number, j: number): string;
   bourg(ti: number, tj: number): { x: number; y: number; ville: boolean; nom: string; cle: string } | null;
   voisins(b: unknown): { cle: string }[];
-  routesAutour(ti: number, tj: number, R: number): [{ cle: string }, { cle: string }, { x: number; y: number }][];
+  routesAutour(ti: number, tj: number, R: number): [{ cle: string; x: number; y: number }, { cle: string; x: number; y: number }, { x: number; y: number }][];
   /** draws a tile on a fake canvas; returns the tile canvas with its animation points */
   tuile(ti: number, tj: number): { vagues: number[][]; arbres: number[][] };
   lieux: Map<string, { k: string; x: number; y: number; nom: string; txt: string; sur: string }>;

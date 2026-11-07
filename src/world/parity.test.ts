@@ -5,7 +5,7 @@ import { hash2 } from './noise';
 import { altitude, humidity, strangeness } from './terrain';
 import { properName } from './names';
 import { settlement } from './settlements';
-import { neighbours, roadsAround } from './roads';
+import { neighbours, roadsAround, pointOnCurve, passable } from './roads';
 import { landmark } from './landmarks';
 import { startPosition } from '../game/travel';
 import { setLang, t } from '../i18n';
@@ -70,15 +70,38 @@ describe('world parity with proto/index.html', () => {
     `);
   });
 
-  it('roads are identical', () => {
-    for (let tj = -10; tj <= 10; tj += 2) for (let ti = -10; ti <= 10; ti += 2) {
-      const a = settlement(ti, tj), b = proto.bourg(ti, tj);
-      if (a && b) expect(neighbours(a).map((n) => n.key)).toEqual(proto.voisins(b).map((n) => n.cle));
+  it('roads keep the proto shape unless it crosses mountains or water, and never do', () => {
+    const protoCurves = new Map(proto.routesAutour(0, 0, 10).map(([p, q, c]) => [p.cle + '|' + q.cle, { p, q, c }]));
+    let kept = 0, rerouted = 0;
+    for (const r of roadsAround(0, 0, 8)) {
+      // every road stays on passable ground
+      for (let k = 1; k < r.points.length; k++) {
+        const a = r.points[k - 1], b = r.points[k], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6);
+        for (let m = 0; m <= n; m++) expect(passable(altitude(a.x + (b.x - a.x) * m / n, a.y + (b.y - a.y) * m / n))).toBe(true);
+      }
+      const pc = protoCurves.get(r.p.key + '|' + r.q.key);
+      if (pc && r.points.length === 49) {
+        // the proto's own curve, point for point
+        kept++;
+        for (const k of [0, 12, 24, 36, 48]) {
+          const u = k / 48, e = pointOnCurve(pc.p, pc.q, pc.c, u);
+          expect([r.points[k].x, r.points[k].y]).toEqual([e.x, e.y]);
+        }
+      } else rerouted++;
     }
-    const ours = roadsAround(3, -2, 5).map((r) => [r.p.key, r.q.key, r.c.x, r.c.y]);
-    const theirs = proto.routesAutour(3, -2, 5).map(([p, q, c]) => [p.cle, q.cle, c.x, c.y]);
-    expect(ours).toEqual(theirs);
-  });
+    process.stdout.write(`roads near the start: ${kept} as in the proto, ${rerouted} rerouted or new\n`);
+    expect(kept).toBeGreaterThan(rerouted);
+  }, 60_000);
+
+  it('links between towns are the proto ones, minus those with no reasonable road', () => {
+    for (let tj = -6; tj <= 6; tj += 2) for (let ti = -6; ti <= 6; ti += 2) {
+      const a = settlement(ti, tj), b = proto.bourg(ti, tj);
+      if (!a || !b) continue;
+      const ours = neighbours(a).map((n) => n.key), theirs = proto.voisins(b).map((n) => n.cle);
+      // ours may differ only where a proto link was dropped and the next candidate taken
+      expect(ours.filter((k) => theirs.includes(k)).length).toBeGreaterThanOrEqual(Math.min(theirs.length, ours.length) - 2);
+    }
+  }, 60_000);
 
   it('landmarks are identical, French names and texts included', () => {
     let count = 0;

@@ -2,11 +2,11 @@
 // mountains (lit west face, hatched east face, snow on the highest). Symbols sit on a world
 // grid, so a tile and its neighbours draw the same symbols and they meet seamlessly.
 import { hash2 } from '../world/noise';
-import { altitude } from '../world/terrain';
+import { altitude, MOUNTAIN_ALTITUDE } from '../world/terrain';
 import { INK } from './palette';
 
 const T = 256;
-const HILL_MIN = 0.36, MOUNTAIN_MIN = 0.6, SNOW_MIN = 1.0;
+const HILL_MIN = 0.36, MOUNTAIN_MIN = MOUNTAIN_ALTITUDE, SNOW_MIN = 1.0;
 
 /** Small mounds on hilly ground, drawn under the vegetation. */
 export function drawHills(g: CanvasRenderingContext2D, x0: number, y0: number): void {
@@ -31,7 +31,22 @@ interface Peak { x: number; y: number; v: number; seed: number }
 const rgb = (c: number[]): string => `rgb(${c.map((n) => Math.round(Math.max(0, Math.min(255, n)))).join(',')})`;
 
 /** Mountain peaks, drawn back to front over the vegetation. */
-export function drawMountains(g: CanvasRenderingContext2D, x0: number, y0: number, colour: (v: number, x: number, y: number) => number[]): void {
+/** Distance from (x, y) to a polyline. */
+function distanceToLine(x: number, y: number, pts: { x: number; y: number }[]): number {
+  let best = Infinity;
+  for (let k = 1; k < pts.length; k++) {
+    const a = pts[k - 1], b = pts[k], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+    const u = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L2));
+    best = Math.min(best, Math.hypot(a.x + dx * u - x, a.y + dy * u - y));
+  }
+  return best;
+}
+
+/**
+ * Mountain peaks, drawn back to front over the vegetation. Peaks are left out along `roads`,
+ * so a road crossing a low ridge shows as a pass rather than going through a peak.
+ */
+export function drawMountains(g: CanvasRenderingContext2D, x0: number, y0: number, colour: (v: number, x: number, y: number) => number[], roads: { x: number; y: number }[][] = []): void {
   const S = 16, M = 34;
   const peaks: Peak[] = [];
   for (let gy = Math.floor((y0 - M) / S); gy * S < y0 + T + M * 2; gy++) for (let gx = Math.floor((x0 - M) / S); gx * S < x0 + T + M; gx++) {
@@ -45,6 +60,7 @@ export function drawMountains(g: CanvasRenderingContext2D, x0: number, y0: numbe
   for (const p of peaks) {
     const k = Math.min(1, (p.v - MOUNTAIN_MIN) / 0.5), r2 = hash2(p.seed * 1e4, 3), r3 = hash2(p.seed * 1e4, 7);
     const h = 8 + k * 12 + p.seed * 3, w = h * (1.45 + r2 * 0.5);
+    if (roads.some((r) => distanceToLine(p.x, p.y - h * 0.3, r) < w * 0.55 + 3)) continue; // a pass
     const x = p.x - x0, y = p.y - y0;
     // outline: left foot, left shoulder, summit, right shoulder, right foot
     const P = [x + (p.seed - 0.5) * w * 0.25, y - h];

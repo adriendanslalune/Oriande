@@ -42,6 +42,10 @@ Règles :
    (montagnes en pics gravés, collines, aventurier, routes, icônes des lieux, noms
    détourés) : il n'est plus identique au proto. Le **terrain** (altitudes, bourgs, routes,
    lieux, noms) reste strictement identique, et les tests de parité le vérifient.
+5. Exception voulue par Adrien : les **routes** ne traversent plus les montagnes. Une route
+   garde la courbe du proto si elle reste sur un terrain praticable ; sinon elle contourne
+   (A*), ou franchit une crête basse (< 0,7) par un col où les pics ne sont pas dessinés.
+   Une liaison sans route raisonnable (> 1,8 × la ligne droite) est abandonnée.
 
 ## Architecture
 

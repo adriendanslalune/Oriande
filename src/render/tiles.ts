@@ -56,7 +56,7 @@ const SEGMENTS: Record<number, string[]> = {
 
 /** Watercolour of the ground at (X, Y) with altitude v, before relief shading. */
 function terrainColour(v: number, X: number, Y: number): number[] {
-  if (v < 0) { const p = Math.min(1, -v / 0.45); return [190 - 60 * p, 212 - 46 * p, 214 - 30 * p]; }
+  if (v < 0) { const p = Math.min(1, -v / 0.45); return [168 - 60 * p, 202 - 46 * p, 214 - 26 * p]; }
   const hu = humidity(X, Y), et = strangeness(X, Y);
   let c = v < 0.03 ? [228, 216, 176] : hu > 0.55 && v < 0.45 ? (et > 0.62 ? [196, 178, 196] : [170, 186, 132]) : hu < 0.32 ? [230, 208, 156] : [212, 210, 162];
   if (v > 0.5) { const k = Math.min(1, (v - 0.5) / 0.5); c = c.map((a, n) => a + ([186, 160, 128][n] - a) * k); }
@@ -93,22 +93,12 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   g.imageSmoothingEnabled = true;
   g.drawImage(lav, -1.5 * STEP, -1.5 * STEP, NL * STEP, NL * STEP);
 
-  // The sea: horizontal hatching, tighter offshore.
-  for (let Yg = Math.ceil(y0 / 3) * 3; Yg < y0 + T; Yg += 3) {
-    const y = Yg - y0, row = Yg / 3;
-    let inSea = false, xs = 0;
-    for (let x = 0; x <= T; x += 2) {
-      const v = x < T ? altitude(x0 + x, y0 + y) : 1;
-      const sea = v < 0 && v > -0.32 && (v > -0.16 || ((row % 2) + 2) % 2 === 0) && !(v > -0.25 && v < -0.12 && ((row % 3) + 3) % 3 === 1);
-      if (sea && !inSea) { inSea = true; xs = x; }
-      if ((!sea || x === T) && inSea) { inSea = false; g.lineWidth = 0.45; g.beginPath(); g.moveTo(xs, y); g.lineTo(x, y); g.stroke(); }
-    }
-  }
-
-  // The coastline and its dotted foam line, by marching squares.
-  for (const L of [-0.04, 0]) {
-    const coast = Math.abs(L) < 0.001, major = L > 0 && Math.round(L * 10) % 5 === 0;
-    g.lineWidth = coast ? 1.6 : major ? 0.9 : 0.5; g.setLineDash(L < 0 ? [2, 3] : []); g.beginPath();
+  // The coastline, and two fainter lines offshore that follow it like ripples (the way old
+  // maps show water near a shore), by marching squares.
+  for (const L of [-0.14, -0.05, 0]) {
+    const coast = Math.abs(L) < 0.001;
+    g.strokeStyle = coast ? INK : L > -0.1 ? 'rgba(40,70,90,.45)' : 'rgba(40,70,90,.25)';
+    g.lineWidth = coast ? 1.6 : 0.6; g.setLineDash([]); g.beginPath();
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) {
       const a = h(i, j), b = h(i + 1, j), c = h(i + 1, j + 1), d = h(i, j + 1);
       const k = (a > L ? 8 : 0) | (b > L ? 4 : 0) | (c > L ? 2 : 0) | (d > L ? 1 : 0);
@@ -122,7 +112,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     }
     g.stroke();
   }
-  g.setLineDash([]);
+  g.strokeStyle = INK;
 
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
   drawHills(g, x0, y0);
@@ -165,7 +155,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
 
   // Mountains: engraved peaks, back to front.
-  drawMountains(g, x0, y0, terrainColour);
+  const nearRoads = roadsAround(ti, tj, 6).filter((r) => r.maxX + 40 > x0 && r.minX - 40 < x0 + T && r.maxY + 40 > y0 && r.minY - 40 < y0 + T + 40);
+  drawMountains(g, x0, y0, terrainColour, nearRoads.map((r) => r.points));
   g.strokeStyle = INK; g.fillStyle = INK;
 
   // The strange place of this tile, if any.
@@ -174,22 +165,16 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
 
   // Roads, then settlements (those of neighbouring tiles may spill onto this one).
   g.strokeStyle = INK;
-  for (const { p, q, c } of roadsAround(ti, tj, 5)) {
-    const minx = Math.min(p.x, q.x, c.x) - 10, maxx = Math.max(p.x, q.x, c.x) + 10, miny = Math.min(p.y, q.y, c.y) - 10, maxy = Math.max(p.y, q.y, c.y) + 10;
-    if (maxx < x0 || minx > x0 + T || maxy < y0 || miny > y0 + T) continue;
-    // Main roads (to a city): a solid brown line with an ink edge. Village paths: dashed.
-    const major = p.city || q.city;
-    const curve = (): void => { g.beginPath(); g.moveTo(p.x - x0, p.y - y0); g.quadraticCurveTo(c.x - x0, c.y - y0, q.x - x0, q.y - y0); g.stroke(); };
-    if (major) {
-      g.setLineDash([]);
-      g.lineWidth = 2.4; g.strokeStyle = INK; curve();
-      g.lineWidth = 1.3; g.strokeStyle = 'rgb(196,160,108)'; curve();
-      g.strokeStyle = INK;
-    } else {
-      g.lineWidth = 0.9; g.setLineDash([3, 2.5]); curve();
-    }
-    g.setLineDash([]);
+  // Every road the same brown; roads to a city are wider. A detour can reach ~5 tiles from its
+  // towns (980 apart at most, 320 of detour margin), hence the radius of 6.
+  g.setLineDash([]); g.lineJoin = 'round';
+  for (const r of roadsAround(ti, tj, 6)) {
+    if (r.maxX + 10 < x0 || r.minX - 10 > x0 + T || r.maxY + 10 < y0 || r.minY - 10 > y0 + T) continue;
+    const line = (): void => { g.beginPath(); r.points.forEach((pt, k) => (k ? g.lineTo(pt.x - x0, pt.y - y0) : g.moveTo(pt.x - x0, pt.y - y0))); g.stroke(); };
+    g.lineWidth = r.major ? 2.6 : 1.8; g.strokeStyle = INK; line();
+    g.lineWidth = r.major ? 1.5 : 0.9; g.strokeStyle = 'rgb(200,165,112)'; line();
   }
+  g.strokeStyle = INK;
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
     const b = settlement(ti + di, tj + dj);
     if (b) drawHouses(g, b, b.x - x0, b.y - y0);

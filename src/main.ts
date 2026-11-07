@@ -10,7 +10,6 @@ import '@fontsource/old-standard-tt/400-italic.css';
 
 import { BootScene } from './scenes/Boot';
 import { MapScene } from './scenes/Map';
-import { PAPER } from './ui/theme';
 import { getLang, setLang } from './i18n';
 import { DPR } from './ui/screen';
 
@@ -19,14 +18,18 @@ setLang(getLang());
 // The canvas is rendered at device-pixel resolution and shown at CSS size (zoom = 1/DPR),
 // so ink lines and text stay crisp on phone screens.
 const game = new Phaser.Game({
-  type: Phaser.AUTO,
+  // Canvas renderer: the map is canvas-drawn tiles plus a full-screen overlay redrawn every
+  // frame; with WebGL that overlay would be re-uploaded as a texture each frame.
+  type: Phaser.CANVAS,
   parent: 'game',
-  backgroundColor: PAPER,
+  transparent: true, // the page's paper grain shows through (index.html)
   width: window.innerWidth * DPR,
   height: window.innerHeight * DPR,
   zoom: 1 / DPR,
   scale: { mode: Phaser.Scale.NONE },
-  render: { antialias: true, roundPixels: false },
+  // pixelArt must be explicit: Phaser turns it on whenever zoom !== 1, which would make the
+  // canvas `image-rendering: pixelated` and draw scaled tiles without smoothing.
+  render: { antialias: true, pixelArt: false, roundPixels: false },
   input: { activePointers: 3 },
   scene: [BootScene, MapScene],
 });

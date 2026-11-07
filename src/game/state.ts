@@ -3,20 +3,20 @@
  * Everything here is plain data; `seen` is a Set for speed and save.ts serialises it.
  */
 export interface Journey {
-  x0: number; y0: number;
-  x1: number; y1: number;
+  /** the route, a polyline from where the walk started to where it ends (world units) */
+  path: [number, number][];
   /** ms walked so far */
   elapsed: number;
   /** ms needed for the whole walk */
   duration: number;
-  /** distance along the journey already revealed (world units) */
+  /** distance along the route already revealed (world units) */
   revealed: number;
-  /** stopped short by deep water */
+  /** the target could not be reached (water): the walk ends on the shore */
   shore: boolean;
 }
 
 export interface GameState {
-  version: 1;
+  version: 2;
   x: number;
   y: number;
   /** leagues walked */

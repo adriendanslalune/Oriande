@@ -9,13 +9,13 @@ const T = 256;
 const HILL_MIN = 0.36, MOUNTAIN_MIN = MOUNTAIN_ALTITUDE, SNOW_MIN = 1.0;
 
 /** Small mounds on hilly ground, drawn under the vegetation. */
-export function drawHills(g: CanvasRenderingContext2D, x0: number, y0: number): void {
+export function drawHills(g: CanvasRenderingContext2D, x0: number, y0: number, skip: (x: number, y: number) => boolean = () => false): void {
   const S = 12, M = 12;
   g.strokeStyle = INK;
   for (let gy = Math.floor((y0 - M) / S); gy * S < y0 + T + M; gy++) for (let gx = Math.floor((x0 - M) / S); gx * S < x0 + T + M; gx++) {
     const X = gx * S + (hash2(gx * 7 + 3, gy * 11) - 0.5) * 6, Y = gy * S + (hash2(gx * 13, gy * 5 + 1) - 0.5) * 6;
     const v = altitude(X, Y);
-    if (v < HILL_MIN || v >= MOUNTAIN_MIN || hash2(gx * 3, gy * 17 + 5) > 0.35) continue;
+    if (v < HILL_MIN || v >= MOUNTAIN_MIN || hash2(gx * 3, gy * 17 + 5) > 0.35 || skip(X, Y)) continue;
     const k = (v - HILL_MIN) / (MOUNTAIN_MIN - HILL_MIN), w = 2.6 + k * 2.4, h = 1.6 + k * 1.8;
     const x = X - x0, y = Y - y0;
     g.lineWidth = 0.6;

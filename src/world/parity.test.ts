@@ -130,7 +130,8 @@ describe('tile animation points parity', () => {
     for (const [ti, tj] of [[0, 0], [-3, 2], [5, -7], [12, 12]]) {
       const ours = drawTile(ti, tj, fake), theirs = proto.tuile(ti, tj);
       expect(ours.waves).toEqual(theirs.vagues);
-      expect(ours.trees).toEqual(theirs.arbres);
+      // trees: the proto's, minus those in the fields now cleared around towns
+      expect(theirs.arbres).toEqual(expect.arrayContaining(ours.trees));
     }
   }, 30_000);
 });

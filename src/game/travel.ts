@@ -1,12 +1,29 @@
 // Walking and the fog of war. Pure rules, ported from the proto, no Phaser.
-import { altitude, TILE } from '../world/terrain';
+import { altitude, humidity, TILE } from '../world/terrain';
 import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
 import type { GameState } from './state';
+import { alongPath, pathLength, planRoute } from './route';
 
-/** Radius revealed around the explorer, world units. */
+/** Radius revealed around the explorer on open plains, world units. */
 export const VIEW_RADIUS = 200;
+/** Sight in a forest, where trees block the view. */
+export const FOREST_SIGHT = 100;
+/** Sight from the highest summits. */
+export const MAX_SIGHT = 600;
+
+/**
+ * How far the explorer sees from (x, y): little under trees, normal on plains, further as the
+ * ground rises (a hilltop or a summit shows the whole country around).
+ */
+export function sightRadius(x: number, y: number): number {
+  const v = altitude(x, y), hu = humidity(x, y);
+  if (v >= 0.02 && v < 0.45 && hu > 0.55) return FOREST_SIGHT; // the forests of the map
+  const marsh = hu > 0.62 && v < 0.1;
+  const base = marsh ? 150 : VIEW_RADIUS;
+  return Math.min(MAX_SIGHT, base + Math.max(0, v - 0.3) * 1000);
+}
 /** Fog cell size, world units. */
 export const CELL = 48;
 /** Walking speed, world units per second (a league in a bit less than 6 s). */
@@ -23,11 +40,12 @@ export const TRACE_MAX = 6000;
 export const cellKey = (x: number, y: number): string => Math.round(x / CELL) + ',' + Math.round(y / CELL);
 export const isSeen = (s: GameState, x: number, y: number): boolean => s.seen.has(cellKey(x, y));
 
-/** Reveal every fog cell within VIEW_RADIUS of (x, y). */
+/** Reveal every fog cell the explorer can see from (x, y). */
 export function reveal(s: GameState, x: number, y: number): void {
-  const ci = Math.round(x / CELL), cj = Math.round(y / CELL), R = Math.ceil(VIEW_RADIUS / CELL);
+  const sight = sightRadius(x, y);
+  const ci = Math.round(x / CELL), cj = Math.round(y / CELL), R = Math.ceil(sight / CELL);
   for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) {
-    if ((di * di + dj * dj) * CELL * CELL > VIEW_RADIUS * VIEW_RADIUS) continue;
+    if ((di * di + dj * dj) * CELL * CELL > sight * sight) continue;
     s.seen.add((ci + di) + ',' + (cj + dj));
   }
 }
@@ -54,7 +72,7 @@ export function startPosition(): { x: number; y: number } {
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 1, x, y, leagues: 0,
+    version: 2, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
   };
@@ -63,21 +81,16 @@ export function newGame(): GameState {
 }
 
 /** Fraction of the segment that can be walked before deep water (1 = all of it). */
-export function walkableFraction(x0: number, y0: number, x1: number, y1: number): number {
-  const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / 4));
-  for (let k = 1; k <= n; k++) {
-    const u = k / n;
-    if (altitude(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u) < 0) return Math.max(0, (k - 1) / n);
-  }
-  return 1;
-}
-
-/** Start walking towards (x, y). Returns false when the explorer cannot move at all (water ahead). */
+/**
+ * Start walking towards (x, y), around lakes and seas. A target in the water or on an island
+ * brings the explorer to the nearest shore. Returns false when they cannot move at all.
+ */
 export function startJourney(s: GameState, x: number, y: number): boolean {
-  const u = walkableFraction(s.x, s.y, x, y);
-  const tx = s.x + (x - s.x) * u, ty = s.y + (y - s.y) * u, d = Math.hypot(tx - s.x, ty - s.y);
-  if (d < 1) return false;
-  s.journey = { x0: s.x, y0: s.y, x1: tx, y1: ty, elapsed: 0, duration: (d / SPEED) * 1000, revealed: 0, shore: u < 1 };
+  const route = planRoute(s.x, s.y, x, y);
+  if (!route) return false;
+  const L = pathLength(route.path);
+  if (L < 1) return false;
+  s.journey = { path: route.path, elapsed: 0, duration: (L / SPEED) * 1000, revealed: 0, shore: !route.reached };
   return true;
 }
 
@@ -115,21 +128,21 @@ export function advance(s: GameState, dt: number, out: TravelEvent[] = []): bool
   if (!v) return false;
   v.elapsed += dt * 1000;
   const u = Math.min(1, v.elapsed / v.duration);
-  const L = Math.hypot(v.x1 - v.x0, v.y1 - v.y0);
+  const L = pathLength(v.path);
   // One footstep every STEP_LENGTH units, plus the arrival. (The proto advanced this by the
   // distance of one frame, which left a footstep per frame and only ~100 s of trace.)
   const step = (d: number): void => {
     v.revealed = d;
-    const w = d / L, x = v.x0 + (v.x1 - v.x0) * w, y = v.y0 + (v.y1 - v.y0) * w;
+    const { x, y } = alongPath(v.path, d);
     reveal(s, x, y);
     s.trace.push([Math.round(x) + 0, Math.round(y) + 0]); // + 0 turns -0 into 0
     discover(s, x, y, out);
   };
   while (v.revealed + STEP_LENGTH <= u * L) step(v.revealed + STEP_LENGTH);
   if (u >= 1 && v.revealed < L) step(L);
-  const ax = s.x, ay = s.y;
-  s.x = v.x0 + (v.x1 - v.x0) * u;
-  s.y = v.y0 + (v.y1 - v.y0) * u;
+  const ax = s.x, ay = s.y, at = alongPath(v.path, u * L);
+  s.x = at.x;
+  s.y = at.y;
   s.leagues += Math.hypot(s.x - ax, s.y - ay) / LEAGUE;
   if (u >= 1) {
     s.journey = null;
@@ -142,3 +155,18 @@ export function advance(s: GameState, dt: number, out: TravelEvent[] = []): bool
 /** Leagues left on the current journey. */
 export const leaguesLeft = (s: GameState): number =>
   s.journey ? ((s.journey.duration - s.journey.elapsed) / 1000) * SPEED / LEAGUE : 0;
+
+/** Where the explorer is heading and the rest of the route, for drawing. */
+export function routeAhead(s: GameState): { path: [number, number][]; dx: number } | null {
+  const v = s.journey;
+  if (!v) return null;
+  const L = pathLength(v.path), d = Math.min(1, v.elapsed / v.duration) * L;
+  const here = alongPath(v.path, d);
+  let acc = 0;
+  const rest: [number, number][] = [[here.x, here.y]];
+  for (let k = 1; k < v.path.length; k++) {
+    acc += Math.hypot(v.path[k][0] - v.path[k - 1][0], v.path[k][1] - v.path[k - 1][1]);
+    if (acc > d) rest.push(v.path[k]);
+  }
+  return { path: rest, dx: here.dx };
+}

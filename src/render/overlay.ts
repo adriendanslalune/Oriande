@@ -7,10 +7,11 @@ import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { SEA_CELL, seaLabel } from '../world/names';
-import { CELL, LEAGUE, isSeen } from '../game/travel';
+import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
 import type { GameState } from '../game/state';
 import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
+import { cityRadius } from './towns';
 import { INK, PAPER } from './palette';
 
 /** Below this zoom the map turns into the atlas overview. */
@@ -95,7 +96,8 @@ export class Overlay {
       if (!b || !isSeen(s, b.x, b.y)) continue;
       const [x, y] = screen(b.x, b.y);
       ctx.font = b.city ? '700 ' + Math.round(13 + v.zoom * 3) + "px 'Old Standard TT', serif" : 'italic ' + Math.round(11 + v.zoom * 2) + "px 'IM Fell English', serif";
-      this.label(b.city ? b.name.toUpperCase() : b.name, x, y + (b.city ? 30 : 16) * Math.max(0.7, v.zoom));
+      // below the walls for a city, below the houses for a village
+      this.label(b.city ? b.name.toUpperCase() : b.name, x, y + (b.city ? cityRadius(b) * 0.82 + 6 : 13) * v.zoom + (b.city ? 16 : 12));
     }
     for (let mj = Math.floor(ay / SEA_CELL) - 1; mj <= Math.floor(by / SEA_CELL) + 1; mj++) for (let mi = Math.floor(ax / SEA_CELL) - 1; mi <= Math.floor(bx / SEA_CELL) + 1; mi++) {
       const sea = seaLabel(mi, mj);
@@ -108,15 +110,18 @@ export class Overlay {
     }
     ctx.fillStyle = INK;
 
-    // Where the explorer is heading.
-    const j = s.journey;
-    if (j) {
-      const [tx, ty] = screen(j.x1, j.y1);
+    // Where the explorer is heading: the rest of the route, faintly, and a cross at the end.
+    const ahead = routeAhead(s);
+    if (ahead) {
+      ctx.strokeStyle = 'rgba(42,36,29,.45)'; ctx.lineWidth = 1; ctx.setLineDash([2, 5]); ctx.beginPath();
+      ahead.path.forEach(([X, Y], k) => { const [x, y] = screen(X, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      ctx.stroke(); ctx.setLineDash([]);
+      const [X, Y] = ahead.path[ahead.path.length - 1], [tx, ty] = screen(X, Y);
       ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.beginPath();
       ctx.moveTo(tx - 5, ty - 5); ctx.lineTo(tx + 5, ty + 5); ctx.moveTo(tx + 5, ty - 5); ctx.lineTo(tx - 5, ty + 5); ctx.stroke();
+      if (Math.abs(ahead.dx) > 0.5) this.facing = ahead.dx > 0 ? 1 : -1;
     }
-    if (j && Math.abs(j.x1 - j.x0) > 1) this.facing = j.x1 > j.x0 ? 1 : -1;
-    this.explorer(ex, ey, walking, now);
+    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM);
     this.compass(v.W - 44, 96);
     this.scaleBar(v);
   }
@@ -221,9 +226,12 @@ export class Overlay {
   }
 
   /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
-  private explorer(x: number, y: number, walking: boolean, now: number): void {
+  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number): void {
     const { ctx } = this;
-    const u = 1.7, f = this.facing;
+    // Drawn at a fixed size in the world: it shrinks when zooming out, like everything else.
+    ctx.save();
+    ctx.translate(atX, atY); ctx.scale(scale, scale);
+    const x = 0, y = 0, u = 1.7, f = this.facing;
     const swing = walking ? Math.sin(now / 110) : 0, j = swing * 2.4, bob = walking ? Math.abs(Math.cos(now / 110)) * 0.6 : 0;
     const X = (dx: number): number => x + dx * u * f; // dx measured towards the facing side
     const Y = (dy: number): number => y + dy * u - bob;
@@ -259,6 +267,7 @@ export class Overlay {
     ctx.fillStyle = 'rgb(84,62,42)';
     ctx.beginPath(); ctx.ellipse(X(0.2), Y(-16.4), 3.6 * u, 0.75 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(X(-1.5), Y(-16.5)); ctx.lineTo(X(-1.3), Y(-19)); ctx.quadraticCurveTo(X(0.2), Y(-19.8), X(1.7), Y(-19)); ctx.lineTo(X(1.9), Y(-16.5)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
     ctx.restore();
   }
 

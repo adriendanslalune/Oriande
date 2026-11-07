@@ -6,7 +6,7 @@ import type { GameState, Journey } from './state';
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -105,7 +105,7 @@ export function toSaveFile(s: GameState, now = new Date()): SaveFile {
     v: SAVE_VERSION, at: now.toISOString(),
     x: s.x, y: s.y, leagues: s.leagues, zoom: s.zoom,
     named: [...s.named],
-    journey: s.journey ? { ...s.journey } : null,
+    journey: s.journey ? { ...s.journey, path: s.journey.path.map((p) => [...p] as [number, number]) } : null,
     seen: encodeCells(s.seen),
     trace: encodeTrace(s.trace),
   };
@@ -117,7 +117,9 @@ function validJourney(j: unknown): j is Journey {
   if (j === null) return true;
   if (typeof j !== 'object') return false;
   const o = j as Record<string, unknown>;
-  return ['x0', 'y0', 'x1', 'y1', 'elapsed', 'duration', 'revealed'].every((k) => isNum(o[k])) && typeof o.shore === 'boolean';
+  const path = o.path;
+  return Array.isArray(path) && path.length >= 2 && path.every((p) => Array.isArray(p) && p.length === 2 && p.every(isNum))
+    && ['elapsed', 'duration', 'revealed'].every((k) => isNum(o[k])) && typeof o.shore === 'boolean';
 }
 
 /**
@@ -127,7 +129,16 @@ function validJourney(j: unknown): j is Journey {
 export function migrate(raw: Record<string, unknown>): Record<string, unknown> | null {
   const save = { ...raw };
   if (!isNum(save.v) || save.v > SAVE_VERSION || save.v < 1) return null;
-  // e.g. if (save.v === 1) { save.newField = default; save.v = 2; }
+  if (save.v === 1) {
+    // v1 walked in straight lines: the journey becomes a two-point route
+    const j = save.journey as Record<string, number> | null;
+    if (j && typeof j === 'object') {
+      const { x0, y0, x1, y1, ...rest } = j;
+      save.journey = { ...rest, path: [[x0, y0], [x1, y1]] };
+    }
+    save.v = 2;
+  }
+  // next: if (save.v === 2) { ...; save.v = 3; }
   return save;
 }
 
@@ -146,7 +157,7 @@ export function fromSaveFile(json: string): GameState {
   if ([...seen].some((k) => !/^-?\d+,-?\d+$/.test(k))) throw new Error('bad cells');
   const trace = decodeTrace(f.trace as number[]);
   return {
-    version: 1,
+    version: 2,
     x: f.x as number, y: f.y as number, leagues: f.leagues as number, zoom: f.zoom as number,
     named: f.named as string[],
     journey: f.journey as Journey | null,

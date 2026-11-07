@@ -8,7 +8,8 @@ import { roadsAround } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { drawLandmarkIcon } from './icons';
 import { drawHills, drawMountains } from './relief';
-import { INK, PAPER } from './palette';
+import { clearing, drawTown, drawTownGrounds } from './towns';
+import { INK } from './palette';
 
 /** Pixels per world unit in a tile texture. */
 export const TILE_RES = 2;
@@ -25,28 +26,6 @@ export interface TileArt {
 
 export type CanvasFactory = () => HTMLCanvasElement;
 const domCanvas: CanvasFactory = () => document.createElement('canvas');
-
-/** Houses of a settlement drawn at (x, y) in tile coordinates. */
-function drawHouses(g: CanvasRenderingContext2D, b: Settlement, x: number, y: number): void {
-  const n = b.city ? 16 : 4 + Math.floor(hash2(b.ti, b.tj) * 3), R = b.city ? 17 : 8;
-  g.lineWidth = 0.8;
-  if (b.city) { g.setLineDash([2, 2]); g.beginPath(); g.arc(x, y, R + 6, 0, 6.3); g.stroke(); g.setLineDash([]); }
-  const pts: [number, number][] = [];
-  for (let k = 0; k < n; k++) {
-    const a = hash2(b.ti * 7 + k, b.tj * 3 - k) * 6.283, d = Math.sqrt(hash2(b.ti - k, b.tj + k * 5)) * R;
-    pts.push([x + Math.cos(a) * d, y + Math.sin(a) * d * 0.8]);
-  }
-  pts.sort((p, q) => p[1] - q[1]);
-  for (const [hx, hy] of pts) {
-    g.fillStyle = PAPER; g.beginPath(); g.rect(hx - 2.5, hy - 1.5, 5, 3.5); g.fill(); g.stroke();
-    g.beginPath(); g.moveTo(hx - 3.2, hy - 1.5); g.lineTo(hx, hy - 4.5); g.lineTo(hx + 3.2, hy - 1.5); g.closePath(); g.fillStyle = INK; g.fill();
-  }
-  if (b.city) {
-    g.fillStyle = PAPER; g.beginPath(); g.rect(x - 2.5, y - 9, 5, 9); g.fill(); g.stroke();
-    g.beginPath(); g.moveTo(x - 2.5, y - 9); g.lineTo(x, y - 17); g.lineTo(x + 2.5, y - 9); g.stroke();
-    g.beginPath(); g.moveTo(x, y - 17); g.lineTo(x, y - 20); g.stroke();
-  }
-}
 
 /** Marching-squares segments per case: pairs of edge names. */
 const SEGMENTS: Record<number, string[]> = {
@@ -114,8 +93,15 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
   g.strokeStyle = INK;
 
+  // Settlements whose grounds reach this tile, and the roads around: towns clear the forest
+  // around them and orient their houses and fields along their roads.
+  const towns: Settlement[] = [];
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const b = settlement(ti + di, tj + dj); if (b) towns.push(b); }
+  const roads = roadsAround(ti, tj, 6).filter((r) => r.maxX + 60 > x0 && r.minX - 60 < x0 + T && r.maxY + 60 > y0 && r.minY - 60 < y0 + T + 60);
+  const cleared = (X: number, Y: number): boolean => towns.some((b) => Math.hypot(X - b.x, (Y - b.y) * 1.15) < clearing(b));
+
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
-  drawHills(g, x0, y0);
+  drawHills(g, x0, y0, cleared);
 
   // Vegetation and soils: forests, marshes, sands, strange meadows.
   // NB: sands use whatever fillStyle the previous plant left, as in the proto.
@@ -123,6 +109,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     const X = gx * 10 + 5 + (hash2(gx * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(gx, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
     const hu = humidity(X, Y), et = strangeness(X, Y), r = hash2(X | 0, Y | 0);
+    if (cleared(X, Y)) continue; // fields and gardens around towns
     if (hu > 0.55 && v < 0.45 && r < 0.85) {
       if (et > 0.62) { // giant mushrooms
         g.lineWidth = 0.7; g.beginPath(); g.moveTo(jx, jy + 3); g.lineTo(jx, jy - 1); g.stroke();
@@ -155,8 +142,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
 
   // Mountains: engraved peaks, back to front.
-  const nearRoads = roadsAround(ti, tj, 6).filter((r) => r.maxX + 40 > x0 && r.minX - 40 < x0 + T && r.maxY + 40 > y0 && r.minY - 40 < y0 + T + 40);
-  drawMountains(g, x0, y0, terrainColour, nearRoads.map((r) => r.points));
+  drawMountains(g, x0, y0, terrainColour, roads.map((r) => r.points));
   g.strokeStyle = INK; g.fillStyle = INK;
 
   // The strange place of this tile, if any.
@@ -167,25 +153,24 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   g.strokeStyle = INK;
   // Every road the same brown; roads to a city are wider. A detour can reach ~5 tiles from its
   // towns (980 apart at most, 320 of detour margin), hence the radius of 6.
+  const arable = (X: number, Y: number): boolean => { const v = altitude(X, Y); return v > 0.03 && v < 0.5; };
+  for (const b of towns) drawTownGrounds(g, b, b.x - x0, b.y - y0, roads, arable);
   g.setLineDash([]); g.lineJoin = 'round';
-  for (const r of roadsAround(ti, tj, 6)) {
+  for (const r of roads) {
     if (r.maxX + 10 < x0 || r.minX - 10 > x0 + T || r.maxY + 10 < y0 || r.minY - 10 > y0 + T) continue;
     const line = (): void => { g.beginPath(); r.points.forEach((pt, k) => (k ? g.lineTo(pt.x - x0, pt.y - y0) : g.moveTo(pt.x - x0, pt.y - y0))); g.stroke(); };
     g.lineWidth = r.major ? 2.6 : 1.8; g.strokeStyle = INK; line();
     g.lineWidth = r.major ? 1.5 : 0.9; g.strokeStyle = 'rgb(200,165,112)'; line();
   }
   g.strokeStyle = INK;
-  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-    const b = settlement(ti + di, tj + dj);
-    if (b) drawHouses(g, b, b.x - x0, b.y - y0);
-  }
+  for (const b of towns) drawTown(g, b, b.x - x0, b.y - y0, roads);
 
   // What moves on top: sea points for waves, forest points for leaves.
   const waves: TileArt['waves'] = [], trees: TileArt['trees'] = [];
   for (let y = 8; y < T; y += 22) for (let x = 8; x < T; x += 22) {
     const X = x0 + x + (hash2(x0 + x, y0 + y * 2) - 0.5) * 12, Y = y0 + y + (hash2(x0 + x * 2, y0 + y) - 0.5) * 12, v = altitude(X, Y);
     if (v < -0.04) waves.push([X, Y, hash2(X | 0, Y | 0) * 6.28]);
-    else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55) trees.push([X, Y]);
+    else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55 && !cleared(X, Y)) trees.push([X, Y]); // no leaves off fields
   }
   return { canvas: cv, waves, trees };
 }

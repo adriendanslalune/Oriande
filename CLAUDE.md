@@ -46,6 +46,11 @@ Règles :
    garde la courbe du proto si elle reste sur un terrain praticable ; sinon elle contourne
    (A*), ou franchit une crête basse (< 0,7) par un col où les pics ne sont pas dessinés.
    Une liaison sans route raisonnable (> 1,8 × la ligne droite) est abandonnée.
+6. Demandés par Adrien (hors liste phase 1) : la vision dépend du terrain (forêt 100,
+   plaine 200, jusqu'à 600 en altitude) ; l'explorateur contourne l'eau (A*) et s'arrête
+   sur la rive si la cible est dans l'eau ; l'aventurier est à l'échelle du monde ;
+   villages (maisons le long des routes, champs) et villes (remparts, tours, portes,
+   rues, cathédrale, faubourgs) redessinés. Seule l'eau bloque la marche pour l'instant.
 
 ## Architecture
 

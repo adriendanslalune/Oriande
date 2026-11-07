@@ -4,6 +4,7 @@ import {
   loadGame, saveGame, toSaveFile, type KeyValueStore,
 } from './save';
 import { advance, newGame, startJourney } from './travel';
+import { pathLength } from './route';
 import type { GameState } from './state';
 
 class MemoryStore implements KeyValueStore {
@@ -90,7 +91,7 @@ describe('save and load', () => {
     const good = toSaveFile(newGame());
     const bad = [
       { ...good, v: 99 }, { ...good, x: null }, { ...good, named: [1] }, { ...good, trace: ['a'] },
-      { ...good, seen: 'x:y' }, { ...good, journey: { x0: 1 } },
+      { ...good, seen: 'x:y' }, { ...good, journey: { x0: 1 } }, { ...good, journey: { path: [[1, 2]], elapsed: 0, duration: 1, revealed: 0, shore: false } },
     ];
     for (const b of bad) expect(() => fromSaveFile(JSON.stringify(b))).toThrow();
     expect(() => fromSaveFile(JSON.stringify(good))).not.toThrow();
@@ -113,9 +114,24 @@ describe('footsteps', () => {
     for (const dt of [1 / 120, 1 / 30, 0.05]) {
       const s = newGame(), before = s.trace.length;
       startJourney(s, s.x + 300, s.y);
-      const L = Math.hypot(s.journey!.x1 - s.journey!.x0, s.journey!.y1 - s.journey!.y0);
+      const L = pathLength(s.journey!.path);
       while (advance(s, dt));
       expect(s.trace.length - before).toBe(Math.ceil(L / 10));
     }
+  });
+});
+
+describe('migrations', () => {
+  it('a version 1 save (straight walks) loads, walk in progress included', () => {
+    const v1 = {
+      v: 1, at: '2026-11-07T20:00:00.000Z', x: 10, y: 20, leagues: 1.5, zoom: 1.3, named: ['b0,0'],
+      journey: { x0: 0, y0: 0, x1: 40, y1: 30, elapsed: 1000, duration: 7142, revealed: 10, shore: false },
+      seen: encodeCells(['0,0', '1,0']), trace: encodeTrace([[0, 0], [8, 6]]),
+    };
+    const s = fromSaveFile(JSON.stringify(v1));
+    expect(s.version).toBe(2);
+    expect(s.journey!.path).toEqual([[0, 0], [40, 30]]);
+    expect(s.journey!.elapsed).toBe(1000);
+    expect([s.x, s.y, s.leagues]).toEqual([10, 20, 1.5]);
   });
 });

@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Carte des Terres Étranges</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root { --papier: #ece3cb; --encre: #2a241d; --doux: #6a5f4f; color-scheme: light;
+    box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --papier: #ece3cb; --encre: #2a241d; color-scheme: light; } }
+  :root[data-theme="dark"] { --papier: #ece3cb; --encre: #2a241d; color-scheme: light; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--papier); color: var(--encre); font: 16px/1.4 "IM Fell English", Georgia, serif; overflow: hidden;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .2  0 0 0 0 .16  0 0 0 0 .1  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>"); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  header { position: fixed; left: 0; right: 0; top: 0; padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 6px; background: var(--papier); border-bottom: 3px double var(--encre); display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  header .t { font: 17px "IM Fell English SC", serif; letter-spacing: .04em; }
+  header .c { font: 700 11px/1.3 "Old Standard TT", serif; text-align: right; letter-spacing: .06em; text-transform: uppercase; }
+  header .c i { font: italic 400 12px "IM Fell English", serif; text-transform: none; letter-spacing: 0; }
+  .boutons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; }
+  button { width: 46px; height: 46px; padding: 0; font: 700 20px "Old Standard TT", serif; color: var(--encre); background: var(--papier); border: 1.5px solid var(--encre); cursor: pointer; }
+  button:focus-visible { outline: 2px dashed var(--encre); outline-offset: 3px; }
+  .note { position: fixed; left: 12px; right: 70px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--papier); border: 1px solid var(--encre); outline: 1px solid var(--encre); outline-offset: 3px; padding: 10px 12px; font-size: 15px; display: none; }
+  .note.on { display: block; }
+  .note b { display: block; font: 700 17px "Old Standard TT", serif; text-transform: uppercase; letter-spacing: .02em; }
+  .note i { color: var(--doux); }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="Carte topographique d’un monde étrange. Touche un point pour y marcher."></canvas>
+<header><div class="t">Carte des Terres Étranges</div><div class="c"><span id="lieues">0 lieue parcourue</span><br><i id="lieux">aucun lieu nommé</i><br><i id="eta"></i></div></header>
+<div class="note" id="note" role="status"></div>
+<div class="boutons"><button id="zP" aria-label="Rapprocher">+</button><button id="zM" aria-label="Éloigner">−</button><button id="zC" aria-label="Revenir à l’explorateur">⌖</button></div>
+<script>
+(() => {
+  // ============ Le monde : du bruit déterministe, la même carte pour tous ============
+  const GRAINE = 1873;   // l’année du Tour du monde en 80 jours
+  const hash2 = (x, y) => { let h = (x * 374761393 + y * 668265263 + GRAINE * 982451653) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const lisse = t => t * t * (3 - 2 * t);
+  function bruit(x, y) { const xi = Math.floor(x), yi = Math.floor(y), fx = lisse(x - xi), fy = lisse(y - yi);
+    const a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1); return (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fy; }
+  function fbm(x, y, o = 5) { let s = 0, a = .5, f = 1, n = 0; for (let k = 0; k < o; k++) { s += a * bruit(x * f + k * 17.3, y * f - k * 9.1); n += a; a *= .5; f *= 2.03; } return s / n; }
+  // l’altitude : des continents, des chaînes, des creux ; 0 = le niveau de la mer
+  const ocean = (x, y) => (fbm(x / 5200 + 91, y / 5200 - 37, 4) - .5) * 3.2;
+  const altitude = (x, y) => { const c = fbm(x / 1100, y / 1100, 4) + ocean(x, y) * .5, d = fbm(x / 260, y / 260, 5), r = 1 - Math.abs(fbm(x / 600 + 40, y / 600, 4) * 2 - 1); return (c - .48) * 2.2 + (d - .5) * .9 + Math.pow(r, 6) * .9 * Math.max(0, c - .4) * 2.5; };
+  const humidite = (x, y) => fbm(x / 380 + 300, y / 380 - 200, 4) * .9 + .12;
+  const etrangete = (x, y) => fbm(x / 700 - 700, y / 700 + 900, 3);
+
+  // les noms des lieux, fabriqués avec des syllabes et la graine du lieu
+  const SYL = ["ker", "vor", "ma", "lun", "tha", "ber", "sol", "ny", "ar", "gal", "mo", "ré", "zan", "quil", "dor", "pha", "ul", "ost", "vé", "rak", "nem", "sil"];
+  const nomPropre = (i, j) => { const n = 2 + Math.floor(hash2(i * 7, j * 3) * 2); let s = ""; for (let k = 0; k < n; k++) s += SYL[Math.floor(hash2(i + k * 31, j - k * 17) * SYL.length)]; return s[0].toUpperCase() + s.slice(1); };
+  const LIEUX = [
+    { k: "ruines", nom: n => "Ruines de " + n, sur: "terre", txt: "Des colonnes que personne n’a érigées, du moins personne d’ici." },
+    { k: "squelette", nom: n => "Squelette du Léviathan de " + n, sur: "terre", txt: "Une échine de trois cents pas, blanchie, échouée loin de toute mer." },
+    { k: "champignons", nom: n => "Forêt-Champignon de " + n, sur: "terre", txt: "Des chapeaux hauts comme des clochers. Leur poussière fait rêver." },
+    { k: "cratere", nom: n => "Cratère de " + n, sur: "terre", txt: "Le sol y est chaud et la boussole s’y affole." },
+    { k: "tour", nom: n => "Tour de " + n, sur: "terre", txt: "Sans porte ni fenêtre. On entend, la nuit, un mécanisme." },
+    { k: "geyser", nom: n => "Geysers de " + n, sur: "terre", txt: "L’eau jaillit tiède et sent le fer. Les oiseaux l’évitent." },
+    { k: "epave", nom: n => "Épave du « " + n + " »", sur: "eau", txt: "Un vapeur à aubes, coque en l’air. Le registre de bord est encore lisible." },
+    { k: "tourbillon", nom: n => "Maelström de " + n, sur: "eau", txt: "La mer y tourne sur elle-même, lentement, depuis toujours." }
+  ];
+
+  // ============ Les établissements humains : villages, villes, et les routes qui les relient ============
+  const memoBourg = new Map();
+  function bourg(ti, tj) { const cle = ti + "," + tj; if (memoBourg.has(cle)) return memoBourg.get(cle); let b = null; const r = hash2(ti * 41 + 7, tj * 17 - 3);
+    if (r < .26) { const x = ti * T + 40 + hash2(ti * 9, tj * 4) * (T - 80), y = tj * T + 40 + hash2(ti * 4, tj * 9) * (T - 80), v = altitude(x, y);
+      if (v > .04 && v < .45) { const ville = r < .035; b = { x, y, ville, nom: nomPropre(ti + 500, tj - 300) + (ville ? "" : (hash2(ti, tj * 2) < .3 ? "-les-Bains" : "")), cle, ti, tj }; } }
+    memoBourg.set(cle, b); return b; }
+  const memoRoute = new Map();
+  function voisins(b) { if (memoRoute.has(b.cle)) return memoRoute.get(b.cle); const cands = [];
+    for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) { if (!di && !dj) continue; const o = bourg(b.ti + di, b.tj + dj); if (!o) continue; const d = Math.hypot(o.x - b.x, o.y - b.y); if (d < 980) cands.push([d, o]); }
+    cands.sort((p, q) => p[0] - q[0]); const out = [];
+    for (const [, o] of cands) { if (out.length >= (b.ville ? 4 : 3)) break; let mer = false; for (let k = 1; k < 10; k++) { const u = k / 10; if (altitude(b.x + (o.x - b.x) * u, b.y + (o.y - b.y) * u) < 0) { mer = true; break; } } if (!mer) out.push(o); }
+    memoRoute.set(b.cle, out); return out; }
+  const voisin = b => voisins(b)[0] || null;
+  // la forme d’une route : une courbe douce, toujours la même entre deux bourgs
+  function routeCourbe(a, b) { const [p, q] = a.cle < b.cle ? [a, b] : [b, a]; const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, nx = -(q.y - p.y), ny = q.x - p.x, k = (hash2(p.ti * 3 + q.ti, p.tj * 5 + q.tj) - .5) * .35; return [p, q, { x: mx + nx * k, y: my + ny * k }]; }
+  const surRoute = (p, q, c, u) => ({ x: (1 - u) * (1 - u) * p.x + 2 * (1 - u) * u * c.x + u * u * q.x, y: (1 - u) * (1 - u) * p.y + 2 * (1 - u) * u * c.y + u * u * q.y });
+  function routesAutour(ti, tj, R) { const out = [], vu = new Set(); for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) { const b = bourg(ti + di, tj + dj); if (!b) continue; for (const v of voisins(b)) { const cle = b.cle < v.cle ? b.cle + "|" + v.cle : v.cle + "|" + b.cle; if (vu.has(cle)) continue; vu.add(cle); const r = routeCourbe(b, v); r.grande = b.ville || v.ville; out.push(r); } } return out; }
+  function maisons(g, b, x, y) { const n = b.ville ? 16 : 4 + Math.floor(hash2(b.ti, b.tj) * 3), R = b.ville ? 17 : 8; g.lineWidth = .8;
+    if (b.ville) { g.setLineDash([2, 2]); g.beginPath(); g.arc(x, y, R + 6, 0, 6.3); g.stroke(); g.setLineDash([]); }
+    const pts = []; for (let k = 0; k < n; k++) { const a = hash2(b.ti * 7 + k, b.tj * 3 - k) * 6.283, d = Math.sqrt(hash2(b.ti - k, b.tj + k * 5)) * R; pts.push([x + Math.cos(a) * d, y + Math.sin(a) * d * .8]); }
+    pts.sort((p, q) => p[1] - q[1]); for (const [hx, hy] of pts) { g.fillStyle = "#ece3cb"; g.beginPath(); g.rect(hx - 2.5, hy - 1.5, 5, 3.5); g.fill(); g.stroke(); g.beginPath(); g.moveTo(hx - 3.2, hy - 1.5); g.lineTo(hx, hy - 4.5); g.lineTo(hx + 3.2, hy - 1.5); g.closePath(); g.fillStyle = "#2a241d"; g.fill(); }
+    if (b.ville) { g.fillStyle = "#ece3cb"; g.beginPath(); g.rect(x - 2.5, y - 9, 5, 9); g.fill(); g.stroke(); g.beginPath(); g.moveTo(x - 2.5, y - 9); g.lineTo(x, y - 17); g.lineTo(x + 2.5, y - 9); g.stroke(); g.beginPath(); g.moveTo(x, y - 17); g.lineTo(x, y - 20); g.stroke(); } }
+
+  // ============ Le rendu : des tuiles gravées, calculées une fois puis gardées ============
+  const T = 256, RES = 2, PAS = 4;   // taille d’une tuile (unités du monde), résolution, pas d’échantillonnage
+  const cache = new Map(), lieux = new Map();
+  const ENC = "#2a241d";
+  const CACHE_MAX = 90;
+  function tuile(ti, tj) { const cle = ti + "," + tj; if (cache.has(cle)) { const t = cache.get(cle); cache.delete(cle); cache.set(cle, t); return t; }
+    const cv = document.createElement("canvas"); cv.width = cv.height = T * RES; const g = cv.getContext("2d"); g.scale(RES, RES); g.lineCap = "round"; g.strokeStyle = ENC; g.fillStyle = ENC;
+    const x0 = ti * T, y0 = tj * T, N = T / PAS + 1, H = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) H[j * N + i] = altitude(x0 + i * PAS, y0 + j * PAS);
+    const h = (i, j) => H[j * N + i];
+    // le lavis : une couleur par échantillon, ombrée par le relief (lumière du nord-ouest), puis agrandie en douceur
+    const NL = N + 2, lav = document.createElement("canvas"); lav.width = lav.height = NL; const lg = lav.getContext("2d"), im = lg.createImageData(NL, NL);
+    const hv = (i, j) => (i >= 0 && j >= 0 && i < N && j < N) ? h(i, j) : altitude(x0 + i * PAS, y0 + j * PAS);
+    for (let jj = 0; jj < NL; jj++) for (let ii = 0; ii < NL; ii++) { const i = ii - 1, j = jj - 1, v = hv(i, j), X = x0 + i * PAS, Y = y0 + j * PAS; let c;
+      if (v < 0) { const p = Math.min(1, -v / .45); c = [190 - 60 * p, 212 - 46 * p, 214 - 30 * p]; }
+      else { const hu = humidite(X, Y), et = etrangete(X, Y); c = v < .03 ? [228, 216, 176] : hu > .55 && v < .45 ? (et > .62 ? [196, 178, 196] : [170, 186, 132]) : hu < .32 ? [230, 208, 156] : [212, 210, 162]; if (v > .5) { const k = Math.min(1, (v - .5) / .5); c = c.map((a, n) => a + ([186, 160, 128][n] - a) * k); } if (v > 1.05) c = [236, 232, 222];
+        const gx = hv(i + 1, j) - hv(i - 1, j), gy = hv(i, j + 1) - hv(i, j - 1), ombre = Math.max(-1, Math.min(1, (gx + gy) * 9)); c = c.map(a => a * (1 - ombre * .14)); }
+      const o = (jj * NL + ii) * 4; im.data[o] = c[0]; im.data[o + 1] = c[1]; im.data[o + 2] = c[2]; im.data[o + 3] = 150; }
+    lg.putImageData(im, 0, 0); g.imageSmoothingEnabled = true; g.drawImage(lav, -1.5 * PAS, -1.5 * PAS, NL * PAS, NL * PAS);
+    // la mer : des hachures horizontales, plus serrées au large
+    for (let Yg = Math.ceil(y0 / 3) * 3; Yg < y0 + T; Yg += 3) { const y = Yg - y0, rang = Yg / 3; let enMer = false, xs = 0; for (let x = 0; x <= T; x += 2) { const v = x < T ? altitude(x0 + x, y0 + y) : 1, mer = v < 0 && v > -.32 && (v > -.16 || ((rang % 2) + 2) % 2 === 0) && !(v > -.25 && v < -.12 && ((rang % 3) + 3) % 3 === 1);
+        if (mer && !enMer) { enMer = true; xs = x; } if ((!mer || x === T) && enMer) { enMer = false; g.lineWidth = .45; g.beginPath(); g.moveTo(xs, y); g.lineTo(x, y); g.stroke(); } } }
+    // les courbes de niveau, par la méthode des carrés marchants
+    const niveaux = [-.04, 0];   // seulement le trait de côte et sa ligne d’écume ; plus de courbes de niveau
+    for (const L of niveaux) { const cote = Math.abs(L) < .001, maitresse = L > 0 && Math.round(L * 10) % 5 === 0;
+      g.lineWidth = cote ? 1.6 : maitresse ? .9 : .5; g.setLineDash(L < 0 ? [2, 3] : []); g.beginPath();
+      for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) { const a = h(i, j), b = h(i + 1, j), c = h(i + 1, j + 1), d = h(i, j + 1); const k = (a > L ? 8 : 0) | (b > L ? 4 : 0) | (c > L ? 2 : 0) | (d > L ? 1 : 0); if (k === 0 || k === 15) continue;
+        const X = i * PAS, Y = j * PAS, t = (p, q) => (L - p) / (q - p); const pts = { h: [X + t(a, b) * PAS, Y], r: [X + PAS, Y + t(b, c) * PAS], b: [X + t(d, c) * PAS, Y + PAS], l: [X, Y + t(a, d) * PAS] };
+        const seg = { 1: ["l", "b"], 2: ["b", "r"], 3: ["l", "r"], 4: ["h", "r"], 5: ["l", "h", "b", "r"], 6: ["h", "b"], 7: ["l", "h"], 8: ["l", "h"], 9: ["h", "b"], 10: ["h", "r", "l", "b"], 11: ["h", "r"], 12: ["l", "r"], 13: ["b", "r"], 14: ["l", "b"] }[k];
+        for (let s = 0; s < seg.length; s += 2) { g.moveTo(...pts[seg[s]]); g.lineTo(...pts[seg[s + 1]]); } }
+      g.stroke(); } g.setLineDash([]);
+    // le relief en hachures : de petits traits dans le sens de la pente, plus longs là où ça grimpe
+    for (let gy = Math.floor((y0 - 8) / 6); gy * 6 < y0 + T + 8; gy++) for (let gx = Math.floor((x0 - 8) / 6); gx * 6 < x0 + T + 8; gx++) { const jx = gx * 6 + 3 + (hash2(gx, gy * 5) - .5) * 4 - x0, jy = gy * 6 + 3 + (hash2(gy, gx * 5) - .5) * 4 - y0, v = altitude(x0 + jx, y0 + jy); if (v < .35) continue;
+      const ga = altitude(x0 + jx + 2, y0 + jy) - altitude(x0 + jx - 2, y0 + jy), gb = altitude(x0 + jx, y0 + jy + 2) - altitude(x0 + jx, y0 + jy - 2), pente = Math.hypot(ga, gb); if (pente < .014) continue;
+      const L = Math.min(5.5, pente * 160), ux = ga / pente, uy = gb / pente, ombre = ux * .6 + uy * .8 > 0;   // côté sud-est plus sombre
+      g.lineWidth = ombre ? .9 : .45; g.beginPath(); g.moveTo(jx - ux * L / 2, jy - uy * L / 2); g.lineTo(jx + ux * L / 2, jy + uy * L / 2); g.stroke(); }
+    // la végétation et les sols : forêts, marais, sables, prairies étranges
+    for (let gy = Math.floor((y0 - 12) / 10); gy * 10 < y0 + T + 12; gy++) for (let gx = Math.floor((x0 - 12) / 10); gx * 10 < x0 + T + 12; gx++) { const X = gx * 10 + 5 + (hash2(gx * 3 + 11, gy) - .5) * 7, Y = gy * 10 + 5 + (hash2(gx, gy * 3 - 7) - .5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y); if (v < .02 || v > .6) continue;
+      const hu = humidite(X, Y), et = etrangete(X, Y), r = hash2(X | 0, Y | 0);
+      if (hu > .55 && v < .45 && r < .85) { if (et > .62) { g.lineWidth = .7; g.beginPath(); g.moveTo(jx, jy + 3); g.lineTo(jx, jy - 1); g.stroke(); g.beginPath(); g.ellipse(jx, jy - 2, 3, 1.6, 0, Math.PI, 0); g.fillStyle = "rgba(200,170,200,.9)"; g.fill(); g.stroke(); }   // champignons géants
+        else if (v > .3) { const t2 = 3.4 + r * 1.5; g.fillStyle = "rgba(80,104,70,.55)"; g.beginPath(); g.moveTo(jx, jy - t2 - 1.5); g.lineTo(jx + t2 * .55, jy + 1); g.lineTo(jx - t2 * .55, jy + 1); g.closePath(); g.fill(); g.lineWidth = .55; g.stroke(); g.beginPath(); g.moveTo(jx, jy - t2); g.lineTo(jx + t2 * .3, jy); g.stroke(); }   // conifères
+        else { const R = 2.3 + r * 1.4; g.fillStyle = "rgba(42,36,29,.25)"; g.beginPath(); g.ellipse(jx + 1.6, jy + 1.4, R, R * .7, 0, 0, 6.3); g.fill();   // l’ombre portée
+          g.fillStyle = "rgba(118,146,92,.85)"; g.lineWidth = .55; for (const [dx, dy, k] of [[-.9, .3, .8], [.9, .2, .8], [0, -.8, .95]]) { g.beginPath(); g.arc(jx + dx * R * .7, jy + dy * R * .7, R * k, 0, 6.3); g.fill(); g.stroke(); }
+          g.lineWidth = .45; for (let q = 0; q < 3; q++) { g.beginPath(); g.arc(jx + R * .25, jy + R * .2, R * (.35 + q * .22), -.2, 1.6); g.stroke(); } } }   // feuillus, ombrés côté sud-est
+      else if (hu > .62 && v < .1) { g.lineWidth = .5; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(jx - 3 + k * 2, jy); g.lineTo(jx - 1 + k * 2, jy); g.stroke(); } g.beginPath(); g.moveTo(jx, jy); g.lineTo(jx, jy - 2.5); g.stroke(); }   // marais
+      else if (hu < .32 && r < .45) { g.fillRect(jx, jy, .9, .9); g.fillRect(jx + 3, jy + 2, .9, .9); }   // sables
+      else if (hu >= .32 && hu <= .55 && r < .12) { g.lineWidth = .5; g.beginPath(); g.moveTo(jx - 1.5, jy); g.lineTo(jx, jy - 2.2); g.lineTo(jx + 1.5, jy); g.stroke(); }   // herbes
+    }
+    // les lieux remarquables : un par tuile au plus, et pas partout
+    const r = hash2(ti * 13, tj * 29); if (r < .55) { const lx = 40 + hash2(ti, tj * 5) * (T - 80), ly = 40 + hash2(ti * 5, tj) * (T - 80), v = altitude(x0 + lx, y0 + ly), surEau = v < 0;
+      const choix = LIEUX.filter(L => (L.sur === "eau") === surEau && !(surEau && v > -.03)); if (choix.length && !(v > .7)) { const L = choix[Math.floor(hash2(ti * 3, tj * 7) * choix.length)]; const lieu = { ...L, x: x0 + lx, y: y0 + ly, nom: L.nom(nomPropre(ti, tj)), cle }; lieux.set(cle, lieu); icone(g, L.k, lx, ly); } }
+    // les routes, puis les bourgs (ceux des tuiles voisines peuvent déborder sur celle-ci)
+    g.strokeStyle = ENC; for (const [p, q, c] of routesAutour(ti, tj, 5)) { const minx = Math.min(p.x, q.x, c.x) - 10, maxx = Math.max(p.x, q.x, c.x) + 10, miny = Math.min(p.y, q.y, c.y) - 10, maxy = Math.max(p.y, q.y, c.y) + 10; if (maxx < x0 || minx > x0 + T || maxy < y0 || miny > y0 + T) continue;
+      const grande = p.ville || q.ville; for (const off of grande ? [-1.3, 1.3] : [0]) { g.lineWidth = grande ? .65 : .8; g.setLineDash(grande ? [] : [3, 2.5]); g.beginPath(); const L = Math.hypot(q.x - p.x, q.y - p.y), nx = -(q.y - p.y) / L * off, ny = (q.x - p.x) / L * off; g.moveTo(p.x - x0 + nx, p.y - y0 + ny); g.quadraticCurveTo(c.x - x0 + nx, c.y - y0 + ny, q.x - x0 + nx, q.y - y0 + ny); g.stroke(); } g.setLineDash([]); }
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const b = bourg(ti + di, tj + dj); if (b) maisons(g, b, b.x - x0, b.y - y0); }
+    // ce qui bougera par-dessus : des points de mer pour les vagues, des points de forêt pour les feuilles
+    cv.vagues = []; cv.arbres = []; for (let y = 8; y < T; y += 22) for (let x = 8; x < T; x += 22) { const X = x0 + x + (hash2(x0 + x, y0 + y * 2) - .5) * 12, Y = y0 + y + (hash2(x0 + x * 2, y0 + y) - .5) * 12, v = altitude(X, Y); if (v < -.04) cv.vagues.push([X, Y, hash2(X | 0, Y | 0) * 6.28]); else if (v > .02 && v < .45 && humidite(X, Y) > .55) cv.arbres.push([X, Y]); }
+    cache.set(cle, cv); if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value); return cv; }
+
+  // les petits pictogrammes gravés des lieux
+  function icone(g, k, x, y) { g.lineWidth = 1; g.fillStyle = "#ece3cb";
+    if (k === "ruines") { for (const dx of [-6, -2, 2, 6]) { const hh = 4 + (dx === 2 ? 2 : 0); g.fillRect(x + dx - 1, y - hh, 2, hh); g.strokeRect(x + dx - 1, y - hh, 2, hh); } g.beginPath(); g.moveTo(x - 8, y); g.lineTo(x + 8, y); g.stroke(); }
+    if (k === "squelette") { g.beginPath(); g.moveTo(x - 10, y + 2); g.quadraticCurveTo(x, y - 4, x + 10, y + 1); g.stroke(); for (let i = -8; i <= 8; i += 3) { g.beginPath(); g.moveTo(x + i, y - 1 + Math.abs(i) * .2); g.lineTo(x + i, y - 5 + Math.abs(i) * .3); g.stroke(); } }
+    if (k === "champignons") { for (const [dx, s] of [[-4, 1], [3, 1.4]]) { g.beginPath(); g.moveTo(x + dx, y + 2); g.lineTo(x + dx, y - 4 * s); g.stroke(); g.beginPath(); g.ellipse(x + dx, y - 4 * s, 4 * s, 2.2 * s, 0, Math.PI, 0); g.fill(); g.stroke(); } }
+    if (k === "cratere") { g.beginPath(); g.ellipse(x, y, 8, 5, 0, 0, 6.3); g.stroke(); g.beginPath(); g.ellipse(x, y + 1, 4.5, 2.5, 0, 0, 6.3); g.stroke(); for (let a = 0; a < 6.3; a += .5) { g.beginPath(); g.moveTo(x + 8 * Math.cos(a), y + 5 * Math.sin(a)); g.lineTo(x + 11 * Math.cos(a), y + 7 * Math.sin(a)); g.stroke(); } }
+    if (k === "tour") { g.beginPath(); g.moveTo(x - 3, y + 2); g.lineTo(x - 2, y - 11); g.lineTo(x + 2, y - 11); g.lineTo(x + 3, y + 2); g.closePath(); g.fill(); g.stroke(); g.beginPath(); g.moveTo(x - 3, y - 11); g.lineTo(x, y - 15); g.lineTo(x + 3, y - 11); g.stroke(); }
+    if (k === "village") { for (const [dx, dy] of [[-5, 0], [3, -2], [1, 4]]) { g.beginPath(); g.rect(x + dx - 2, y + dy - 2, 4, 3); g.fill(); g.stroke(); g.beginPath(); g.moveTo(x + dx - 3, y + dy - 2); g.lineTo(x + dx, y + dy - 5); g.lineTo(x + dx + 3, y + dy - 2); g.stroke(); } }
+    if (k === "geyser") { for (const dx of [-4, 0, 4]) { g.beginPath(); g.moveTo(x + dx, y + 2); g.quadraticCurveTo(x + dx - 2, y - 4, x + dx + 1, y - 9); g.stroke(); } g.beginPath(); g.ellipse(x, y + 2, 7, 2, 0, 0, 6.3); g.stroke(); }
+    if (k === "epave") { g.beginPath(); g.moveTo(x - 8, y); g.quadraticCurveTo(x, y + 6, x + 8, y); g.closePath(); g.fill(); g.stroke(); g.beginPath(); g.arc(x - 1, y + 1, 2.5, 0, 6.3); g.stroke(); g.beginPath(); g.moveTo(x + 4, y); g.lineTo(x + 6, y - 7); g.stroke(); }
+    if (k === "tourbillon") { g.beginPath(); for (let a = 0; a < 14; a += .2) { const rr = a * .8; g.lineTo(x + rr * Math.cos(a), y + rr * .6 * Math.sin(a)); } g.stroke(); }
+    g.beginPath(); g.arc(x, y, 1.2, 0, 6.3); g.fillStyle = ENC; g.fill(); }
+
+  // ============ L’exploration : l’explorateur à pied, et la brume des terres inconnues ============
+  const CLE = "terres.v4"; let E = null; try { E = JSON.parse(localStorage.getItem(CLE)); } catch (e) {}
+  if (!E) { E = { x: 0, y: 0, vus: [], lieues: 0, nommes: [], trace: [] };
+    // on part à la sortie d’un village, près d’une ville et de la mer si possible
+    let depart = null; for (let r = 0; r < 14 && !depart; r++) for (let dj = -r; dj <= r && !depart; dj++) for (let di = -r; di <= r && !depart; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const b = bourg(di, dj); if (b && !b.ville && voisin(b)) depart = b; }
+    if (depart) { for (let a = 0; a < 6.28; a += .4) { const x = depart.x + Math.cos(a) * 70, y = depart.y + Math.sin(a) * 70, v = altitude(x, y); if (v > .05 && v < .45) { E.x = x; E.y = y; break; } } }
+    E.trace = [[Math.round(E.x), Math.round(E.y)]]; }
+  const sauver = () => { try { localStorage.setItem(CLE, JSON.stringify(E)); } catch (e) {} };
+  const VUE_R = 200, CASE = 48;
+  const vus = new Set(E.vus), apercu = new Map();   // apercu : l’altitude de chaque case vue, pour la vue d’ensemble
+  function voir(x, y) { const ci = Math.round(x / CASE), cj = Math.round(y / CASE), R = Math.ceil(VUE_R / CASE); for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) { if ((di * di + dj * dj) * CASE * CASE > VUE_R * VUE_R) continue; vus.add((ci + di) + "," + (cj + dj)); } }
+  voir(E.x, E.y);
+  // la marche se fait en temps réel, même téléphone éteint : une lieue (4 km) en 48 minutes
+  const VITESSE = 7;   // unités par seconde : une lieue en un peu moins de 6 secondes, en temps de jeu
+  let cible = null, marche = 0;
+  // à la reprise : où en est la marche commencée plus tôt ?
+  function eau(x0, y0, x1, y1) { const d = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(d / 4)); for (let k = 1; k <= n; k++) { const u = k / n; if (altitude(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u) < 0) return Math.max(0, (k - 1) / n); } return 1; }
+  function partir(x, y) { const u = eau(E.x, E.y, x, y), tx = E.x + (x - E.x) * u, ty = E.y + (y - E.y) * u, d = Math.hypot(tx - E.x, ty - E.y); if (d < 1) { note("Le rivage", "L’eau est trop profonde pour continuer à pied. Il faudrait un bateau, ou mieux encore."); return; }
+    E.voyage = { x0: E.x, y0: E.y, x1: tx, y1: ty, ecoule: 0, dur: d / VITESSE * 1000, rivage: u < 1 }; E.fait = 0; sauver(); }
+  function avancer(dt) { const v = E.voyage; if (!v) return false; v.ecoule = (v.ecoule || 0) + dt * 1000; const u = Math.min(1, v.ecoule / v.dur);
+    // on dévoile tout ce qui a été traversé depuis la dernière fois, même si l’application était fermée
+    const L = Math.hypot(v.x1 - v.x0, v.y1 - v.y0); while (E.fait < u * L) { E.fait = Math.min(u * L, E.fait + 10); const w = E.fait / L, x = v.x0 + (v.x1 - v.x0) * w, y = v.y0 + (v.y1 - v.y0) * w; voir(x, y); E.trace.push([Math.round(x), Math.round(y)]); decouvrir(x, y); }
+    const ax = E.x, ay = E.y; E.x = v.x0 + (v.x1 - v.x0) * u; E.y = v.y0 + (v.y1 - v.y0) * u; E.lieues += Math.hypot(E.x - ax, E.y - ay) / 40;
+    if (u >= 1) { E.voyage = null; if (v.rivage) note("Le rivage", "L’eau est trop profonde pour continuer à pied. Il faudrait un bateau, ou mieux encore."); else  if (E.trace.length > 6000) E.trace.splice(0, E.trace.length - 6000); sauver(); }
+    return true; }
+  const cv = document.getElementById("c"), ctx = cv.getContext("2d"); let W, H, dpr, zoom = 1.3, cam = { x: E.x, y: E.y }, suivre = true;
+  const brume = document.createElement("canvas"), bg = brume.getContext("2d");
+  function redim() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); brume.width = Math.ceil(W / 4); brume.height = Math.ceil(H / 4); }
+  addEventListener("resize", redim); redim();
+  const ecran = (x, y) => [W / 2 + (x - cam.x) * zoom, H / 2 + (y - cam.y) * zoom], monde = (sx, sy) => [cam.x + (sx - W / 2) / zoom, cam.y + (sy - H / 2) / zoom];
+  const ZMIN = .03, ZMAX = 3, Z_APERCU = .3;
+  const estVu = (x, y) => vus.has(Math.round(x / CASE) + "," + Math.round(y / CASE));
+
+  // ---- la vie de la carte : vagues, feuilles, fumées, voyageurs, oiseaux ----
+  const feuilles = []; let tFeuille = 0;
+  function animer(now, tuilesVisibles, dt) { ctx.strokeStyle = ENC; ctx.fillStyle = ENC; const t = now / 1000;
+    // les vagues : de petits arcs qui vont et viennent sur l’eau
+    ctx.lineWidth = .8; for (const tl of tuilesVisibles) for (const [X, Y, ph] of tl.vagues) { if (!estVu(X, Y)) continue; const a = Math.sin(t * 1.3 + ph); if (a < 0) continue; const [x, y] = ecran(X + Math.sin(t * .7 + ph) * 3, Y); const w = 4 * zoom; ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x - w, y, w, .2, Math.PI - .2); ctx.arc(x + w, y, w, .2, Math.PI - .2); ctx.stroke(); } ctx.globalAlpha = 1;
+    // les feuilles : le vent les arrache aux forêts et les emporte
+    tFeuille += dt; const arbres = []; for (const tl of tuilesVisibles) for (const a of tl.arbres) if (estVu(a[0], a[1])) arbres.push(a);
+    while (tFeuille > .12 && arbres.length) { tFeuille -= .12; const [X, Y] = arbres[Math.floor(Math.random() * arbres.length)]; if (feuilles.length < 60) feuilles.push({ x: X, y: Y - 3, vie: 0, ph: Math.random() * 6, r: Math.random() * 6 }); }
+    for (let k = feuilles.length - 1; k >= 0; k--) { const f = feuilles[k]; f.vie += dt; f.x += (14 + Math.sin(t * 2 + f.ph) * 8) * dt; f.y += (6 + Math.cos(t * 3 + f.ph) * 10) * dt; f.r += dt * 4; if (f.vie > 4) { feuilles.splice(k, 1); continue; }
+      const [x, y] = ecran(f.x, f.y); ctx.globalAlpha = Math.min(1, (4 - f.vie) * 1.5); ctx.save(); ctx.translate(x, y); ctx.rotate(f.r); ctx.beginPath(); ctx.ellipse(0, 0, 1.8 * Math.min(zoom, 1.6), .8 * Math.min(zoom, 1.6), 0, 0, 6.3); ctx.fill(); ctx.restore(); } ctx.globalAlpha = 1;
+    // les bourgs : la fumée des cheminées ; les routes : des voyageurs à pied
+    const [ax, ay] = monde(0, 0), [bx, by] = monde(W, H), ti0 = Math.floor(ax / T), ti1 = Math.floor(bx / T), tj0 = Math.floor(ay / T), tj1 = Math.floor(by / T);
+    for (let tj = tj0 - 1; tj <= tj1 + 1; tj++) for (let ti = ti0 - 1; ti <= ti1 + 1; ti++) { const b = bourg(ti, tj); if (!b || !estVu(b.x, b.y)) continue; const n = b.ville ? 3 : 1;
+      for (let k = 0; k < n; k++) { const hx = b.x + (k - 1) * 6, hy = b.y - (b.ville ? 6 : 4); ctx.lineWidth = .7; ctx.globalAlpha = .7; ctx.beginPath(); for (let u = 0; u <= 1; u += .1) { const [x, y] = ecran(hx + Math.sin(t * 1.5 + u * 5 + k) * 2.5 * u + u * 4, hy - u * 16); u ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); } } ctx.globalAlpha = 1;
+    for (const [p, q, c] of routesAutour(Math.floor(cam.x / T), Math.floor(cam.y / T), Math.ceil(Math.max(W, H) / zoom / T / 2) + 1)) { const L = Math.hypot(q.x - p.x, q.y - p.y), nb = 1 + Math.floor(hash2(p.ti + q.ti, p.tj - q.tj) * 2);
+      for (let k = 0; k < nb; k++) { const v = 10 / L, ph = hash2(p.ti * 3 + k, q.tj * 7 - k), w = ((t * v + ph) % 2 + 2) % 2, u = w < 1 ? w : 2 - w, pt = surRoute(p, q, c, u); if (!estVu(pt.x, pt.y)) continue; const [x, y] = ecran(pt.x, pt.y); if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue; voyageur(x, y, t * 6 + k, Math.min(zoom, 1.6)); } }
+    // les oiseaux : un vol passe de temps en temps
+    const vol = Math.floor(t / 14), pv = (t % 14) / 14; if (hash2(vol, 3) < .6) { const a0 = hash2(vol, 1) * 6.28, cx = cam.x - Math.cos(a0) * 500 + Math.cos(a0) * 1000 * pv, cy = cam.y - Math.sin(a0) * 500 + Math.sin(a0) * 1000 * pv; ctx.lineWidth = .9;
+      for (let k = 0; k < 5; k++) { const [x, y] = ecran(cx - Math.cos(a0) * k * 10 + Math.sin(a0) * (k % 2 ? 6 : -6) * k * .5, cy - Math.sin(a0) * k * 10 - Math.cos(a0) * (k % 2 ? 6 : -6) * k * .5), b = Math.sin(t * 9 + k) * 2; ctx.beginPath(); ctx.moveTo(x - 4, y - b); ctx.quadraticCurveTo(x - 2, y - 2, x, y); ctx.quadraticCurveTo(x + 2, y - 2, x + 4, y - b); ctx.stroke(); } } }
+  function voyageur(x, y, pas, s) { ctx.lineWidth = .9; const j = Math.sin(pas) * 1.6 * s; ctx.beginPath(); ctx.arc(x, y - 6 * s, 1.3 * s, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.moveTo(x, y - 5 * s); ctx.lineTo(x, y - 2 * s); ctx.lineTo(x - j, y + 1 * s); ctx.moveTo(x, y - 2 * s); ctx.lineTo(x + j, y + 1 * s); ctx.stroke(); }
+
+  // ---- l’explorateur : chapeau, sac, bâton, et la marche ----
+  function explorateur(x, y, enMarche, now) { const s = 1.5, j = enMarche ? Math.sin(now / 110) * 2.2 : 0; ctx.strokeStyle = ENC; ctx.fillStyle = ENC; ctx.lineWidth = 1.3;
+    ctx.globalAlpha = .25; ctx.beginPath(); ctx.ellipse(x, y + 2, 5, 1.6, 0, 0, 6.3); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x - j, y); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x + j, y); ctx.stroke();   // les jambes
+    ctx.fillStyle = "#ece3cb"; ctx.beginPath(); ctx.rect(x - 2.2 * s, y - 12 * s, 4.4 * s, 6.5 * s); ctx.fill(); ctx.stroke();   // la veste
+    ctx.fillStyle = ENC; ctx.fillRect(x - 3.8 * s, y - 11 * s, 1.8 * s, 4 * s);   // le sac
+    ctx.beginPath(); ctx.arc(x, y - 14 * s, 1.8 * s, 0, 6.3); ctx.fillStyle = "#ece3cb"; ctx.fill(); ctx.stroke();   // la tête
+    ctx.fillStyle = ENC; ctx.fillRect(x - 3 * s, y - 16 * s, 6 * s, 1 * s); ctx.fillRect(x - 1.6 * s, y - 18.2 * s, 3.2 * s, 2.4 * s);   // le chapeau
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + 3.5 * s, y - 13 * s); ctx.lineTo(x + 3.5 * s + j * .4, y + 1); ctx.stroke(); }   // le bâton
+
+  function dessiner(now, dt) { ctx.clearRect(0, 0, W, H); const [ax, ay] = monde(0, 0), [bx, by] = monde(W, H);
+    if (zoom < Z_APERCU) { apercuGeneral(ax, ay, bx, by); return; }
+    let neuves = 0; const visibles = [];
+    for (let tj = Math.floor(ay / T); tj <= Math.floor(by / T); tj++) for (let ti = Math.floor(ax / T); ti <= Math.floor(bx / T); ti++) { const cle = ti + "," + tj; if (!cache.has(cle)) { if (neuves > 1) continue; neuves++; } const t = tuile(ti, tj), [sx, sy] = ecran(ti * T, tj * T), [ex2, ey2] = ecran((ti + 1) * T, (tj + 1) * T), px0 = Math.round(sx), py0 = Math.round(sy); ctx.drawImage(t, px0, py0, Math.round(ex2) - px0, Math.round(ey2) - py0); visibles.push(t); }
+    // la trace des pas de l’explorateur
+    ctx.strokeStyle = ENC; ctx.lineWidth = 1; ctx.setLineDash([1.5, 4]); ctx.beginPath(); E.trace.forEach(([X, Y], k) => { const [x, y] = ecran(X, Y); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); const [ex, ey] = ecran(E.x, E.y); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+    animer(now, visibles, dt);
+    // la brume
+    bg.globalCompositeOperation = "source-over"; bg.clearRect(0, 0, brume.width, brume.height); bg.fillStyle = "#ece3cb"; bg.fillRect(0, 0, brume.width, brume.height); bg.globalCompositeOperation = "destination-out";
+    const ci0 = Math.floor(ax / CASE) - 1, ci1 = Math.ceil(bx / CASE) + 1, cj0 = Math.floor(ay / CASE) - 1, cj1 = Math.ceil(by / CASE) + 1, rr = CASE * zoom / 4 * 1.05;
+    for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) if (vus.has(ci + "," + cj)) { const [sx, sy] = ecran(ci * CASE, cj * CASE); const gr = bg.createRadialGradient(sx / 4, sy / 4, 0, sx / 4, sy / 4, rr); gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(.6, "rgba(0,0,0,.9)"); gr.addColorStop(1, "rgba(0,0,0,0)"); bg.fillStyle = gr; bg.fillRect(sx / 4 - rr, sy / 4 - rr, rr * 2, rr * 2); }
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(brume, 0, 0, W, H);
+    ctx.fillStyle = "rgba(42,36,29,.18)"; ctx.font = "italic 22px 'IM Fell English', serif"; ctx.textAlign = "center"; for (let k = 0; k < 3; k++) { const a = k * 2.1 + .4, X = E.x + Math.cos(a) * 560, Y = E.y + Math.sin(a) * 560; if (!estVu(X, Y)) { const [x, y] = ecran(X, Y); ctx.fillText("Terra incognita", x, y); } }
+    // les noms : lieux étranges, villages, villes
+    ctx.fillStyle = ENC; ctx.textAlign = "center";
+    for (const L of lieux.values()) { if (!estVu(L.x, L.y)) continue; const [x, y] = ecran(L.x, L.y); if (x < -80 || x > W + 80 || y < -40 || y > H + 40) continue; ctx.font = (L.sur === "eau" ? "italic " : "") + Math.round(11 + zoom * 2) + "px 'IM Fell English" + (L.sur === "eau" ? "" : " SC") + "', serif"; ctx.fillText(L.nom, x, y + 14 + zoom * 6); }
+    for (let tj = Math.floor(ay / T) - 1; tj <= Math.floor(by / T) + 1; tj++) for (let ti = Math.floor(ax / T) - 1; ti <= Math.floor(bx / T) + 1; ti++) { const b = bourg(ti, tj); if (!b || !estVu(b.x, b.y)) continue; const [x, y] = ecran(b.x, b.y);
+      ctx.font = b.ville ? "700 " + Math.round(13 + zoom * 3) + "px 'Old Standard TT', serif" : "italic " + Math.round(11 + zoom * 2) + "px 'IM Fell English', serif"; ctx.fillText(b.ville ? b.nom.toUpperCase() : b.nom, x, y + (b.ville ? 30 : 16) * Math.max(.7, zoom)); }
+    { const M = 2600; ctx.textAlign = "center"; for (let mj = Math.floor(ay / M) - 1; mj <= Math.floor(by / M) + 1; mj++) for (let mi = Math.floor(ax / M) - 1; mi <= Math.floor(bx / M) + 1; mi++) { const X = (mi + .5) * M + (hash2(mi, mj) - .5) * 900, Y = (mj + .5) * M + (hash2(mj, mi) - .5) * 900; if (altitude(X, Y) > -.25 || !estVu(X, Y)) continue; const [x, y] = ecran(X, Y);
+        ctx.fillStyle = "rgba(42,60,70,.75)"; ctx.font = "italic " + Math.round(16 + zoom * 6) + "px 'IM Fell English', serif"; const nom = (hash2(mi * 3, mj * 5) < .5 ? "Mer " : "Océan ") + (hash2(mi, mj * 7) < .5 ? "de " : "des ") + nomPropre(mi + 900, mj - 900); ctx.save(); ctx.translate(x, y); ctx.rotate((hash2(mi * 11, mj) - .5) * .4); ctx.fillText(nom.split("").join(String.fromCharCode(8202)), 0, 0); ctx.restore(); } ctx.fillStyle = ENC; }
+    if (cible) { const [tx, ty] = ecran(cible.x, cible.y); ctx.strokeStyle = ENC; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(tx - 5, ty - 5); ctx.lineTo(tx + 5, ty + 5); ctx.moveTo(tx + 5, ty - 5); ctx.lineTo(tx - 5, ty + 5); ctx.stroke(); }
+    explorateur(ex, ey, !!cible, now);
+    rose(W - 44, 96); echelle(); }
+
+  // ---- la vue d’ensemble : tout ce qui a été découvert, en petit, comme un atlas ----
+  function apercuGeneral(ax, ay, bx, by) { const c = Math.max(1, CASE * zoom);
+    for (const k of vus) { const [ci, cj] = k.split(",").map(Number), X = ci * CASE, Y = cj * CASE; if (X < ax - CASE || X > bx + CASE || Y < ay - CASE || Y > by + CASE) continue;
+      let v = apercu.get(k); if (v === undefined) { v = altitude(X, Y); apercu.set(k, v); } const [x, y] = ecran(X, Y);
+      ctx.fillStyle = v < 0 ? "rgba(42,36,29,.38)" : v > .55 ? "rgba(42,36,29,.3)" : v > .3 ? "rgba(42,36,29,.14)" : "rgba(42,36,29,.05)"; ctx.fillRect(x - c / 2, y - c / 2, c + .5, c + .5); }
+    ctx.strokeStyle = ENC; ctx.lineWidth = 1; ctx.beginPath(); E.trace.forEach(([X, Y], k) => { const [x, y] = ecran(X, Y); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+    ctx.fillStyle = ENC; ctx.textAlign = "center"; ctx.font = "700 11px 'Old Standard TT', serif";
+    for (let tj = Math.floor(ay / T); tj <= Math.floor(by / T); tj++) for (let ti = Math.floor(ax / T); ti <= Math.floor(bx / T); ti++) { const b = memoBourg.get(ti + "," + tj); if (!b || !b.ville || !estVu(b.x, b.y)) continue; const [x, y] = ecran(b.x, b.y); ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillText(b.nom.toUpperCase(), x, y - 6); }
+    const [ex, ey] = ecran(E.x, E.y); ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 6.3); ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.arc(ex, ey, 1.5, 0, 6.3); ctx.fill();
+    ctx.font = "italic 13px 'IM Fell English', serif"; ctx.fillText("Atlas des terres découvertes", W / 2, 84); rose(W - 44, 96); echelle(); }
+
+  function rose(x, y) { ctx.strokeStyle = ENC; ctx.fillStyle = ENC; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 22, 0, 6.3); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 18, 0, 6.3); ctx.stroke();
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 - Math.PI / 2, l = k % 2 ? 13 : 26; ctx.beginPath(); ctx.moveTo(x + l * Math.cos(a), y + l * Math.sin(a)); ctx.lineTo(x + 4 * Math.cos(a + .7), y + 4 * Math.sin(a + .7)); ctx.lineTo(x + 4 * Math.cos(a - .7), y + 4 * Math.sin(a - .7)); ctx.closePath(); k === 0 ? ctx.fill() : ctx.stroke(); }
+    ctx.font = "11px 'IM Fell English SC', serif"; ctx.textAlign = "center"; ctx.fillText("N", x, y - 30); }
+  function echelle() { const opts = [1, 2, 5, 10, 20, 50, 100, 200]; const lieue = 40, n = opts.reduce((b, o) => Math.abs(o * lieue * zoom - 90) < Math.abs(b * lieue * zoom - 90) ? o : b), L = n * lieue * zoom, x = 14, y = H - 26;
+    ctx.strokeStyle = ENC; ctx.fillStyle = ENC; ctx.lineWidth = 1; ctx.strokeRect(x, y - 2, L, 4); ctx.fillRect(x, y - 2, L / 4, 4); ctx.fillRect(x + L / 2, y - 2, L / 4, 4);
+    ctx.font = "italic 12px 'IM Fell English', serif"; ctx.textAlign = "left"; ctx.fillText(n + " lieue" + (n > 1 ? "s" : ""), x, y - 7); }
+
+  // ============ Les gestes ============
+  const doigts = new Map(); let d0 = 0, z0 = 0, bouge = 0;
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); doigts.set(e.pointerId, [e.clientX, e.clientY]); bouge = 0; if (doigts.size === 2) { const [a, b] = [...doigts.values()]; d0 = Math.hypot(a[0] - b[0], a[1] - b[1]); z0 = zoom; } });
+  cv.addEventListener("pointermove", e => { if (!doigts.has(e.pointerId)) return; const av = doigts.get(e.pointerId); doigts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (doigts.size === 1) { const dx = e.clientX - av[0], dy = e.clientY - av[1]; bouge += Math.abs(dx) + Math.abs(dy); if (bouge > 8) { suivre = false; cam.x -= dx / zoom; cam.y -= dy / zoom; } }
+    else if (doigts.size === 2 && d0) { const [a, b] = [...doigts.values()]; zoom = Math.max(ZMIN, Math.min(ZMAX, z0 * Math.hypot(a[0] - b[0], a[1] - b[1]) / d0)); bouge = 99; } });
+  cv.addEventListener("pointerup", e => { const tap = doigts.size === 1 && bouge < 8; doigts.delete(e.pointerId); if (doigts.size < 2) d0 = 0; if (tap && zoom >= Z_APERCU) { const [x, y] = monde(e.clientX, e.clientY); suivre = true; document.getElementById("note").classList.remove("on"); partir(x, y); } });
+  cv.addEventListener("pointercancel", e => { doigts.delete(e.pointerId); d0 = 0; });
+  cv.addEventListener("wheel", e => { e.preventDefault(); zoom = Math.max(ZMIN, Math.min(ZMAX, zoom * (e.deltaY > 0 ? .88 : 1.13))); }, { passive: false });
+  document.getElementById("zP").onclick = () => zoom = Math.min(ZMAX, zoom * 1.6); document.getElementById("zM").onclick = () => zoom = Math.max(ZMIN, zoom / 1.6); document.getElementById("zC").onclick = () => { suivre = true; if (zoom < Z_APERCU) zoom = 1.3; };
+
+  // ============ La boucle : l’explorateur marche, la carte se dévoile ============
+  let tp = performance.now(), tSave = 0;
+  const note = (titre, txt) => { const n = document.getElementById("note"); n.innerHTML = "<b>" + titre + "</b><i>" + txt + "</i>"; n.classList.add("on"); clearTimeout(note.t); note.t = setTimeout(() => n.classList.remove("on"), 6000); };
+  function majTexte() { const l = E.lieues; document.getElementById("lieues").textContent = l.toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " lieue" + (l >= 2 ? "s" : "") + " à pied"; const n = E.nommes.length; document.getElementById("lieux").textContent = n ? n + " lieu" + (n > 1 ? "x" : "") + " découvert" + (n > 1 ? "s" : "") + " · " + vus.size.toLocaleString("fr-FR") + " cases" : "aucun lieu nommé"; }
+  function decouvrir(x, y) { for (const L of lieux.values()) if (!E.nommes.includes(L.cle) && Math.hypot(L.x - x, L.y - y) < 90) { E.nommes.push(L.cle); note(L.nom, L.txt); }
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const b = bourg(Math.floor(x / T) + di, Math.floor(y / T) + dj); if (b && !E.nommes.includes("b" + b.cle) && Math.hypot(b.x - x, b.y - y) < 110) { E.nommes.push("b" + b.cle); note(b.ville ? "La ville de " + b.nom : b.nom, b.ville ? "Des remparts, un marché, un clocher. On y trouvera de quoi se ravitailler." : "Un village. On y parle une langue qui ressemble à du chant."); } } }
+  function duree(ms) { const m = Math.ceil(ms / 60000); return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0"); }
+  function boucle(now) { const dt = Math.min(.05, (now - tp) / 1000); tp = now; const enMarche = avancer(dt); cible = E.voyage ? { x: E.voyage.x1, y: E.voyage.y1 } : null;
+    document.getElementById("eta").textContent = E.voyage ? "encore " + ((E.voyage.dur - E.voyage.ecoule) / 1000 * VITESSE / 40).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " lieue(s)" : "";
+    if (suivre) { cam.x += (E.x - cam.x) * .08; cam.y += (E.y - cam.y) * .08; }
+    if (now - tSave > 2500) { tSave = now; E.vus = [...vus]; sauver(); majTexte(); }
+    dessiner(now, dt); requestAnimationFrame(boucle); }
+  majTexte(); requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

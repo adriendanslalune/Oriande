@@ -132,6 +132,8 @@ n'est ajouté avant ces retours.
   Textes joueur uniquement via i18n.
 - Commits petits, messages en anglais, conventionnels (`feat:`, `fix:`…).
 - Chaque étape de la tranche jouable = une merge request ou un commit tagué `phase1-stepN`.
+- Claude merge lui-même ses merge requests dès que le pipeline est vert, sans attendre
+  d'approbation (accord donné par Adrien).
 - Avant de proposer une fonctionnalité hors liste : demander.
 - Toujours terminer une session en vérifiant que `npm run build` passe et que
   le pipeline GitLab Pages est vert.

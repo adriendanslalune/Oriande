@@ -2,10 +2,9 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// GitHub Pages serves the site under /<repo>/. In CI the repo name comes from
-// GITHUB_REPOSITORY; locally we fall back to the known name.
-const repo = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'Oriande';
-const base = process.env.BASE_PATH ?? `/${repo}/`;
+// Relative base: the same build works at a domain root (GitLab Pages unique domain) and
+// under a sub-path (<user>.gitlab.io/<project>/). Override with BASE_PATH if needed.
+const base = process.env.BASE_PATH ?? './';
 
 export default defineConfig({
   base,

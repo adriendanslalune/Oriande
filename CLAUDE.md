@@ -7,14 +7,15 @@ perdue, paradis d'une civilisation disparue (ton : le temple des Anciens de FF7 
 sacré, ancien, mélancolique). Les ruines, la tour sans porte, le squelette de
 léviathan sont des vestiges des Oriandais.
 
-Joué sur téléphone, dans le navigateur, depuis GitHub Pages, installé comme PWA.
+Joué sur téléphone, dans le navigateur, depuis GitLab Pages, installé comme PWA.
 Public français ET anglais : tout texte passe par i18n dès le premier jour.
 
 ## Stack (non négociable)
 
 - Phaser 3 (dernière version stable) + TypeScript + Vite
-- Déploiement : GitHub Pages via GitHub Actions (`.github/workflows/deploy.yml`),
-  base path = nom du dépôt
+- Déploiement : GitLab Pages via GitLab CI (`.gitlab-ci.yml`), dépôt
+  `gitlab.com/audebrand.adrien/oriande`. Base Vite relative (`./`) : le même build
+  marche à la racine d'un domaine ou sous un sous-chemin.
 - PWA : manifest + service worker (vite-plugin-pwa), icône sur l'écran d'accueil,
   jouable hors ligne
 - Aucun backend pour l'instant. Le multijoueur viendra plus tard sur un serveur
@@ -92,7 +93,7 @@ découverte majeure en livre un.
 ## Tranche jouable — objectif de la phase 1
 
 Ordre impératif. On ne passe à l'étape suivante que quand la précédente tourne
-sur le téléphone de Doudou via GitHub Pages.
+sur le téléphone de Doudou via GitLab Pages.
 
 1. **Squelette** : Vite + Phaser + TS + PWA + déploiement. Une scène Map vide
    qui affiche « Oriande ». Déployé.
@@ -130,7 +131,7 @@ n'est ajouté avant ces retours.
 - Code et commentaires en anglais (projet ouvert, joueurs anglais).
   Textes joueur uniquement via i18n.
 - Commits petits, messages en anglais, conventionnels (`feat:`, `fix:`…).
-- Chaque étape de la tranche jouable = une PR ou un commit tagué `phase1-stepN`.
+- Chaque étape de la tranche jouable = une merge request ou un commit tagué `phase1-stepN`.
 - Avant de proposer une fonctionnalité hors liste : demander.
 - Toujours terminer une session en vérifiant que `npm run build` passe et que
-  le déploiement GitHub Pages est vert.
+  le pipeline GitLab Pages est vert.

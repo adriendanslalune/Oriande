@@ -1,9 +1,8 @@
 # Oriande
 
 2D top-down adventure on an endless old map, in search of Oriande, the lost Great City.
-Phaser 3 + TypeScript + Vite, installable PWA, deployed on GitHub Pages.
-
-Play: https://adriendanslalune.github.io/Oriande/
+Phaser 3 + TypeScript + Vite, installable PWA, deployed on GitLab Pages by `.gitlab-ci.yml`
+(the live URL is shown in the GitLab project under Deploy → Pages).
 
 ```sh
 npm install

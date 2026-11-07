@@ -13,6 +13,10 @@ export const CELL = 48;
 export const SPEED = 7;
 /** World units per league. */
 export const LEAGUE = 40;
+/** Map zoom of a new game. */
+export const START_ZOOM = 1.3;
+/** Distance between two footsteps (and fog reveals), world units. */
+export const STEP_LENGTH = 10;
 /** Footsteps kept in the trace. */
 export const TRACE_MAX = 6000;
 
@@ -51,8 +55,8 @@ export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
     version: 1, x, y, leagues: 0,
-    trace: [[Math.round(x), Math.round(y)]],
-    seen: new Set(), named: [], journey: null,
+    trace: [[Math.round(x) + 0, Math.round(y) + 0]],
+    seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
   };
   reveal(s, x, y);
   return s;
@@ -112,13 +116,17 @@ export function advance(s: GameState, dt: number, out: TravelEvent[] = []): bool
   v.elapsed += dt * 1000;
   const u = Math.min(1, v.elapsed / v.duration);
   const L = Math.hypot(v.x1 - v.x0, v.y1 - v.y0);
-  while (v.revealed < u * L) {
-    v.revealed = Math.min(u * L, v.revealed + 10);
-    const w = v.revealed / L, x = v.x0 + (v.x1 - v.x0) * w, y = v.y0 + (v.y1 - v.y0) * w;
+  // One footstep every STEP_LENGTH units, plus the arrival. (The proto advanced this by the
+  // distance of one frame, which left a footstep per frame and only ~100 s of trace.)
+  const step = (d: number): void => {
+    v.revealed = d;
+    const w = d / L, x = v.x0 + (v.x1 - v.x0) * w, y = v.y0 + (v.y1 - v.y0) * w;
     reveal(s, x, y);
-    s.trace.push([Math.round(x), Math.round(y)]);
+    s.trace.push([Math.round(x) + 0, Math.round(y) + 0]); // + 0 turns -0 into 0
     discover(s, x, y, out);
-  }
+  };
+  while (v.revealed + STEP_LENGTH <= u * L) step(v.revealed + STEP_LENGTH);
+  if (u >= 1 && v.revealed < L) step(L);
   const ax = s.x, ay = s.y;
   s.x = v.x0 + (v.x1 - v.x0) * u;
   s.y = v.y0 + (v.y1 - v.y0) * u;

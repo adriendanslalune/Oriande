@@ -1,7 +1,6 @@
 /**
  * GameState: the whole game in one object. Scenes read and write it, never keep their own.
- * Phase 1 step 2 holds exploration only; step 3 adds versioned save/load (the `seen` Set
- * will be serialised there).
+ * Everything here is plain data; `seen` is a Set for speed and save.ts serialises it.
  */
 export interface Journey {
   x0: number; y0: number;
@@ -29,4 +28,6 @@ export interface GameState {
   /** discovered places: landmark keys "ti,tj" and settlements "b" + key */
   named: string[];
   journey: Journey | null;
+  /** map zoom, CSS pixels per world unit (kept so the player comes back to the same view) */
+  zoom: number;
 }

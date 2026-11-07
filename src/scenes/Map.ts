@@ -1,14 +1,17 @@
 import Phaser from 'phaser';
 import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
-import { newGame, advance, startJourney, leaguesLeft, type TravelEvent } from '../game/travel';
+import { newGame, advance, startJourney, leaguesLeft, START_ZOOM, type TravelEvent } from '../game/travel';
+import { loadGame, saveGame } from '../game/save';
 import type { GameState } from '../game/state';
 import { drawTile, type TileArt } from '../render/tiles';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { Hud } from '../ui/hud';
 import { DPR } from '../ui/screen';
 
-const ZMIN = 0.03, ZMAX = 3, ZSTART = 1.3;
+const ZMIN = 0.03, ZMAX = 3;
+/** Autosave period while playing, ms. The game is also saved whenever the page is hidden. */
+const SAVE_EVERY = 2500;
 /** Tile textures kept in memory (at least; more if the screen needs it). */
 const CACHE_MIN = 90;
 /** New tiles drawn per frame, to keep the frame rate when the view jumps. */
@@ -28,6 +31,7 @@ export class MapScene extends Phaser.Scene {
   private overlayTexture!: Phaser.Textures.CanvasTexture;
   private hud!: Hud;
   private hudTimer = 0;
+  private saveTimer = SAVE_EVERY;
   // gestures
   private readonly fingers = new Map<number, [number, number]>();
   private pinchStart = 0;
@@ -39,9 +43,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.state = newGame();
+    this.state = loadGame() ?? newGame();
     const W = this.scale.width / DPR, H = this.scale.height / DPR;
-    this.view = { x: this.state.x, y: this.state.y, zoom: ZSTART, W, H };
+    this.view = { x: this.state.x, y: this.state.y, zoom: this.state.zoom, W, H };
 
     this.tileLayer = this.add.layer();
     this.overlayTexture = this.textures.createCanvas('overlay', this.scale.width, this.scale.height)!;
@@ -54,12 +58,19 @@ export class MapScene extends Phaser.Scene {
     this.hud = new Hud({
       zoomIn: () => this.setZoom(this.view.zoom * 1.6),
       zoomOut: () => this.setZoom(this.view.zoom / 1.6),
-      center: () => { this.follow = true; if (this.view.zoom < Z_ATLAS) this.view.zoom = ZSTART; },
+      center: () => { this.follow = true; if (this.view.zoom < Z_ATLAS) this.setZoom(START_ZOOM); },
     });
     this.game.canvas.setAttribute('aria-label', t('ui.map'));
     this.setupInput();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
+    // Phones kill background tabs without warning: save the moment the game is hidden.
+    const saveNow = (): void => { saveGame(this.state); };
+    const onVisibility = (): void => { if (document.visibilityState === 'hidden') saveNow(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', saveNow);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', saveNow);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
       this.hud.destroy();
     });
@@ -75,7 +86,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private setZoom(z: number): void {
-    this.view.zoom = Math.max(ZMIN, Math.min(ZMAX, z));
+    this.view.zoom = this.state.zoom = Math.max(ZMIN, Math.min(ZMAX, z));
   }
 
   private setupInput(): void {
@@ -178,6 +189,12 @@ export class MapScene extends Phaser.Scene {
     const events: TravelEvent[] = [];
     const walking = advance(s, dt, events);
     for (const e of events) this.onEvent(e);
+    this.saveTimer -= delta;
+    // Save on a timer, and right away when a walk ends or something was discovered.
+    if (this.saveTimer <= 0 || events.length || (walking && !s.journey)) {
+      this.saveTimer = SAVE_EVERY;
+      saveGame(s);
+    }
     if (this.follow) { v.x += (s.x - v.x) * 0.08; v.y += (s.y - v.y) * 0.08; }
 
     const visible = this.syncTiles();

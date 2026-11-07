@@ -38,6 +38,10 @@ Règles :
 2. Garder le rendu par tuiles (textures Phaser générées à la volée, cache limité à
    ~90 tuiles) et la brume de guerre.
 3. Ne pas « améliorer » le monde sans qu'on le demande. D'abord un jeu dedans.
+4. Le **dessin** de la carte a été retravaillé à la demande d'Adrien pour la lisibilité
+   (montagnes en pics gravés, collines, aventurier, routes, icônes des lieux, noms
+   détourés) : il n'est plus identique au proto. Le **terrain** (altitudes, bourgs, routes,
+   lieux, noms) reste strictement identique, et les tests de parité le vérifient.
 
 ## Architecture
 

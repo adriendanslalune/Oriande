@@ -7,6 +7,7 @@ import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { drawLandmarkIcon } from './icons';
+import { drawHills, drawMountains } from './relief';
 import { INK, PAPER } from './palette';
 
 /** Pixels per world unit in a tile texture. */
@@ -53,6 +54,16 @@ const SEGMENTS: Record<number, string[]> = {
   8: ['l', 'h'], 9: ['h', 'b'], 10: ['h', 'r', 'l', 'b'], 11: ['h', 'r'], 12: ['l', 'r'], 13: ['b', 'r'], 14: ['l', 'b'],
 };
 
+/** Watercolour of the ground at (X, Y) with altitude v, before relief shading. */
+function terrainColour(v: number, X: number, Y: number): number[] {
+  if (v < 0) { const p = Math.min(1, -v / 0.45); return [190 - 60 * p, 212 - 46 * p, 214 - 30 * p]; }
+  const hu = humidity(X, Y), et = strangeness(X, Y);
+  let c = v < 0.03 ? [228, 216, 176] : hu > 0.55 && v < 0.45 ? (et > 0.62 ? [196, 178, 196] : [170, 186, 132]) : hu < 0.32 ? [230, 208, 156] : [212, 210, 162];
+  if (v > 0.5) { const k = Math.min(1, (v - 0.5) / 0.5); c = c.map((a, n) => a + ([186, 160, 128][n] - a) * k); }
+  if (v > 1.05) c = [236, 232, 222];
+  return c;
+}
+
 export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = domCanvas): TileArt {
   const T = TILE;
   const cv = createCanvas();
@@ -70,13 +81,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const hv = (i: number, j: number): number => (i >= 0 && j >= 0 && i < N && j < N) ? h(i, j) : altitude(x0 + i * STEP, y0 + j * STEP);
   for (let jj = 0; jj < NL; jj++) for (let ii = 0; ii < NL; ii++) {
     const i = ii - 1, j = jj - 1, v = hv(i, j), X = x0 + i * STEP, Y = y0 + j * STEP;
-    let c: number[];
-    if (v < 0) { const p = Math.min(1, -v / 0.45); c = [190 - 60 * p, 212 - 46 * p, 214 - 30 * p]; }
-    else {
-      const hu = humidity(X, Y), et = strangeness(X, Y);
-      c = v < 0.03 ? [228, 216, 176] : hu > 0.55 && v < 0.45 ? (et > 0.62 ? [196, 178, 196] : [170, 186, 132]) : hu < 0.32 ? [230, 208, 156] : [212, 210, 162];
-      if (v > 0.5) { const k = Math.min(1, (v - 0.5) / 0.5); c = c.map((a, n) => a + ([186, 160, 128][n] - a) * k); }
-      if (v > 1.05) c = [236, 232, 222];
+    let c = terrainColour(v, X, Y);
+    if (v >= 0) {
       const gx = hv(i + 1, j) - hv(i - 1, j), gy = hv(i, j + 1) - hv(i, j - 1), shade = Math.max(-1, Math.min(1, (gx + gy) * 9));
       c = c.map((a) => a * (1 - shade * 0.14));
     }
@@ -118,15 +124,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
   g.setLineDash([]);
 
-  // Relief hatching: short strokes along the slope, longer where it climbs.
-  for (let gy = Math.floor((y0 - 8) / 6); gy * 6 < y0 + T + 8; gy++) for (let gx = Math.floor((x0 - 8) / 6); gx * 6 < x0 + T + 8; gx++) {
-    const jx = gx * 6 + 3 + (hash2(gx, gy * 5) - 0.5) * 4 - x0, jy = gy * 6 + 3 + (hash2(gy, gx * 5) - 0.5) * 4 - y0, v = altitude(x0 + jx, y0 + jy);
-    if (v < 0.35) continue;
-    const ga = altitude(x0 + jx + 2, y0 + jy) - altitude(x0 + jx - 2, y0 + jy), gb = altitude(x0 + jx, y0 + jy + 2) - altitude(x0 + jx, y0 + jy - 2), slope = Math.hypot(ga, gb);
-    if (slope < 0.014) continue;
-    const L = Math.min(5.5, slope * 160), ux = ga / slope, uy = gb / slope, shaded = ux * 0.6 + uy * 0.8 > 0; // south-east side darker
-    g.lineWidth = shaded ? 0.9 : 0.45; g.beginPath(); g.moveTo(jx - ux * L / 2, jy - uy * L / 2); g.lineTo(jx + ux * L / 2, jy + uy * L / 2); g.stroke();
-  }
+  // Hills: small mounds (mountains come after the vegetation, so they stand above it).
+  drawHills(g, x0, y0);
 
   // Vegetation and soils: forests, marshes, sands, strange meadows.
   // NB: sands use whatever fillStyle the previous plant left, as in the proto.
@@ -156,10 +155,18 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
       g.beginPath(); g.moveTo(jx, jy); g.lineTo(jx, jy - 2.5); g.stroke();
     } else if (hu < 0.32 && r < 0.45) { // sand
       g.fillRect(jx, jy, 0.9, 0.9); g.fillRect(jx + 3, jy + 2, 0.9, 0.9);
-    } else if (hu >= 0.32 && hu <= 0.55 && r < 0.12) { // grass
-      g.lineWidth = 0.5; g.beginPath(); g.moveTo(jx - 1.5, jy); g.lineTo(jx, jy - 2.2); g.lineTo(jx + 1.5, jy); g.stroke();
+    } else if (hu >= 0.32 && hu <= 0.55 && r < 0.12) { // a tuft of grass
+      g.lineWidth = 0.45; g.beginPath();
+      g.moveTo(jx - 0.6, jy); g.quadraticCurveTo(jx - 1, jy - 1.2, jx - 2, jy - 2);
+      g.moveTo(jx, jy); g.lineTo(jx + 0.1, jy - 2.6);
+      g.moveTo(jx + 0.6, jy); g.quadraticCurveTo(jx + 1, jy - 1.2, jx + 2, jy - 1.9);
+      g.stroke();
     }
   }
+
+  // Mountains: engraved peaks, back to front.
+  drawMountains(g, x0, y0, terrainColour);
+  g.strokeStyle = INK; g.fillStyle = INK;
 
   // The strange place of this tile, if any.
   const L = landmark(ti, tj);
@@ -170,11 +177,16 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   for (const { p, q, c } of roadsAround(ti, tj, 5)) {
     const minx = Math.min(p.x, q.x, c.x) - 10, maxx = Math.max(p.x, q.x, c.x) + 10, miny = Math.min(p.y, q.y, c.y) - 10, maxy = Math.max(p.y, q.y, c.y) + 10;
     if (maxx < x0 || minx > x0 + T || maxy < y0 || miny > y0 + T) continue;
+    // Main roads (to a city): a solid brown line with an ink edge. Village paths: dashed.
     const major = p.city || q.city;
-    for (const off of major ? [-1.3, 1.3] : [0]) {
-      g.lineWidth = major ? 0.65 : 0.8; g.setLineDash(major ? [] : [3, 2.5]); g.beginPath();
-      const len = Math.hypot(q.x - p.x, q.y - p.y), nx = -(q.y - p.y) / len * off, ny = (q.x - p.x) / len * off;
-      g.moveTo(p.x - x0 + nx, p.y - y0 + ny); g.quadraticCurveTo(c.x - x0 + nx, c.y - y0 + ny, q.x - x0 + nx, q.y - y0 + ny); g.stroke();
+    const curve = (): void => { g.beginPath(); g.moveTo(p.x - x0, p.y - y0); g.quadraticCurveTo(c.x - x0, c.y - y0, q.x - x0, q.y - y0); g.stroke(); };
+    if (major) {
+      g.setLineDash([]);
+      g.lineWidth = 2.4; g.strokeStyle = INK; curve();
+      g.lineWidth = 1.3; g.strokeStyle = 'rgb(196,160,108)'; curve();
+      g.strokeStyle = INK;
+    } else {
+      g.lineWidth = 0.9; g.setLineDash([3, 2.5]); curve();
     }
     g.setLineDash([]);
   }

@@ -32,6 +32,8 @@ export class Overlay {
   private readonly fog = document.createElement('canvas');
   private readonly fg = this.fog.getContext('2d')!;
   private leaves: Leaf[] = [];
+  /** the explorer faces the way they last walked: 1 = east, -1 = west */
+  private facing = 1;
   private leafTimer = 0;
   /** altitude of each seen fog cell, for the atlas */
   private readonly atlasCache = new Map<string, number>();
@@ -86,14 +88,14 @@ export class Overlay {
       const [x, y] = screen(L.x, L.y);
       if (x < -80 || x > v.W + 80 || y < -40 || y > v.H + 40) continue;
       ctx.font = (L.water ? 'italic ' : '') + Math.round(11 + v.zoom * 2) + "px 'IM Fell English" + (L.water ? '' : ' SC') + "', serif";
-      ctx.fillText(t(`landmark.${L.kind}.name`, { n: L.name }), x, y + 14 + v.zoom * 6);
+      this.label(t(`landmark.${L.kind}.name`, { n: L.name }), x, y + 10 + v.zoom * 12);
     }
     for (let tj = tj0; tj <= tj1; tj++) for (let ti = ti0; ti <= ti1; ti++) {
       const b = settlement(ti, tj);
       if (!b || !isSeen(s, b.x, b.y)) continue;
       const [x, y] = screen(b.x, b.y);
       ctx.font = b.city ? '700 ' + Math.round(13 + v.zoom * 3) + "px 'Old Standard TT', serif" : 'italic ' + Math.round(11 + v.zoom * 2) + "px 'IM Fell English', serif";
-      ctx.fillText(b.city ? b.name.toUpperCase() : b.name, x, y + (b.city ? 30 : 16) * Math.max(0.7, v.zoom));
+      this.label(b.city ? b.name.toUpperCase() : b.name, x, y + (b.city ? 30 : 16) * Math.max(0.7, v.zoom));
     }
     for (let mj = Math.floor(ay / SEA_CELL) - 1; mj <= Math.floor(by / SEA_CELL) + 1; mj++) for (let mi = Math.floor(ax / SEA_CELL) - 1; mi <= Math.floor(bx / SEA_CELL) + 1; mi++) {
       const sea = seaLabel(mi, mj);
@@ -113,6 +115,7 @@ export class Overlay {
       ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.beginPath();
       ctx.moveTo(tx - 5, ty - 5); ctx.lineTo(tx + 5, ty + 5); ctx.moveTo(tx + 5, ty - 5); ctx.lineTo(tx - 5, ty + 5); ctx.stroke();
     }
+    if (j && Math.abs(j.x1 - j.x0) > 1) this.facing = j.x1 > j.x0 ? 1 : -1;
     this.explorer(ex, ey, walking, now);
     this.compass(v.W - 44, 96);
     this.scaleBar(v);
@@ -199,18 +202,56 @@ export class Overlay {
     ctx.beginPath(); ctx.moveTo(x, y - 5 * s); ctx.lineTo(x, y - 2 * s); ctx.lineTo(x - j, y + 1 * s); ctx.moveTo(x, y - 2 * s); ctx.lineTo(x + j, y + 1 * s); ctx.stroke();
   }
 
-  /** The explorer: hat, bag, staff, and the walk. */
+  /** A name on the map, with a paper halo so it stays readable over forests and mountains. */
+  private label(text: string, x: number, y: number): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(236,227,203,.85)'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+    ctx.strokeText(text, x, y);
+    ctx.restore();
+    ctx.fillText(text, x, y);
+  }
+
+  /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
   private explorer(x: number, y: number, walking: boolean, now: number): void {
     const { ctx } = this;
-    const s = 1.5, j = walking ? Math.sin(now / 110) * 2.2 : 0;
-    ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.lineWidth = 1.3;
-    ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.ellipse(x, y + 2, 5, 1.6, 0, 0, 6.3); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.beginPath(); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x - j, y); ctx.moveTo(x, y - 6 * s); ctx.lineTo(x + j, y); ctx.stroke(); // legs
-    ctx.fillStyle = PAPER; ctx.beginPath(); ctx.rect(x - 2.2 * s, y - 12 * s, 4.4 * s, 6.5 * s); ctx.fill(); ctx.stroke(); // coat
-    ctx.fillStyle = INK; ctx.fillRect(x - 3.8 * s, y - 11 * s, 1.8 * s, 4 * s); // bag
-    ctx.beginPath(); ctx.arc(x, y - 14 * s, 1.8 * s, 0, 6.3); ctx.fillStyle = PAPER; ctx.fill(); ctx.stroke(); // head
-    ctx.fillStyle = INK; ctx.fillRect(x - 3 * s, y - 16 * s, 6 * s, 1 * s); ctx.fillRect(x - 1.6 * s, y - 18.2 * s, 3.2 * s, 2.4 * s); // hat
-    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + 3.5 * s, y - 13 * s); ctx.lineTo(x + 3.5 * s + j * 0.4, y + 1); ctx.stroke(); // staff
+    const u = 1.7, f = this.facing;
+    const swing = walking ? Math.sin(now / 110) : 0, j = swing * 2.4, bob = walking ? Math.abs(Math.cos(now / 110)) * 0.6 : 0;
+    const X = (dx: number): number => x + dx * u * f; // dx measured towards the facing side
+    const Y = (dy: number): number => y + dy * u - bob;
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = INK;
+    // shadow
+    ctx.globalAlpha = 0.25; ctx.fillStyle = INK; ctx.beginPath(); ctx.ellipse(x, y + 1.5, 8, 2.2, 0, 0, 6.3); ctx.fill(); ctx.globalAlpha = 1;
+    // legs and boots
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(X(-0.5), Y(-6)); ctx.lineTo(x - j, y - 1); ctx.moveTo(X(0.5), Y(-6)); ctx.lineTo(x + j, y - 1); ctx.stroke();
+    ctx.fillStyle = INK;
+    for (const fx of [x - j, x + j]) { ctx.beginPath(); ctx.ellipse(fx + f * 0.9, y - 0.6, 1.8, 1, 0, 0, 6.3); ctx.fill(); }
+    // pack on the back, bedroll on top
+    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgb(120,88,58)';
+    ctx.beginPath(); ctx.rect(Math.min(X(-3.9), X(-1.2)), Y(-13.2), 2.7 * u, 6.2 * u); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgb(200,175,130)';
+    ctx.beginPath(); ctx.ellipse(X(-2.6), Y(-13.9), 2.3 * u, 1 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
+    // coat
+    ctx.fillStyle = 'rgb(150,128,86)';
+    ctx.beginPath(); ctx.moveTo(X(-1.7), Y(-13)); ctx.lineTo(X(1.7), Y(-13)); ctx.lineTo(X(2.4), Y(-5.6)); ctx.lineTo(X(-2.4), Y(-5.6)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(X(-2), Y(-8.6)); ctx.lineTo(X(2.1), Y(-8.6)); ctx.stroke(); // belt
+    // staff, held ahead, and the arm holding it
+    const sx = X(3.6) + j * 0.3 * f;
+    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
+    ctx.beginPath(); ctx.moveTo(sx, Y(-16)); ctx.lineTo(sx + j * 0.15, y + 0.5); ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(sx, Y(-9.5)); ctx.stroke();
+    // head
+    ctx.lineWidth = 0.9; ctx.fillStyle = 'rgb(230,200,165)';
+    ctx.beginPath(); ctx.arc(X(0.2), Y(-15), 1.7 * u, 0, 6.3); ctx.fill(); ctx.stroke();
+    // wide-brimmed hat
+    ctx.fillStyle = 'rgb(84,62,42)';
+    ctx.beginPath(); ctx.ellipse(X(0.2), Y(-16.4), 3.6 * u, 0.75 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(-1.5), Y(-16.5)); ctx.lineTo(X(-1.3), Y(-19)); ctx.quadraticCurveTo(X(0.2), Y(-19.8), X(1.7), Y(-19)); ctx.lineTo(X(1.9), Y(-16.5)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
   }
 
   /** Overview of everything discovered, small, like an atlas page. */

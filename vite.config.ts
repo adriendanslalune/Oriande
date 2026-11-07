@@ -35,6 +35,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Must be explicit: vite-plugin-pwa only sets these for autoUpdate when it injects the
+        // registration itself, and we register in main.ts. Without them a new version installs
+        // but waits forever, and players keep the old game.
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,png,svg,woff2,json}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },

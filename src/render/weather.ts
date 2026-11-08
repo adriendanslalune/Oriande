@@ -1,7 +1,9 @@
 // The sky over the map, drawn by the overlay each frame in screen space: cloud shadows and
 // clouds, rain, snow, blowing sand, fog, lightning, the warm light of dawn and dusk, the night,
 // and lit windows in the towns at night.
-import { cloudCover, weatherAt, sky, type Weather } from '../world/weather';
+import { airShift, weatherAt, sky, worldTime, type Weather } from '../world/weather';
+import { CIRCUMFERENCE, wrapIndex } from '../world/planet';
+import { townWindows } from './towns';
 import { settlement } from '../world/settlements';
 import { TILE } from '../world/terrain';
 import { hash2 } from '../world/noise';
@@ -15,10 +17,9 @@ const CELL_PX = 18;
 const REFRESH_MS = 400;
 
 export class WeatherLayer {
-  private readonly clouds = document.createElement('canvas');
-  private readonly cg = this.clouds.getContext('2d')!;
-  /** the part of the cloud image holding clouds: [x, y, w, h, fineness], or none */
-  private cloudBox: [number, number, number, number, number] | null = null;
+  /** the night, at a quarter of the screen's resolution, with the lights punched out of it */
+  private readonly night = document.createElement('canvas');
+  private readonly ng = this.night.getContext('2d')!;
   private grid: Weather[] = [];
   private gw = 0;
   private gh = 0;
@@ -41,57 +42,6 @@ export class WeatherLayer {
     for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) this.grid.push(weatherAt(ox + i * step, oy + j * step));
     this.gw = gw; this.gh = gh; this.origin = [ox, oy]; this.zoom = v.zoom;
     this.centre = weatherAt(v.x, v.y);
-    // the cloud layer, three times finer than the weather grid: soft, rounded clouds; darker
-    // under rain and storms
-    const F = 3, fw = gw * F, fh = gh * F;
-    const darkOf = (w: Weather): number => (w.kind === 'storm' ? 0.5 : w.kind === 'rain' || w.kind === 'snow' ? 0.25 : 0);
-    const darkAt = (gx: number, gy: number): number => {
-      const i0 = Math.max(0, Math.min(gw - 1, Math.floor(gx))), j0 = Math.max(0, Math.min(gh - 1, Math.floor(gy)));
-      const i1 = Math.min(gw - 1, i0 + 1), j1 = Math.min(gh - 1, j0 + 1), fx = Math.max(0, Math.min(1, gx - i0)), fy = Math.max(0, Math.min(1, gy - j0));
-      const d = (i: number, j: number): number => darkOf(this.grid[j * gw + i]);
-      return (d(i0, j0) * (1 - fx) + d(i1, j0) * fx) * (1 - fy) + (d(i0, j1) * (1 - fx) + d(i1, j1) * fx) * fy;
-    };
-    this.clouds.width = fw; this.clouds.height = fh;
-    const img = this.cg.createImageData(fw, fh);
-    for (let j = 0; j < fh; j++) for (let i = 0; i < fw; i++) {
-      const w = this.grid[Math.min(gh - 1, Math.floor(j / F)) * gw + Math.min(gw - 1, Math.floor(i / F))];
-      const cover = cloudCover(ox + (i / F) * step, oy + (j / F) * step) * (w.cloud / Math.max(0.01, cloudCover(ox + Math.floor(i / F) * step, oy + Math.floor(j / F) * step)) || 0);
-      const dark = darkAt(i / F - 0.5, j / F - 0.5); // smooth between grid cells: no blocks
-      const a = Math.max(0, Math.min(1, (cover - 0.5) / 0.4)), k = (j * fw + i) * 4;
-      img.data[k] = 252 - dark * 110; img.data[k + 1] = 251 - dark * 105; img.data[k + 2] = 248 - dark * 90;
-      img.data[k + 3] = Math.round(a * (70 + dark * 60));
-    }
-    // the shadow, cast a little to the south-east, is composited into the same image (one draw
-    // per frame instead of two), and only the part holding clouds is kept
-    const ox2 = Math.round((10 / CELL_PX) * F), oy2 = Math.round((14 / CELL_PX) * F);
-    const out = this.cg.createImageData(fw, fh);
-    let x0 = fw, y0 = fh, x1 = -1, y1 = -1;
-    for (let j = 0; j < fh; j++) for (let i = 0; i < fw; i++) {
-      const k = (j * fw + i) * 4, si = i - ox2, sj = j - oy2;
-      const sa = si >= 0 && sj >= 0 ? (img.data[(sj * fw + si) * 4 + 3] / 255) * 0.18 : 0, ca = img.data[k + 3] / 255;
-      const a = ca + sa * (1 - ca);
-      if (a < 0.004) continue;
-      out.data[k] = (img.data[k] * ca + 40 * sa * (1 - ca)) / a;
-      out.data[k + 1] = (img.data[k + 1] * ca + 36 * sa * (1 - ca)) / a;
-      out.data[k + 2] = (img.data[k + 2] * ca + 30 * sa * (1 - ca)) / a;
-      out.data[k + 3] = a * 255;
-      if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j;
-    }
-    this.cg.putImageData(out, 0, 0);
-    this.cloudBox = x1 < 0 ? null : [x0, y0, x1 - x0 + 1, y1 - y0 + 1, F];
-  }
-
-  /**
-   * Paint the clouds (and their shadows) into a canvas `scale` times smaller than the screen:
-   * the overlay paints them into its fog canvas, behind the paper of unexplored lands, so the
-   * whole lot costs one full-screen draw.
-   */
-  paintClouds(g: CanvasRenderingContext2D, v: View, screen: Screen, scale: number): void {
-    if (!this.cloudBox || !this.gw) return;
-    const step = CELL_PX / this.zoom, [sx, sy] = screen(this.origin[0], this.origin[1]);
-    const [bx, by, bw, bh, F] = this.cloudBox, px = (step * v.zoom) / F;
-    g.imageSmoothingEnabled = true;
-    g.drawImage(this.clouds, bx, by, bw, bh, (sx + bx * px) / scale, (sy + by * px) / scale, (bw * px) / scale, (bh * px) / scale);
   }
 
   private at(x: number, y: number): Weather | undefined {
@@ -102,7 +52,7 @@ export class WeatherLayer {
   draw(ctx: CanvasRenderingContext2D, v: View, screen: Screen, world: World, now: number, dt: number, seen: (x: number, y: number) => boolean): void {
     if (now - this.last > REFRESH_MS || Math.abs(this.zoom - v.zoom) / v.zoom > 0.02) this.refresh(v, world, now);
     const t = now / 1000, step = CELL_PX / this.zoom;
-    // (the clouds are painted by paintClouds, into the overlay's fog canvas)
+    this.drawClouds(ctx, v, screen, world, worldTime(), seen); // the shared world clock, not the page's
     {
 
     // precipitation: drops placed on a fixed pseudo-random lattice of the screen, kept only
@@ -170,26 +120,122 @@ export class WeatherLayer {
       }
     }
 
-    // the hour: warm light at dawn and dusk, then the night, with lit towns
+    // the warm light of dawn and dusk (the night itself is painted by paintNight)
     const light = sky(v.x);
     if (light.glow > 0) { ctx.fillStyle = `rgba(255,150,70,${light.glow * 0.14})`; ctx.fillRect(0, 0, v.W, v.H); }
-    if (light.darkness > 0) {
-      ctx.fillStyle = `rgba(16,24,52,${light.darkness * 0.5})`; ctx.fillRect(0, 0, v.W, v.H);
-      const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
-      for (let tj = Math.floor(ay / TILE) - 1; tj <= Math.floor(by / TILE) + 1; tj++) for (let ti = Math.floor(ax / TILE) - 1; ti <= Math.floor(bx / TILE) + 1; ti++) {
-        const b = settlement(ti, tj);
-        if (!b || !seen(b.x, b.y)) continue;
-        const [x, y] = screen(b.x, b.y), R = (b.city ? 34 : 14) * v.zoom;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, R);
-        g.addColorStop(0, `rgba(255,210,120,${light.darkness * 0.55})`); g.addColorStop(1, 'rgba(255,190,90,0)');
-        ctx.fillStyle = g; ctx.fillRect(x - R, y - R, R * 2, R * 2);
-        ctx.fillStyle = `rgba(255,226,150,${light.darkness * 0.9})`; // a few lit windows
-        const n = b.city ? 12 : 4;
+  }
+
+  /**
+   * Little clouds drawn in clean lines, as in the French comics of the 70s: puffy tops, a flat
+   * base, a pale shaded underside; their shadows drift over the ground. Each cloud lives in the
+   * air, which moves with the wind: everyone sees the same clouds at the same moment.
+   */
+  private drawClouds(ctx: CanvasRenderingContext2D, v: View, screen: Screen, world: World, t: number, seen: (x: number, y: number) => boolean): void {
+    if (v.zoom < 0.22) return; // in the atlas, no clouds
+    const CS = 200, N = CIRCUMFERENCE / CS, [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
+    const clouds: { x: number; y: number; r: number; dark: number; puffs: [number, number, number][] }[] = [];
+    for (let aj = Math.floor(ay / CS) - 1; aj <= Math.floor(by / CS) + 2; aj++) {
+      const shift = airShift(aj * CS, t);
+      for (let ai = Math.floor((ax - shift) / CS) - 1; ai <= Math.floor((bx - shift) / CS) + 1; ai++) {
+        const wa = wrapIndex(ai, N), h = (k: number): number => hash2(wa * 17 + k * 31, aj * 29 + k * 7);
+        const x = ai * CS + shift + (h(1) - 0.5) * CS * 0.8, y = aj * CS + (h(2) - 0.5) * CS * 0.8;
+        const w = weatherAt(x, y, t);
+        if (h(3) > (w.cloud - 0.35) * 1.25) continue;
+        const r = 11 + w.cloud * 17 + h(4) * 10, n = 3 + Math.floor(h(5) * 3);
+        const puffs: [number, number, number][] = [];
         for (let k = 0; k < n; k++) {
-          if ((Math.floor(t / 3 + k) * 7 + k) % 9 === 0) continue; // a window goes dark now and then
-          const a = hash2(b.wi * 5 + k, b.tj * 3) * 6.28, d = hash2(b.wi + k * 3, b.tj * 7) * R * 0.6;
-          ctx.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.8, 1.4, 1.4);
+          const u = n === 1 ? 0 : k / (n - 1) - 0.5, hump = 1 - Math.abs(u) * 1.4;
+          puffs.push([u * r * 1.5 + (h(10 + k) - 0.5) * r * 0.2, -hump * r * 0.35 - h(20 + k) * r * 0.1, r * (0.32 + hump * 0.28 + h(30 + k) * 0.1)]);
         }
+        const dark = w.kind === 'storm' ? 0.45 : w.kind === 'rain' || w.kind === 'snow' ? 0.22 : 0;
+        clouds.push({ x, y, r, dark, puffs });
+      }
+    }
+    const z = v.zoom, path = (c: (typeof clouds)[number], dx: number, dy: number): Path2D => {
+      const p = new Path2D(), [sx, sy] = screen(c.x + dx, c.y + dy);
+      for (const [px, py, pr] of c.puffs) { p.moveTo(sx + (px + pr) * z, sy + py * z); p.arc(sx + px * z, sy + py * z, pr * z, 0, Math.PI * 2); }
+      const xs = c.puffs.map(([px, , pr]) => [px - pr * 0.8, px + pr * 0.8]).flat();
+      p.rect(sx + Math.min(...xs) * z, sy - c.r * 0.05 * z, (Math.max(...xs) - Math.min(...xs)) * z, c.r * 0.28 * z);
+      return p;
+    };
+    // the shadows on the ground, cast to the south-east
+    ctx.save();
+    ctx.fillStyle = 'rgba(40,40,60,.13)';
+    for (const c of clouds) if (seen(c.x + 18, c.y + 30)) ctx.fill(path(c, 18, 30));
+    ctx.restore();
+    // the clouds: ink outline (strokes first, then fills hide the inner ones), flat base, shading
+    for (const c of clouds) {
+      if (!seen(c.x, c.y)) continue;
+      const p = path(c, 0, 0), [sx, sy] = screen(c.x, c.y), base = sy + c.r * 0.23 * z;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(70,74,92,.75)'; ctx.lineWidth = Math.max(0.8, 1.1 * z); ctx.stroke(p);
+      const shade = 252 - c.dark * 120;
+      ctx.fillStyle = `rgba(${shade},${shade},${shade + 2 - c.dark * 10},.95)`; ctx.fill(p);
+      ctx.clip(p); // a pale blue-grey underside
+      ctx.fillStyle = `rgba(${170 - c.dark * 60},${182 - c.dark * 60},${204 - c.dark * 60},.55)`;
+      ctx.fillRect(sx - c.r * 2 * z, base - c.r * 0.22 * z, c.r * 4 * z, c.r * 0.5 * z);
+      ctx.strokeStyle = 'rgba(70,74,92,.35)'; ctx.lineWidth = 0.6; // a couple of curls on the puffs
+      for (const [px, py, pr] of c.puffs.slice(1, -1)) { ctx.beginPath(); ctx.arc(sx + px * z, sy + py * z + pr * 0.15 * z, pr * 0.55 * z, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke(); }
+      ctx.restore();
+    }
+  }
+
+  /** The lights of the night, in screen space: [x, y, radius, kind (0 torch, 1 window)]. */
+  lights(v: View, screen: Screen, world: World, seen: (x: number, y: number) => boolean, explorer: [number, number], now: number): [number, number, number, number][] {
+    const d = sky(v.x).darkness, out: [number, number, number, number][] = [];
+    if (d < 0.12) return out;
+    const t = now / 1000, z = v.zoom;
+    const [ex, ey] = screen(explorer[0], explorer[1]);
+    out.push([ex, ey - 22 * z / 1.3, (62 + Math.sin(t * 11) * 2 + Math.sin(t * 17) * 1.5) * z, 0]);
+    const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
+    for (let tj = Math.floor(ay / TILE) - 1; tj <= Math.floor(by / TILE) + 1; tj++) for (let ti = Math.floor(ax / TILE) - 1; ti <= Math.floor(bx / TILE) + 1; ti++) {
+      const b = settlement(ti, tj);
+      if (!b || !seen(b.x, b.y)) continue;
+      (townWindows.get(b.rkey) ?? []).forEach(([dx, dy, w], k) => {
+        if (hash2(b.wi * 13 + k, b.tj + Math.floor(t / 20 + k * 0.37)) < 0.18) return; // some windows go dark
+        const [x, y] = screen(b.x + dx, b.y + dy);
+        out.push([x, y, w * 0.32 * z, 1]);
+      });
+    }
+    return out;
+  }
+
+  /**
+   * The night: a deep blue veil, at a quarter of the screen's resolution, with the lights
+   * punched out of it, painted into the overlay's fog canvas (`g`, `scale` times smaller).
+   */
+  paintNight(g: CanvasRenderingContext2D, v: View, scale: number, lights: [number, number, number, number][]): void {
+    const d = sky(v.x).darkness;
+    if (d <= 0) return;
+    const W = Math.ceil(v.W / scale), H = Math.ceil(v.H / scale);
+    if (this.night.width !== W || this.night.height !== H) { this.night.width = W; this.night.height = H; }
+    const ng = this.ng;
+    ng.globalCompositeOperation = 'source-over'; ng.clearRect(0, 0, W, H);
+    ng.fillStyle = `rgba(14,30,78,${d * 0.66})`; ng.fillRect(0, 0, W, H);
+    ng.globalCompositeOperation = 'destination-out';
+    for (const [x, y, r, kind] of lights) {
+      const R = (kind ? r * 9 : r) / scale, gr = ng.createRadialGradient(x / scale, y / scale, 0, x / scale, y / scale, R);
+      gr.addColorStop(0, `rgba(0,0,0,${kind ? 0.55 : 0.92})`); gr.addColorStop(kind ? 1 : 0.7, `rgba(0,0,0,${kind ? 0 : 0.35})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ng.fillStyle = gr; ng.fillRect(x / scale - R, y / scale - R, R * 2, R * 2);
+    }
+    ng.globalCompositeOperation = 'source-over';
+    g.drawImage(this.night, 0, 0);
+  }
+
+  /** Over the night: the warm glow of the torch, and the lit windows. */
+  drawLights(ctx: CanvasRenderingContext2D, v: View, lights: [number, number, number, number][]): void {
+    const d = sky(v.x).darkness;
+    if (d < 0.12) return;
+    for (const [x, y, r, kind] of lights) {
+      if (kind === 0) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255,196,96,${0.32 * d})`); g.addColorStop(0.5, `rgba(255,170,70,${0.14 * d})`); g.addColorStop(1, 'rgba(255,160,60,0)');
+        ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      } else {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+        g.addColorStop(0, `rgba(255,210,120,${0.35 * d})`); g.addColorStop(1, 'rgba(255,200,110,0)');
+        ctx.fillStyle = g; ctx.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
+        ctx.fillStyle = `rgba(255,228,150,${d})`; ctx.fillRect(x - r * 0.5, y - r * 0.6, r, r * 1.2); // the window pane
       }
     }
   }

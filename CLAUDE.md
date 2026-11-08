@@ -94,9 +94,11 @@ Règles qui restent :
    brouillard (bas-fonds humides à l'aube). Au départ : ~59 % clair, ~28 % couvert, ~13 % pluie.
    Effet : la vision (`visibilityAt`) baisse sous la pluie, la neige, le brouillard, le sable
    et la nuit (jusqu'à −40 %). Pas d'effet sur la marche pour l'instant. Rendu
-   (`render/weather.ts`) : nuages et ombres peints dans le canvas de brume de guerre (un seul
-   dessin plein écran), pluie/neige/sable en tracés groupés, éclairs, lueur de l'aube et du
-   crépuscule, nuit bleutée avec fenêtres allumées dans les bourgs. HUD : temps, vent, moment.
+   (`render/weather.ts`) : petits nuages dessinés « ligne claire » (Moebius) qui vivent dans
+   l'air emporté par le vent (`airShift`), avec leur ombre au sol ; pluie/neige/sable en tracés
+   groupés, éclairs, lueur de l'aube et du crépuscule. **Nuit** : voile bleu nuit (quart de
+   résolution, peint dans le canvas de brume) percé par les lumières : la **torche** de
+   l'explorateur et les **fenêtres** des maisons (`townWindows`, remplies au dessin des bourgs). HUD : temps, vent, moment.
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
    plus proche des deux) : liaisons réciproques et planes, les routes se rejoignent dans les
    bourgs au lieu de se croiser. Les routes serpentent (bruit perpendiculaire, toujours sur

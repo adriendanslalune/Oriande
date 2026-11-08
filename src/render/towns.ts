@@ -86,10 +86,16 @@ function church(g: CanvasRenderingContext2D, x: number, y: number, s: number): v
 }
 
 /** Houses and buildings: drawn after the roads. */
+/**
+ * Where the windows are, per town (by `rkey`), relative to the town centre: [dx, dy, size].
+ * Filled when the town is drawn on a tile, so the overlay can light them at night.
+ */
+export const townWindows = new Map<string, [number, number, number][]>();
+
 export function drawTown(g: CanvasRenderingContext2D, b: Settlement, x: number, y: number, roads: Road[]): void {
   const dirs = roadDirections(b, roads);
   const h = (k: number, a: number): number => hash2(b.wi * 17 + k * 13 + a, b.tj * 19 - k * 7 + a * 3);
-  type Item = { x: number; y: number; draw: () => void };
+  type Item = { x: number; y: number; draw: () => void; w?: number; seed?: number };
   const items: Item[] = [];
   if (!b.city) {
     // a village: houses along its roads, a chapel when it is big enough
@@ -98,7 +104,7 @@ export function drawTown(g: CanvasRenderingContext2D, b: Settlement, x: number, 
       const a = dirs[k % dirs.length], along = 2 + h(k, 1) * 11, side = (h(k, 2) < 0.5 ? -1 : 1) * (2.5 + h(k, 3) * 2);
       const hx = x + Math.cos(a) * along - Math.sin(a) * side, hy = y + Math.sin(a) * along + Math.cos(a) * side;
       const w = 4.2 + h(k, 4) * 1.6, roof = ROOF[Math.floor(h(k, 5) * ROOF.length)], seed = h(k, 6);
-      items.push({ x: hx, y: hy, draw: () => house(g, hx, hy, w, roof, seed) });
+      items.push({ x: hx, y: hy, w, seed, draw: () => house(g, hx, hy, w, roof, seed) });
     }
     if (n >= 7) items.push({ x: x - 1, y: y + 1, draw: () => church(g, x - 1, y + 1, 0.7) });
   } else {
@@ -134,7 +140,7 @@ export function drawTown(g: CanvasRenderingContext2D, b: Settlement, x: number, 
       const px = x + (h(k, 10) - 0.5) * 2 * R, py = y + (h(k, 11) - 0.5) * 2 * R * 0.82;
       if (!inside(px, py) || !offStreet(px, py)) continue;
       const w = 3 + h(k, 12) * 1.6, roof = ROOF[Math.floor(h(k, 13) * ROOF.length)], seed = h(k, 14);
-      items.push({ x: px, y: py, draw: () => house(g, px, py, w, roof, seed) });
+      items.push({ x: px, y: py, w, seed, draw: () => house(g, px, py, w, roof, seed) });
     }
     // the cathedral near the square
     const ca = dirs[0] + Math.PI * 0.75, cx = x + Math.cos(ca) * 9, cy = y + Math.sin(ca) * 7 + 3;
@@ -144,9 +150,14 @@ export function drawTown(g: CanvasRenderingContext2D, b: Settlement, x: number, 
       const a = dirs[k % dirs.length], along = R + 5 + h(k, 20) * 12, side = (h(k, 21) < 0.5 ? -1 : 1) * (3 + h(k, 22) * 2);
       const hx = x + Math.cos(a) * along - Math.sin(a) * side, hy = y + Math.sin(a) * along * 0.86 + Math.cos(a) * side;
       const w = 3.4 + h(k, 23), roof = ROOF[Math.floor(h(k, 24) * ROOF.length)], seed = h(k, 25);
-      items.push({ x: hx, y: hy, draw: () => house(g, hx, hy, w, roof, seed) });
+      items.push({ x: hx, y: hy, w, seed, draw: () => house(g, hx, hy, w, roof, seed) });
     }
   }
   items.sort((p, q) => p.y - q.y); // back to front
+  // a window on the wall of each house, on the side away from the door; two on a church
+  townWindows.set(b.rkey, items.map((it) => {
+    const w = it.w ?? 4, side = (it.seed ?? 0.5) - 0.5 > 0 ? -1 : 1;
+    return [it.x - x + side * w * 0.22, it.y - y - w * 0.3, w];
+  }));
   for (const it of items) it.draw();
 }

@@ -85,9 +85,14 @@ export interface Weather {
  * Cloud cover at (x, y): small cells (~15 leagues) carried by the prevailing wind of the band,
  * inside slower, larger weather systems. Periodic around the planet.
  */
-export function cloudCover(x: number, y: number, t = worldTime()): number {
+/** How far the air has drifted at latitude y: the cloud field (and the clouds) move with it. */
+export function airShift(y: number, t = worldTime()): number {
   const lat = Math.abs(latitude(y)), dir = lat < 30 || lat >= 60 ? -1 : 1;
-  const shift = (dir * WIND * t) % CIRCUMFERENCE; // the field drifts with the wind
+  return (dir * WIND * t) % CIRCUMFERENCE;
+}
+
+export function cloudCover(x: number, y: number, t = worldTime()): number {
+  const shift = airShift(y, t); // the field drifts with the wind
   const cell = fbm((x - shift) / 640, y / 640 + t / 4000, 3, CIRCUMFERENCE / 640);
   const system = fbm((x - shift * 0.6) / 5_120, y / 5_120 - t / 30_000, 2, CIRCUMFERENCE / 5_120);
   return Math.max(0, Math.min(1, (cell - 0.5) * 1.6 + (system - 0.5) * 1.8 + 0.38));

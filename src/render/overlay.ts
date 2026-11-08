@@ -19,6 +19,7 @@ import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
 import { cityRadius } from './towns';
 import { WeatherLayer } from './weather';
+import { sky } from '../world/weather';
 import { LANDMARK_ART, WONDER_ART, landmarkImage, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
 
@@ -109,11 +110,12 @@ export class Overlay {
       gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.6, 'rgba(0,0,0,.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
       fg.fillStyle = gr; fg.fillRect(sx / 4 - rr, sy / 4 - rr, rr * 2, rr * 2);
     }
-    // the clouds go behind the paper: seen lands get clouds, unexplored ones stay blank
-    fg.globalCompositeOperation = 'destination-over';
-    this.weather.paintClouds(fg, v, screen, 4);
+    // the night over everything (paper included), with the lights punched out of it
+    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now);
     fg.globalCompositeOperation = 'source-over';
+    this.weather.paintNight(fg, v, 4, lights);
     ctx.imageSmoothingEnabled = true; ctx.drawImage(fog, 0, 0, v.W, v.H);
+    this.weather.drawLights(ctx, v, lights);
     ctx.fillStyle = 'rgba(42,36,29,.18)'; ctx.font = "italic 22px 'IM Fell English', serif"; ctx.textAlign = 'center';
     for (let k = 0; k < 3; k++) {
       const a = k * 2.1 + 0.4, X = s.x + Math.cos(a) * 560, Y = s.y + Math.sin(a) * 560;
@@ -167,7 +169,7 @@ export class Overlay {
       ctx.moveTo(tx - 5, ty - 5); ctx.lineTo(tx + 5, ty + 5); ctx.moveTo(tx + 5, ty - 5); ctx.lineTo(tx - 5, ty + 5); ctx.stroke();
       if (Math.abs(ahead.dx) > 0.5) this.facing = ahead.dx > 0 ? 1 : -1;
     }
-    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM);
+    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
     this.compass(v.W - 44, 96);
     this.scaleBar(v);
   }
@@ -400,7 +402,7 @@ export class Overlay {
   }
 
   /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
-  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number): void {
+  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false): void {
     const { ctx } = this;
     // Drawn at a fixed size in the world: it shrinks when zooming out, like everything else.
     ctx.save();
@@ -441,6 +443,17 @@ export class Overlay {
     ctx.fillStyle = 'rgb(84,62,42)';
     ctx.beginPath(); ctx.ellipse(X(0.2), Y(-16.4), 3.6 * u, 0.75 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(X(-1.5), Y(-16.5)); ctx.lineTo(X(-1.3), Y(-19)); ctx.quadraticCurveTo(X(0.2), Y(-19.8), X(1.7), Y(-19)); ctx.lineTo(X(1.9), Y(-16.5)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    if (torch) { // a torch held high in the other hand, its flame flickering
+      const tx = X(-2.6), ty = Y(-20.5), fl = Math.sin(now / 70) * 0.4 + Math.sin(now / 43) * 0.3;
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(X(-1.2), Y(-12)); ctx.lineTo(X(-2.2), Y(-15)); ctx.stroke(); // the arm
+      ctx.strokeStyle = 'rgb(90,62,38)'; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(X(-2.1), Y(-13.5)); ctx.lineTo(tx, ty + 2.5); ctx.stroke(); // the handle
+      ctx.fillStyle = 'rgba(255,150,40,.95)';
+      ctx.beginPath(); ctx.ellipse(tx + fl * 0.6, ty - 1.2, 2.2, 3.6 + fl, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,236,150,.95)';
+      ctx.beginPath(); ctx.ellipse(tx + fl * 0.3, ty - 0.4, 1.1, 2 + fl * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.restore();
     ctx.restore();
   }

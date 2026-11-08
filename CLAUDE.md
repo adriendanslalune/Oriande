@@ -75,7 +75,7 @@ Règles qui restent :
    tuiles vides, décalées ou rayées sur Android). `?tiles=main` force le dessin sur le fil principal.
    **Résolution adaptative** (`ui/screen.ts`, `Map.adaptQuality`) : si deux mesures de 2 s d'affilée
    tombent sous ~33 images/s, le jeu passe de ×2 à ×1,5 puis ×1 (retenu par appareil,
-   `oriande.dpr`) ; `?dpr=` force une valeur. Grand écran sous Firefox : 22 → 56 images/s.
+   `oriande.dpr.gl`, remesuré depuis WebGL) ; `?dpr=` force une valeur. Grand écran sous Firefox : 22 → 56 images/s.
 2. Ne pas « améliorer » le monde sans qu'Adrien le demande.
 3. Dessin retravaillé à sa demande : montagnes en pics gravés, collines, aventurier à
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,

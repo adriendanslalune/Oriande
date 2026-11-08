@@ -4,7 +4,8 @@
  * (setDPR) when the device cannot keep up: a big tablet screen in Firefox has four times the
  * pixels of a phone, and the cost of the map is in the pixels.
  */
-const KEY = 'oriande.dpr';
+// measured again with the WebGL renderer (the old canvas measure no longer says anything)
+const KEY = 'oriande.dpr.gl';
 const forced = Number(new URLSearchParams(location.search).get('dpr'));
 /** The device's own ratio, capped. */
 export const DEVICE_DPR = Math.min(2, Math.max(1, window.devicePixelRatio || 1));

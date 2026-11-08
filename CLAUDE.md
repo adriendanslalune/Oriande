@@ -106,9 +106,12 @@ Règles qui restent :
    espèce tirée selon l'habitat (biome, `mountain` au-dessus de 0,6, `sea` en eau profonde, `ice`) ;
    les petits sont bien plus nombreux que les gros (poids). Ils errent autour de leur gîte sur
    l'**heure réelle partagée** (marche puis broutent), restent sur leur terrain, loin des bourgs
-   et hors des lacs ; rayon raccourci près de l'eau. Silhouettes gravées colorées (pattes qui
-   marchent, lièvres qui sautent, baleines qui soufflent et plongent, phoques). Invisibles quand
-   ils feraient moins de 4 px. Champs `food` et `danger` prêts pour la chasse et le combat (plus tard).
+   et hors des lacs ; rayon raccourci près de l'eau. Dessin « planche de naturaliste » (refait à la demande
+   d'Adrien) : un contour anatomique lisse par espèce (paramètres `look` dans le JSON), trait fin,
+   lavis, hachures d'ombre qui s'effacent sur les petites figures, pattes articulées qui marchent,
+   pâture où le cou descend, lièvres qui sautent, marmottes qui se dressent, baleines qui soufflent
+   et plongent. Chaque pose est quantifiée et mise en cache (bitmap par pose et par taille) :
+   < 1 ms par image. Invisibles quand ils feraient moins de 4 px. Champs `food` et `danger` prêts pour la chasse et le combat (plus tard).
    La **brume** se lève en fondu (~0,9 s par case nouvellement vue). Le titre d'atlas et la rose
    des vents se placent sous l'en-tête (`View.top`).
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg

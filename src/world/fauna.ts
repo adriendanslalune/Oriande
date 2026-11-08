@@ -10,13 +10,30 @@ import { CIRCUMFERENCE, beyondIce, wrapIndex } from './planet';
 
 export type Habitat = 'temperate' | 'savanna' | 'tundra' | 'jungle' | 'desert' | 'mountain' | 'sea' | 'ice';
 
+/** How an animal is drawn (side view, drawing units; see render/animals.ts). */
 export interface Look {
   kind: 'quad' | 'hopper' | 'whale' | 'seal';
+  /** body length, rump to chest */
   len: number;
+  /** height at the shoulder, legs included */
   height?: number;
+  /** share of the height that is leg */
+  legs?: number;
+  neck?: number; neckUp?: number;
+  head?: number; headDepth?: number; headDown?: number;
+  ears?: 'point' | 'round' | 'flap' | number;
+  earSize?: number;
+  tail?: 'thin' | 'tuft' | 'bush' | 'curl' | 'short';
+  tailLen?: number;
+  feet?: 'hoof' | 'paw' | 'pad' | 'column';
+  hump?: number; humpAt?: 'withers' | 'back';
+  antlers?: number; horns?: 'lyre' | 'curve'; hornLen?: number; tusks?: number; trunk?: number; beard?: number;
+  mane?: 'lion' | 'short'; stripes?: boolean; spots?: boolean; bristles?: boolean; flank?: boolean;
   color: number[];
-  ears?: number; tail?: number; neck?: number; antlers?: number; horns?: number; tusks?: number;
-  hump?: number; trunk?: number; stripes?: boolean; spots?: boolean; mane?: boolean;
+  /** secondary colours: tail tip, bib, face, saddle, scut */
+  tip?: number[]; bib?: number[]; face?: number[]; saddle?: number[]; tailColor?: number[];
+  /** sits up on its haunches when still (marmot) */
+  sits?: boolean;
 }
 
 export interface Species {
@@ -34,7 +51,7 @@ export interface Species {
   look: Look;
 }
 
-export const SPECIES = data.species as Species[];
+export const SPECIES = data.species as unknown as Species[];
 
 /** Herds are laid out on this grid (it divides the circumference). */
 export const FAUNA_CELL = 128;

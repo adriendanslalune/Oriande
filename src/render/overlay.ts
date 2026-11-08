@@ -10,6 +10,7 @@ import { wondersNear } from '../world/wonders';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear } from '../world/fauna';
 import { drawAnimal } from './animals';
+import { DPR } from '../ui/screen';
 import { worldTime } from '../world/weather';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
@@ -194,7 +195,7 @@ export class Overlay {
 
   /** Wild animals wandering where the explorer has seen, on the shared world clock. */
   private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number): void {
-    const t = worldTime(), time = now / 1000, scale = 1.6 * v.zoom / START_ZOOM;
+    const t = worldTime(), time = now / 1000, scale = 2 * v.zoom / START_ZOOM;
     const lakes = lakesNear(ax, ay, bx, by);
     const list: { a: ReturnType<typeof animalsOf>[number]; look: Parameters<typeof drawAnimal>[1]; x: number; y: number }[] = [];
     for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320)) {
@@ -208,7 +209,7 @@ export class Overlay {
       }
     }
     list.sort((p, q) => p.y - q.y);
-    for (const p of list) drawAnimal(this.ctx, p.look, p.a, p.x, p.y, scale, time + p.a.phase);
+    for (const p of list) drawAnimal(this.ctx, p.look, p.a, p.x, p.y, scale, time + p.a.phase, DPR);
     this.ctx.globalAlpha = 1;
   }
 

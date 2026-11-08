@@ -58,7 +58,8 @@ Règles :
    repérées à 500 unités, fiche prioritaire. Aucun lieu étrange à moins de 120 d'une merveille.
 8. Climats (demandé par Adrien) : `world/climate.ts` ajoute une température (zones de
    ~50 lieues, plus froid en altitude). Froid (< 0,333, ~15 % des terres) : toundra et
-   banquise (pas de vagues) ; chaud (> 0,635) et sec : désert de dunes (pas de forêt).
+   banquise (pas de vagues) ; chaud (> 0,635) : désert de dunes (humidité < 0,5),
+   savane à acacias (0,5–0,6), jungle dense à palmiers (≥ 0,6).
    Les régions violettes de champignons géants du proto sont supprimées (le lieu
    « Forêt-Champignon » reste). L'altitude, les bourgs et les lieux ne changent pas.
 
@@ -148,6 +149,19 @@ n'est ajouté avant ces retours.
 - Pas de plan de ville détaillé.
 - Pas de centaine d'illustrations : 5 placeholders suffisent.
 - Pas d'optimisation prématurée du rendu tant que ça tient 60 fps.
+
+## Plus tard (décidé, pas encore fait)
+
+Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand il le dit.
+- **Météo** : nuages, pluie, soleil, neige, vent. S'appuyer sur les climats
+  (`world/climate.ts`) : neige en toundra, orages en jungle, vent de sable au désert.
+  Penser à son effet sur la vision (brume, pluie) et sur la marche.
+- **Règles de déplacement** : montagnes infranchissables sans équipement (le calcul
+  d'itinéraire `game/route.ts` a un seul prédicat `walkable` à étendre), marche plus
+  rapide sur les routes, terrain plus ou moins lent.
+- **Légende de la carte** : un cartouche ouvrable d'un tap.
+- **Illustrations** générées (voir `docs/illustrations.md`) : les brancher quand elles
+  arrivent, avec repli sur les dessins actuels.
 
 ## Conventions
 

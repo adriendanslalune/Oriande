@@ -3,8 +3,8 @@
 // on a canvas and then cached as a Phaser texture by the Map scene.
 import { hash2 } from '../world/noise';
 import { TILE, altitude, humidity } from '../world/terrain';
-import { coldness, heat, temperature } from '../world/climate';
-import { drawDunes, drawIce } from './climate';
+import { DESERT_HUMIDITY, JUNGLE_HUMIDITY, coldness, heat, temperature } from '../world/climate';
+import { drawDunes, drawIce, drawJungle, drawSavanna } from './climate';
 import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
 import { landmark } from '../world/landmarks';
@@ -48,7 +48,10 @@ function terrainColour(v: number, X: number, Y: number): number[] {
   const hu = humidity(X, Y);
   let c = v < 0.03 ? [228, 216, 176] : hu > 0.55 && v < 0.45 ? [170, 186, 132] : hu < 0.32 ? [230, 208, 156] : [212, 210, 162];
   c = mix(c, [206, 204, 186], cold); // tundra: grey-green, washed out
-  if (hu < 0.55) c = mix(c, [238, 208, 142], heat(t)); // desert sand
+  // hot lands: desert sand, savanna gold or jungle green, blending smoothly with humidity
+  const k = (a: number, b: number): number => Math.max(0, Math.min(1, (hu - a) / (b - a)));
+  const hot = mix(mix([238, 208, 142], [200, 192, 104], k(DESERT_HUMIDITY - 0.02, DESERT_HUMIDITY + 0.02)), [104, 148, 82], k(JUNGLE_HUMIDITY - 0.02, JUNGLE_HUMIDITY + 0.02));
+  c = mix(c, hot, heat(t));
   if (v > 0.5) { const k = Math.min(1, (v - 0.5) / 0.5); c = c.map((a, n) => a + ([186, 160, 128][n] - a) * k); }
   if (v > 1.05 - cold * 0.3) c = [236, 232, 222]; // snow, lower in the cold
   return c;
@@ -116,15 +119,21 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
   drawHills(g, x0, y0, cleared);
 
-  // Vegetation and soils by climate: forests, marshes, grass, sands; tundra; nothing in the desert.
+  // Vegetation and soils by climate: forests, marshes, grass, sands; tundra; savanna and jungle;
+  // nothing in the desert.
   // NB: sands use whatever fillStyle the previous plant left, as in the proto.
   for (let gy = Math.floor((y0 - 12) / 10); gy * 10 < y0 + T + 12; gy++) for (let gx = Math.floor((x0 - 12) / 10); gx * 10 < x0 + T + 12; gx++) {
     const X = gx * 10 + 5 + (hash2(gx * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(gx, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
     const hu = humidity(X, Y), r = hash2(X | 0, Y | 0);
     if (cleared(X, Y)) continue; // fields and gardens around towns
-    const t = temperature(X, Y, v), cold = coldness(t) > 0.5, hot = heat(t) > 0.5 && hu < 0.55;
-    if (hot) continue; // the desert: dunes come later
+    const t = temperature(X, Y, v), cold = coldness(t) > 0.5;
+    if (heat(t) > 0.5) { // hot lands
+      if (hu < DESERT_HUMIDITY) continue; // the desert: dunes come later
+      if (hu < JUNGLE_HUMIDITY) drawSavanna(g, jx, jy, r);
+      else drawJungle(g, jx, jy, r, v);
+      continue;
+    }
     if (cold) { // tundra: a few stunted conifers, lichen, frozen pools
       if (hu > 0.55 && r < 0.3) {
         const t2 = 2.4 + r * 3;

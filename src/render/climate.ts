@@ -72,3 +72,43 @@ export function drawIce(g: CanvasRenderingContext2D, x0: number, y0: number): vo
     g.beginPath(); g.moveTo(x - r * 0.5, y + r * 0.45); g.lineTo(x + r * 0.45, y + r * 0.5); g.stroke();
   }
 }
+
+/** Savanna: a lone flat-topped acacia now and then, and tall dry grass. */
+export function drawSavanna(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  if (r < 0.1) {
+    const w = 4.5 + r * 22, hgt = 4 + r * 14;
+    g.fillStyle = 'rgba(42,36,29,.22)'; g.beginPath(); g.ellipse(x + 2, y + 0.6, w * 0.8, 1.2, 0, 0, 6.3); g.fill(); // shadow
+    g.strokeStyle = 'rgb(90,70,50)'; g.lineWidth = 0.7;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x - 0.4, y - hgt * 0.6); g.lineTo(x - 1.8, y - hgt); g.moveTo(x - 0.4, y - hgt * 0.6); g.lineTo(x + 1.6, y - hgt); g.stroke();
+    g.fillStyle = 'rgba(128,140,74,.95)'; g.strokeStyle = 'rgba(42,36,29,.8)'; g.lineWidth = 0.5;
+    g.beginPath(); g.ellipse(x, y - hgt - 0.6, w, 1.6, 0, 0, 6.3); g.fill(); g.stroke(); // the umbrella crown
+  } else if (r < 0.5) {
+    g.strokeStyle = 'rgba(150,120,60,.85)'; g.lineWidth = 0.4; g.beginPath();
+    for (const [dx, h] of [[-1, 2.6], [-0.3, 3.4], [0.4, 2.9], [1.1, 2.2]]) { g.moveTo(x + dx * 0.5, y); g.quadraticCurveTo(x + dx, y - h * 0.6, x + dx * 1.6, y - h); }
+    g.stroke();
+  }
+}
+
+/** Jungle: a dense canopy of big dark crowns, with palms here and there. */
+export function drawJungle(g: CanvasRenderingContext2D, x: number, y: number, r: number, v: number): void {
+  if (r > 0.97) return;
+  if (r > 0.86 && v < 0.25) { // a palm
+    g.strokeStyle = 'rgb(100,78,52)'; g.lineWidth = 0.8;
+    g.beginPath(); g.moveTo(x, y + 1); g.quadraticCurveTo(x + 1.5, y - 3, x + 0.8, y - 6); g.stroke();
+    g.strokeStyle = 'rgba(52,96,52,.95)'; g.lineWidth = 0.9;
+    for (let a = 0; a < 5; a++) {
+      const ang = -Math.PI / 2 + (a - 2) * 0.7, ex = x + 0.8 + Math.cos(ang) * 3.6, ey = y - 6 + Math.sin(ang) * 2 + 1.2;
+      g.beginPath(); g.moveTo(x + 0.8, y - 6); g.quadraticCurveTo((x + 0.8 + ex) / 2, y - 7.6, ex, ey); g.stroke();
+    }
+    return;
+  }
+  const R = 3 + r * 1.8;
+  g.fillStyle = 'rgba(30,40,24,.28)'; g.beginPath(); g.ellipse(x + 1.6, y + 1.5, R * 1.1, R * 0.75, 0, 0, 6.3); g.fill(); // shadow
+  g.strokeStyle = 'rgba(30,40,24,.85)'; g.lineWidth = 0.5;
+  const shades = ['rgba(70,120,62,.95)', 'rgba(58,104,56,.95)', 'rgba(86,134,70,.95)'];
+  for (const [dx, dy, k, c] of [[-0.8, 0.3, 0.75, 0], [0.9, 0.4, 0.7, 1], [0, -0.6, 0.85, 2]] as const) {
+    g.fillStyle = shades[c]; g.beginPath(); g.arc(x + dx * R * 0.7, y + dy * R * 0.7, R * k, 0, 6.3); g.fill(); g.stroke();
+  }
+  g.strokeStyle = 'rgba(200,230,170,.5)'; g.lineWidth = 0.4; // a glint of sun on the leaves
+  g.beginPath(); g.arc(x - R * 0.25, y - R * 0.55, R * 0.35, 3.6, 5.2); g.stroke();
+}

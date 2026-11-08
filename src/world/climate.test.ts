@@ -3,7 +3,7 @@ import { biome, temperature, COLD } from './climate';
 import { altitude, humidity } from './terrain';
 
 describe('climates', () => {
-  it('the world has tundra, frozen seas and deserts, in sensible shares', () => {
+  it('the world has tundra, frozen seas, deserts, savannas and jungles, in sensible shares', () => {
     const n: Record<string, number> = {}; let land = 0;
     for (let y = -60000; y <= 60000; y += 1500) for (let x = -60000; x <= 60000; x += 1500) {
       const v = altitude(x, y), b = biome(x, y, v, humidity(x, y));
@@ -12,8 +12,11 @@ describe('climates', () => {
     }
     expect(n.tundra / land).toBeGreaterThan(0.08);
     expect(n.tundra / land).toBeLessThan(0.3);
-    expect(n.desert / land).toBeGreaterThan(0.03);
-    expect(n.desert / land).toBeLessThan(0.25);
+    // hot lands split into desert, savanna and jungle
+    const hot = n.desert + n.savanna + n.jungle;
+    expect(hot / land).toBeGreaterThan(0.08);
+    expect(hot / land).toBeLessThan(0.3);
+    for (const b of ['desert', 'savanna', 'jungle']) expect(n[b] / hot).toBeGreaterThan(0.15);
     expect(n.ice).toBeGreaterThan(50);
   });
 

@@ -1,5 +1,6 @@
 // Walking and the fog of war. Pure rules, ported from the proto, no Phaser.
 import { altitude, humidity, TILE } from '../world/terrain';
+import { biome } from '../world/climate';
 import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
@@ -19,8 +20,9 @@ export const MAX_SIGHT = 600;
  * ground rises (a hilltop or a summit shows the whole country around).
  */
 export function sightRadius(x: number, y: number): number {
-  const v = altitude(x, y), hu = humidity(x, y);
-  if (v >= 0.02 && v < 0.45 && hu > 0.55) return FOREST_SIGHT; // the forests of the map
+  const v = altitude(x, y), hu = humidity(x, y), b = biome(x, y, v, hu);
+  if (b === 'jungle' || (b === 'temperate' && v >= 0.02 && v < 0.45 && hu > 0.55)) return FOREST_SIGHT; // forests and jungles
+  if (b === 'desert' || b === 'savanna') return Math.min(MAX_SIGHT, 260 + Math.max(0, v - 0.3) * 1000); // open country
   const marsh = hu > 0.62 && v < 0.1;
   const base = marsh ? 150 : VIEW_RADIUS;
   return Math.min(MAX_SIGHT, base + Math.max(0, v - 0.3) * 1000);

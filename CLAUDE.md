@@ -85,6 +85,18 @@ Règles qui restent :
    entre. Rivières et lacs sont dessinés **avant** la végétation, qui les évite (`waterMask`)
    et déborde sur les berges. Animation du courant : reflets fins et lents qui scintillent. Les bourgs évitent les abords
    des montagnes (rien ≥ 0,55 à moins de 40).
+8. **Météo et jour/nuit** (`world/weather.ts`, choix d'Adrien) : **partagés par tous**, calculés
+   à partir de l'heure réelle (`worldTime`, figée dans les tests par `src/test-setup.ts`).
+   Une journée dure `DAY_SECONDS` = 2 h réelles ; l'heure locale dépend de la longitude.
+   Vents par latitude (alizés d'est, vents d'ouest tempérés, vents polaires d'est) ; nuages =
+   bruit emporté par le vent (une averse passe en quelques minutes) dans de grands systèmes
+   plus lents ; pluie, orage, neige (froid ou haute altitude), tempête de sable (désert venté),
+   brouillard (bas-fonds humides à l'aube). Au départ : ~59 % clair, ~28 % couvert, ~13 % pluie.
+   Effet : la vision (`visibilityAt`) baisse sous la pluie, la neige, le brouillard, le sable
+   et la nuit (jusqu'à −40 %). Pas d'effet sur la marche pour l'instant. Rendu
+   (`render/weather.ts`) : nuages et ombres peints dans le canvas de brume de guerre (un seul
+   dessin plein écran), pluie/neige/sable en tracés groupés, éclairs, lueur de l'aube et du
+   crépuscule, nuit bleutée avec fenêtres allumées dans les bourgs. HUD : temps, vent, moment.
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
    plus proche des deux) : liaisons réciproques et planes, les routes se rejoignent dans les
    bourgs au lieu de se croiser. Les routes serpentent (bruit perpendiculaire, toujours sur
@@ -182,9 +194,6 @@ n'est ajouté avant ces retours.
 ## Plus tard (décidé, pas encore fait)
 
 Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand il le dit.
-- **Météo** : nuages, pluie, soleil, neige, vent. S'appuyer sur les climats
-  (`world/climate.ts`) : neige en toundra, orages en jungle, vent de sable au désert.
-  Penser à son effet sur la vision (brume, pluie) et sur la marche.
 - **Règles de déplacement** : montagnes infranchissables sans équipement (le calcul
   d'itinéraire `game/route.ts` a un seul prédicat `walkable` à étendre), marche plus
   rapide sur les routes, terrain plus ou moins lent.

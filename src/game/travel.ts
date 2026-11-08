@@ -2,6 +2,7 @@
 import { altitude, continent, humidity, TILE } from '../world/terrain';
 import { CIRCUMFERENCE, wrapIndex } from '../world/planet';
 import { biome } from '../world/climate';
+import { visibilityAt } from '../world/weather';
 import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
@@ -49,7 +50,8 @@ export const isSeen = (s: GameState, x: number, y: number): boolean => s.seen.ha
 
 /** Reveal every fog cell the explorer can see from (x, y). */
 export function reveal(s: GameState, x: number, y: number): void {
-  revealCircle(s, x, y, sightRadius(x, y));
+  // rain, snow, fog, sand and the night shorten the view
+  revealCircle(s, x, y, sightRadius(x, y) * visibilityAt(x, y));
 }
 
 /** Reveal every fog cell within `sight` of (x, y). */

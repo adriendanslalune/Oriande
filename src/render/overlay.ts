@@ -18,6 +18,7 @@ import type { GameState } from '../game/state';
 import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
 import { cityRadius } from './towns';
+import { WeatherLayer } from './weather';
 import { LANDMARK_ART, WONDER_ART, landmarkImage, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
 
@@ -40,6 +41,8 @@ export class Overlay {
   private readonly fog = document.createElement('canvas');
   private readonly fg = this.fog.getContext('2d')!;
   private leaves: Leaf[] = [];
+  /** the sky over the map */
+  readonly weather = new WeatherLayer();
   /** fish leaping out of the water: where, when it started, which way */
   private fish: { x: number; y: number; t0: number; dir: number; size: number }[] = [];
   private fishTimer = 0;
@@ -92,6 +95,9 @@ export class Overlay {
 
     this.animate(s, v, screen, world, tiles, now, dt);
 
+    // The sky: clouds, rain, snow, sand, fog, lightning, dawn, dusk and night.
+    this.weather.draw(ctx, v, screen, world, now, dt, (X, Y) => isSeen(s, X, Y));
+
     // The fog: paper everywhere, holes punched (at quarter resolution) where the explorer has seen.
     const fg = this.fg, fog = this.fog;
     fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, fog.width, fog.height);
@@ -103,6 +109,10 @@ export class Overlay {
       gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.6, 'rgba(0,0,0,.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
       fg.fillStyle = gr; fg.fillRect(sx / 4 - rr, sy / 4 - rr, rr * 2, rr * 2);
     }
+    // the clouds go behind the paper: seen lands get clouds, unexplored ones stay blank
+    fg.globalCompositeOperation = 'destination-over';
+    this.weather.paintClouds(fg, v, screen, 4);
+    fg.globalCompositeOperation = 'source-over';
     ctx.imageSmoothingEnabled = true; ctx.drawImage(fog, 0, 0, v.W, v.H);
     ctx.fillStyle = 'rgba(42,36,29,.18)'; ctx.font = "italic 22px 'IM Fell English', serif"; ctx.textAlign = 'center';
     for (let k = 0; k < 3; k++) {
@@ -210,7 +220,8 @@ export class Overlay {
     }
     for (let k = this.leaves.length - 1; k >= 0; k--) {
       const f = this.leaves[k];
-      f.life += dt; f.x += (14 + Math.sin(time * 2 + f.ph) * 8) * dt; f.y += (6 + Math.cos(time * 3 + f.ph) * 10) * dt; f.r += dt * 4;
+      const wd = this.weather.centre?.wind ?? { dx: 1, dy: 0.3, speed: 4 }; // leaves fly with the wind
+      f.life += dt; f.x += (wd.dx * wd.speed * 3.5 + Math.sin(time * 2 + f.ph) * 8) * dt; f.y += (wd.dy * wd.speed * 3.5 + 6 + Math.cos(time * 3 + f.ph) * 10) * dt; f.r += dt * 4;
       if (f.life > 4) { this.leaves.splice(k, 1); continue; }
       const [x, y] = screen(f.x, f.y);
       ctx.globalAlpha = Math.min(1, (4 - f.life) * 1.5);

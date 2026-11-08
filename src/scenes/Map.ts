@@ -4,6 +4,7 @@ import { TILE } from '../world/terrain';
 import { newGame, advance, startJourney, leaguesLeft, wrapPosition, START_ZOOM, type TravelEvent } from '../game/travel';
 import { latitude, longitude } from '../world/planet';
 import { prefetchRivers } from '../world/rivers';
+import { sky, weatherAt } from '../world/weather';
 import { loadGame, saveGame } from '../game/save';
 import type { GameState } from '../game/state';
 import { drawTile, type TileArt } from '../render/tiles';
@@ -28,6 +29,14 @@ function formatCoords(lat: number, lon: number): string {
     lat: dm(lat), ns: t(lat >= 0 ? 'dir.n' : 'dir.s'),
     lon: dm(lon), ew: t(lon >= 0 ? 'dir.e' : 'dir.w'),
   });
+}
+
+/** "vent d'ouest": where the wind blows from, in eight directions. */
+function windName(w: { dx: number; dy: number; speed: number }): string {
+  if (w.speed < 2.5) return t('wind.calm');
+  const from = Math.atan2(-w.dy, -w.dx); // the wind comes from the opposite of where it blows
+  const dirs = ['e', 'se', 's', 'sw', 'w', 'nw', 'n', 'ne'];
+  return t('wind.from', { d: t('wind.' + dirs[((Math.round(from / (Math.PI / 4)) % 8) + 8) % 8]) });
 }
 
 /** The world map: tiles as Phaser textures under a screen-space overlay. */
@@ -226,6 +235,8 @@ export class MapScene extends Phaser.Scene {
       this.hudTimer = 250;
       const n = s.named.length;
       this.hud.setCoords(formatCoords(latitude(s.y), longitude(s.x)));
+      const w = weatherAt(s.x, s.y), light = sky(s.x);
+      this.hud.setSky([t(`weather.${w.kind}`), w.kind === 'clear' && light.phase === 'night' ? '' : windName(w.wind), t(`sky.${light.phase}`)].filter(Boolean).join(' · '));
       this.hud.setCounters(
         tn('hud.leagues', s.leagues, { n: num(s.leagues, 2) }),
         n ? tn('hud.places', n, { n, cells: num(s.seen.size) }) : t('hud.places.none'),

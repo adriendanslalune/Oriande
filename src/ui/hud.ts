@@ -27,6 +27,7 @@ export class Hud {
   private readonly places: HTMLElement;
   private readonly eta: HTMLElement;
   private readonly coords: HTMLElement;
+  private readonly header: HTMLElement;
   private readonly sky: HTMLElement;
   private readonly note: HTMLElement;
   private noteTimer = 0;
@@ -39,6 +40,7 @@ export class Hud {
     style.textContent = CSS;
     const header = document.createElement('header');
     header.className = 'hud-header';
+    this.header = header;
     header.innerHTML = '<div class="t"><span></span><br><i class="coords"></i><br><i class="sky"></i></div><div class="c"><span></span><br><i></i><br><i></i></div>';
     header.querySelector('.t > span')!.textContent = t('title');
     this.coords = header.querySelector('.coords')!;
@@ -58,6 +60,11 @@ export class Hud {
     }
     this.root.push(style, header, this.note, buttons);
     document.body.append(...this.root);
+  }
+
+  /** Height of the header, CSS pixels: the map draws nothing beneath it. */
+  headerHeight(): number {
+    return this.header.getBoundingClientRect().height;
   }
 
   /** The weather and the hour, under the coordinates. */

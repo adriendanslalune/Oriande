@@ -233,6 +233,7 @@ export class MapScene extends Phaser.Scene {
     this.hudTimer -= delta;
     if (this.hudTimer <= 0) {
       this.hudTimer = 250;
+      v.top = this.hud.headerHeight();
       const n = s.named.length;
       this.hud.setCoords(formatCoords(latitude(s.y), longitude(s.x)));
       const w = weatherAt(s.x, s.y), light = sky(s.x);

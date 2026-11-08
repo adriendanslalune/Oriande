@@ -7,7 +7,10 @@ import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
-import { inLake, riversNear } from '../world/rivers';
+import { inLake, lakesNear, riversNear } from '../world/rivers';
+import { animalsOf, herdsNear } from '../world/fauna';
+import { drawAnimal } from './animals';
+import { worldTime } from '../world/weather';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
 import { CIRCUMFERENCE, nearestCopy, wrapIndex } from '../world/planet';
@@ -34,6 +37,8 @@ export interface View {
   /** viewport, CSS pixels */
   W: number;
   H: number;
+  /** height of the header over the top of the map, CSS pixels: nothing is drawn under it */
+  top?: number;
 }
 
 interface Leaf { x: number; y: number; life: number; ph: number; r: number }
@@ -42,6 +47,8 @@ export class Overlay {
   private readonly fog = document.createElement('canvas');
   private readonly fg = this.fog.getContext('2d')!;
   private leaves: Leaf[] = [];
+  /** when each fog cell was first drawn as seen (ms), for its fade-in */
+  private readonly seenAt = new Map<string, number>();
   /** the sky over the map */
   readonly weather = new WeatherLayer();
   /** fish leaping out of the water: where, when it started, which way */
@@ -95,6 +102,7 @@ export class Overlay {
     }
 
     this.animate(s, v, screen, world, tiles, now, dt);
+    if (v.zoom >= 0.45) this.animals(s, v, screen, ax, ay, bx, by, now);
 
     // The sky: clouds, rain, snow, sand, fog, lightning, dawn, dusk and night.
     this.weather.draw(ctx, v, screen, world, now, dt, (X, Y) => isSeen(s, X, Y));
@@ -104,10 +112,18 @@ export class Overlay {
     fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, fog.width, fog.height);
     fg.fillStyle = PAPER; fg.fillRect(0, 0, fog.width, fog.height); fg.globalCompositeOperation = 'destination-out';
     const ci0 = Math.floor(ax / CELL) - 1, ci1 = Math.ceil(bx / CELL) + 1, cj0 = Math.floor(ay / CELL) - 1, cj1 = Math.ceil(by / CELL) + 1, rr = CELL * v.zoom / 4 * 1.05;
-    for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) if (s.seen.has(wrapIndex(ci, CELLS_AROUND) + ',' + cj)) {
+    // newly seen cells fade in over a moment instead of popping up, so the land unveils itself
+    // smoothly at the explorer's pace (cells already seen when the game opened show at once)
+    if (this.seenAt.size === 0) for (const k of s.seen) this.seenAt.set(k, -1e9);
+    for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) {
+      const key = wrapIndex(ci, CELLS_AROUND) + ',' + cj;
+      if (!s.seen.has(key)) continue;
+      let at = this.seenAt.get(key);
+      if (at === undefined) { at = now; this.seenAt.set(key, at); }
+      const a = Math.min(1, (now - at) / 900);
       const [sx, sy] = screen(ci * CELL, cj * CELL);
       const gr = fg.createRadialGradient(sx / 4, sy / 4, 0, sx / 4, sy / 4, rr);
-      gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.6, 'rgba(0,0,0,.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(0.6, `rgba(0,0,0,${0.9 * a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
       fg.fillStyle = gr; fg.fillRect(sx / 4 - rr, sy / 4 - rr, rr * 2, rr * 2);
     }
     // the night over everything (paper included), with the lights punched out of it
@@ -172,8 +188,28 @@ export class Overlay {
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
     // the clouds pass over the explorer (they fade out as the view zooms in under them)
     this.weather.drawClouds(ctx, v, screen, (X, Y) => isSeen(s, X, Y));
-    this.compass(v.W - 44, 96);
+    this.compass(v.W - 44, (v.top ?? 70) + 40);
     this.scaleBar(v);
+  }
+
+  /** Wild animals wandering where the explorer has seen, on the shared world clock. */
+  private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number): void {
+    const t = worldTime(), time = now / 1000, scale = 1.6 * v.zoom / START_ZOOM;
+    const lakes = lakesNear(ax, ay, bx, by);
+    const list: { a: ReturnType<typeof animalsOf>[number]; look: Parameters<typeof drawAnimal>[1]; x: number; y: number }[] = [];
+    for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320)) {
+      if (h.species.look.len * scale < 4) continue; // too small to make out at this zoom
+      const water = h.species.biomes.includes('sea') || h.species.biomes.includes('ice');
+      for (const a of animalsOf(h, t)) {
+        if (a.x < ax - 40 || a.x > bx + 40 || a.y < ay - 40 || a.y > by + 40 || !isSeen(s, a.x, a.y)) continue;
+        if (!water && lakes.some((l) => inLake(l, a.x, a.y))) continue;
+        const [x, y] = screen(a.x, a.y);
+        list.push({ a, look: h.species.look, x, y });
+      }
+    }
+    list.sort((p, q) => p.y - q.y);
+    for (const p of list) drawAnimal(this.ctx, p.look, p.a, p.x, p.y, scale, time + p.a.phase);
+    this.ctx.globalAlpha = 1;
   }
 
   /** Waves, leaves, chimney smoke, travellers on the roads, a flight of birds now and then. */
@@ -497,8 +533,8 @@ export class Overlay {
     const [ex, ey] = screen(s.x, s.y);
     ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 6.3); ctx.lineWidth = 1.5; ctx.stroke();
     ctx.beginPath(); ctx.arc(ex, ey, 1.5, 0, 6.3); ctx.fill();
-    ctx.font = "italic 13px 'IM Fell English', serif"; ctx.fillText(t('map.atlas'), v.W / 2, 84);
-    this.compass(v.W - 44, 96);
+    ctx.font = "italic 13px 'IM Fell English', serif"; ctx.fillText(t('map.atlas'), v.W / 2, (v.top ?? 70) + 18);
+    this.compass(v.W - 44, (v.top ?? 70) + 40);
     this.scaleBar(v);
   }
 

@@ -65,8 +65,22 @@ Règles qui restent :
    liaison abandonnée au-delà de 1,8 × la ligne droite), villages et villes réalistes,
    noms détourés, vision selon le terrain (forêt 100, plaine 200, jusqu'à 600 en altitude),
    contournement de l'eau par l'explorateur. **Marche** : un tap montre l'itinéraire (pointillés,
-   drapeau) et propose « Marcher vers » (distance en lieues) ; rien ne part sans confirmation.
-4. Rareté : lieux étranges ~10 % des tuiles (KEEP = 0,28), pictogrammes gravés ;
+   drapeau) et propose « Marcher vers » (distance en lieues ; le nom du lieu si on touche un bourg,
+   un lieu, un monument ou une merveille déjà vus) ; rien ne part sans confirmation. Plus de trace
+   des pas passés sur la carte : seuls les pointillés de l'explorateur à sa destination.
+   **Obstacles** (`game/route.ts`, `walkable`/`obstacle`) : mer, lacs, banquise et montagnes
+   (altitude ≥ 0,6), sauf le long d'une route ou d'une rivière qui les traverse (couloirs calculés
+   par zone de 1 024, seulement là où une montagne est rencontrée).
+4. Rareté : lieux étranges ~10 % des tuiles (KEEP = 0,28), pictogrammes gravés, **35 types**
+   (`LANDMARK_KINDS`, demande d'Adrien : une vraie variété) tirés selon le climat, l'altitude et
+   l'eau (oasis au désert, ziggourat et idole en jungle, cimetière des éléphants et termitières en
+   savane, mammouth en toundra, navire pris dans les glaces sur la banquise, phare et clocher
+   englouti près des côtes, tortue et maelström au large...), jamais en montagne ;
+   pictogrammes dans `render/icons.ts` et `render/icons-more.ts`. **Monuments**
+   (`world/monuments.ts`, 8 types : colosse, pyramide, temple, sphinx, sanctuaire, arc,
+   amphithéâtre, aqueduc), au plus un par cellule de 4×4 tuiles (CHANCE = 0,3), selon le climat,
+   vus à 350, gravés en attendant les images ChatGPT (`docs/illustrations.md`,
+   `src/assets/monuments/*.webp`, branchées automatiquement) ;
    **merveilles** illustrées (`world/wonders.ts`, 6 types), au plus une par cellule de
    8×8 tuiles (CHANCE = 0,45), repérées à 500 unités, fiche prioritaire.
 5. Pas de traversée d'eau en phase 1 : le **tour du monde** viendra avec bateau/montgolfière.

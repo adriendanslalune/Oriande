@@ -7,6 +7,7 @@ import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
 import { WONDER_SIGHT, wondersNear, type Wonder } from '../world/wonders';
+import { MONUMENT_SIGHT, monumentsNear, type Monument } from '../world/monuments';
 import type { GameState } from './state';
 import { alongPath, pathLength, planRoute } from './route';
 
@@ -130,6 +131,7 @@ export function startJourney(s: GameState, x: number, y: number): boolean {
 
 export type TravelEvent =
   | { type: 'wonder'; wonder: Wonder }
+  | { type: 'monument'; monument: Monument }
   | { type: 'landmark'; landmark: Landmark }
   | { type: 'settlement'; settlement: Settlement }
   | { type: 'shore' };
@@ -143,6 +145,13 @@ export function discover(s: GameState, x: number, y: number, out: TravelEvent[])
     s.named.push('w' + w.key);
     revealCircle(s, w.x, w.y, 130);
     out.push({ type: 'wonder', wonder: w });
+  }
+  // Monuments are seen from afar too, a little less.
+  for (const m of monumentsNear(x - MONUMENT_SIGHT, y - MONUMENT_SIGHT, x + MONUMENT_SIGHT, y + MONUMENT_SIGHT, 0)) {
+    if (s.named.includes('m' + m.key) || Math.hypot(m.x - x, m.y - y) > MONUMENT_SIGHT) continue;
+    s.named.push('m' + m.key);
+    revealCircle(s, m.x, m.y, 90);
+    out.push({ type: 'monument', monument: m });
   }
   // A landmark is noticed within 90 units, so only this tile and its neighbours matter.
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {

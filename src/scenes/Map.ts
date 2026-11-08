@@ -2,7 +2,12 @@ import Phaser from 'phaser';
 import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
 import { newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type TravelEvent } from '../game/travel';
-import { pathLength, planRoute } from '../game/route';
+import { pathLength, planRoute, prefetchWays } from '../game/route';
+import { isSeen } from '../game/travel';
+import { settlement } from '../world/settlements';
+import { landmark } from '../world/landmarks';
+import { wondersNear } from '../world/wonders';
+import { monumentsNear } from '../world/monuments';
 import { latitude, longitude } from '../world/planet';
 import { prefetchRivers } from '../world/rivers';
 import { sky, weatherAt } from '../world/weather';
@@ -177,17 +182,41 @@ export class MapScene extends Phaser.Scene {
    * A tap on the map does not set off at once: it shows the way there and asks first
    * ("Walk to"), so that sliding or checking the map never sends the explorer off by mistake.
    */
-  private propose(x: number, y: number): void {
+  private propose(tx: number, ty: number): void {
+    // a tap on (or near) a place already seen goes to that place, by its name
+    const place = this.placeAt(tx, ty, Math.max(18, 26 / this.view.zoom));
+    const x = place ? place.x : tx, y = place ? place.y : ty;
     const s = this.state, route = planRoute(s.x, s.y, x, y);
     const L = route ? pathLength(route.path) : 0;
     if (!route || L < 1) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
     this.overlay.plan = route.path;
-    const detail = tn('walk.leagues', L / LEAGUE, { n: num(L / LEAGUE, 1) }) + (route.reached ? '' : ' · ' + t('walk.shore'));
-    this.hud.showWalk(detail, () => {
+    const stop = route.reached ? '' : ' · ' + t(route.blocked === 'mountain' ? 'walk.foot' : 'walk.shore');
+    const detail = tn('walk.leagues', L / LEAGUE, { n: num(L / LEAGUE, 1) }) + stop;
+    this.hud.showWalk(detail, place?.name ?? null, () => {
       this.cancelPlan();
       this.follow = true;
       if (!startJourney(s, x, y)) this.onEvent({ type: 'shore' });
     }, () => this.cancelPlan());
+  }
+
+  /** The nearest place already seen within r of (x, y): a town, a strange place, a wonder. */
+  private placeAt(x: number, y: number, r: number): { x: number; y: number; name: string } | null {
+    const s = this.state;
+    let best: { x: number; y: number; name: string } | null = null, bd = r;
+    const consider = (px: number, py: number, name: () => string): void => {
+      const d = Math.hypot(px - x, py - y);
+      if (d < bd && isSeen(s, px, py)) { bd = d; best = { x: px, y: py, name: name() }; }
+    };
+    const ti = Math.floor(x / TILE), tj = Math.floor(y / TILE);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const b = settlement(ti + di, tj + dj);
+      if (b) consider(b.x, b.y, () => b.name);
+      const L = landmark(ti + di, tj + dj);
+      if (L) consider(L.x, L.y, () => t(`landmark.${L.kind}.name`, { n: L.name }));
+    }
+    for (const w of wondersNear(x - r, y - r, x + r, y + r, 40)) consider(w.x, w.y, () => t(`wonder.${w.kind}.name`, { n: w.name }));
+    for (const m of monumentsNear(x - r, y - r, x + r, y + r, 40)) consider(m.x, m.y, () => t(`monument.${m.kind}.name`, { n: m.name }));
+    return best;
   }
 
   private cancelPlan(): void {
@@ -198,6 +227,7 @@ export class MapScene extends Phaser.Scene {
   private onEvent(e: TravelEvent): void {
     if (e.type === 'shore') this.hud.showNote(t('shore.title'), t('shore.text'));
     else if (e.type === 'wonder') this.hud.showNote(t('wonder.heading') + ' · ' + t(`wonder.${e.wonder.kind}.name`, { n: e.wonder.name }), t(`wonder.${e.wonder.kind}.text`), 14000, true);
+    else if (e.type === 'monument') this.hud.showNote(t('monument.heading') + ' · ' + t(`monument.${e.monument.kind}.name`, { n: e.monument.name }), t(`monument.${e.monument.kind}.text`), 10000, true);
     else if (e.type === 'landmark') this.hud.showNote(t(`landmark.${e.landmark.kind}.name`, { n: e.landmark.name }), t(`landmark.${e.landmark.kind}.text`));
     else {
       const b = e.settlement;
@@ -313,7 +343,7 @@ export class MapScene extends Phaser.Scene {
     for (const e of events) this.onEvent(e);
     // rivers ahead: one more cell computed now and then, so they are ready before we get there
     this.riverTimer -= delta;
-    if (this.riverTimer <= 0) { this.riverTimer = 1500; prefetchRivers(s.x, s.y); }
+    if (this.riverTimer <= 0) { this.riverTimer = 1500; if (!prefetchRivers(s.x, s.y)) prefetchWays(s.x, s.y); }
     this.saveTimer -= delta;
     // Save on a timer, and right away when a walk ends or something was discovered.
     if (this.saveTimer <= 0 || events.length || (walking && !s.journey)) {

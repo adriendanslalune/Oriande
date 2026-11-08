@@ -3,6 +3,7 @@
 // engraved drawing in the tiles.
 import type { WonderKind } from '../world/wonders';
 import type { LandmarkKind } from '../world/landmarks';
+import type { MonumentKind } from '../world/monuments';
 
 const wonderUrls = import.meta.glob('../assets/wonders/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 // The strange places stay pictograms on the map (asked by Adrien: they are frequent, a rich
@@ -10,6 +11,10 @@ const wonderUrls = import.meta.glob('../assets/wonders/*.webp', { eager: true, q
 // kept for the discovery card, and not loaded here.
 const landmarkUrls: Record<string, string> = {};
 const images = new Map<WonderKind, HTMLImageElement>();
+// The monuments' pictures, made with ChatGPT (docs/illustrations.md): until one is there, its
+// engraved drawing stays in the tiles.
+const monumentUrls = import.meta.glob('../assets/monuments/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const monumentImages = new Map<MonumentKind, HTMLImageElement>();
 const landmarkImages = new Map<LandmarkKind, HTMLImageElement>();
 
 /** Width of each picture on the map, world units, and where its ground line sits (0 = top, 1 = bottom). */
@@ -22,8 +27,20 @@ export const WONDER_ART: Record<WonderKind, { width: number; ground: number }> =
   arbre: { width: 84, ground: 0.93 },
 };
 
+/** Same for the monuments. */
+export const MONUMENT_ART: Record<MonumentKind, { width: number; ground: number }> = {
+  colosse: { width: 46, ground: 0.95 },
+  pyramide: { width: 64, ground: 0.9 },
+  temple: { width: 58, ground: 0.9 },
+  sphinx: { width: 62, ground: 0.9 },
+  sanctuaire: { width: 60, ground: 0.92 },
+  arc: { width: 46, ground: 0.95 },
+  amphitheatre: { width: 64, ground: 0.85 },
+  aqueduc: { width: 66, ground: 0.92 },
+};
+
 /** Same for the strange places: width on the map (world units) and ground line. */
-export const LANDMARK_ART: Record<LandmarkKind, { width: number; ground: number }> = {
+export const LANDMARK_ART: Partial<Record<LandmarkKind, { width: number; ground: number }>> = {
   ruines: { width: 40, ground: 0.92 },
   squelette: { width: 46, ground: 0.85 },
   champignons: { width: 36, ground: 0.93 },
@@ -47,7 +64,7 @@ function loadAll<K extends string>(urls: Record<string, string>, into: Map<K, HT
 /** Load every picture; resolves when all have loaded or failed (never rejects). */
 export function loadWonderArt(): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
-  return Promise.all([...loadAll(wonderUrls, images), ...loadAll(landmarkUrls, landmarkImages)]).then(() => undefined);
+  return Promise.all([...loadAll(wonderUrls, images), ...loadAll(landmarkUrls, landmarkImages), ...loadAll(monumentUrls, monumentImages)]).then(() => undefined);
 }
 
 /** The loaded picture of a kind of strange place, if any. */
@@ -63,6 +80,9 @@ export const wonderImage = (kind: WonderKind): HTMLImageElement | undefined => i
 const artKinds = new Set<string>();
 export const setArtKinds = (kinds: string[]): void => { artKinds.clear(); for (const k of kinds) artKinds.add(k); };
 /** The kinds whose pictures are loaded here, to pass to a tile worker. */
-export const loadedArtKinds = (): string[] => [...images.keys(), ...[...landmarkImages.keys()].map((k) => 'landmark:' + k)];
+export const loadedArtKinds = (): string[] => [...images.keys(), ...[...landmarkImages.keys()].map((k) => 'landmark:' + k), ...[...monumentImages.keys()].map((k) => 'monument:' + k)];
+export const hasMonumentArt = (kind: MonumentKind): boolean => monumentImages.has(kind) || artKinds.has('monument:' + kind);
+/** The loaded picture of a kind of monument, if any. */
+export const monumentImage = (kind: MonumentKind): HTMLImageElement | undefined => monumentImages.get(kind);
 export const hasWonderArt = (kind: WonderKind): boolean => images.has(kind) || artKinds.has(kind);
 export const hasLandmarkArt = (kind: LandmarkKind): boolean => landmarkImages.has(kind) || artKinds.has('landmark:' + kind);

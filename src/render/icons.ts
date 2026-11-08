@@ -3,23 +3,24 @@
 // sepia wash, a short hatched ground line. Drawn around (x, y), in tile units.
 import type { LandmarkKind } from '../world/landmarks';
 import { INK } from './palette';
+import { drawMoreIcon } from './icons-more';
 
 /** Icons are drawn on a 1x grid then scaled up by this factor. */
 export const ICON_SCALE = 2.05;
 
-const WASH = 'rgba(214,196,160,.85)', WASH_DARK = 'rgba(170,148,112,.8)', WATER = 'rgba(150,180,192,.7)';
+export const WASH = 'rgba(214,196,160,.85)', WASH_DARK = 'rgba(170,148,112,.8)', WATER = 'rgba(150,180,192,.7)';
 
-type G = CanvasRenderingContext2D;
-type P = [number, number];
+export type G = CanvasRenderingContext2D;
+export type P = [number, number];
 
-function path(g: G, pts: P[], close = false): void {
+export function path(g: G, pts: P[], close = false): void {
   g.beginPath(); g.moveTo(...pts[0]);
   for (const p of pts.slice(1)) g.lineTo(...p);
   if (close) g.closePath();
 }
 
 /** Parallel hatching inside the current clip region: strokes at angle a, spaced d apart. */
-function hatch(g: G, x0: number, y0: number, x1: number, y1: number, d = 1.1, a = 0.9): void {
+export function hatch(g: G, x0: number, y0: number, x1: number, y1: number, d = 1.1, a = 0.9): void {
   g.save(); g.lineWidth = 0.28;
   const c = Math.cos(a), s = Math.sin(a), L = Math.hypot(x1 - x0, y1 - y0) + 4, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   g.beginPath();
@@ -28,14 +29,14 @@ function hatch(g: G, x0: number, y0: number, x1: number, y1: number, d = 1.1, a 
 }
 
 /** Fill a shape with a wash, hatch its shaded part, ink its outline. */
-function shape(g: G, pts: P[], wash: string, shade?: [number, number, number, number]): void {
+export function shape(g: G, pts: P[], wash: string, shade?: [number, number, number, number]): void {
   path(g, pts, true); g.fillStyle = wash; g.fill();
   if (shade) { g.save(); path(g, pts, true); g.clip(); g.beginPath(); g.rect(shade[0], shade[1], shade[2] - shade[0], shade[3] - shade[1]); g.clip(); hatch(g, ...shade); g.restore(); }
   path(g, pts, true); g.stroke();
 }
 
 /** A short ground line with a hatched cast shadow to the south-east and a few tufts. */
-function ground(g: G, w: number, shadowW = w * 0.7): void {
+export function ground(g: G, w: number, shadowW = w * 0.7): void {
   g.save(); g.beginPath(); g.ellipse(shadowW * 0.25, 0.6, shadowW * 0.6, 1.4, 0, 0, 6.3); g.clip(); hatch(g, -w, -2, w, 3, 0.9, 0.2); g.restore();
   g.lineWidth = 0.45; g.beginPath(); g.moveTo(-w / 2, 0); g.lineTo(w / 2, 0); g.stroke();
   g.lineWidth = 0.3; g.beginPath();
@@ -146,6 +147,7 @@ export function drawLandmarkIcon(g: G, k: LandmarkKind, x: number, y: number): v
       g.beginPath(); g.ellipse(0, 0, 1.4, 0.8, 0, 0, 6.3); g.fillStyle = INK; g.fill();
       break;
     }
+    default: drawMoreIcon(g, k);
   }
   g.restore();
 }

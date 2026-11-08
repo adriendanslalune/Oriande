@@ -111,10 +111,10 @@ export class Hud {
   }
 
   /** Offer to walk to the spot tapped: a button to go, one to give up. */
-  showWalk(detail: string, go: () => void, cancel: () => void): void {
+  showWalk(detail: string, place: string | null, go: () => void, cancel: () => void): void {
     this.hideNote();
     const b = document.createElement('button'), no = document.createElement('button');
-    b.className = 'go'; b.textContent = t('walk.go') + ' ›';
+    b.className = 'go'; b.textContent = t('walk.go') + (place ? ' ' + place : '') + ' ›';
     const i = document.createElement('i'); i.textContent = detail; b.append(i);
     no.className = 'no'; no.textContent = '×'; no.setAttribute('aria-label', t('walk.cancel'));
     b.addEventListener('click', go); no.addEventListener('click', cancel);

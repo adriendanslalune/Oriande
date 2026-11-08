@@ -65,3 +65,33 @@ describe('sight', () => {
     expect(high).toBeGreaterThan(10);
   });
 });
+
+describe('mountains and lakes', () => {
+  it('the mountains block the way, except along a road or a river through them', async () => {
+    const { MOUNTAIN_ALTITUDE } = await import('../world/terrain');
+    const { roadsAround } = await import('../world/roads');
+    const { obstacle } = await import('./route');
+    // a mountain spot off any way
+    let peak: [number, number] | null = null;
+    for (let y = -6000; y < 0 && !peak; y += 37) for (let x = -9000; x < -2000; x += 37) {
+      if (altitude(x, y) > MOUNTAIN_ALTITUDE + 0.15 && obstacle(x, y) === 'mountain') { peak = [x, y]; break; }
+    }
+    expect(peak).not.toBeNull();
+    expect(walkable(...peak!)).toBe(false);
+    // a road crossing a pass (above the mountain line) stays open
+    let pass: [number, number] | null = null;
+    for (const r of roadsAround(-19, -21, 14)) for (const p of r.points) if (!pass && altitude(p.x, p.y) >= MOUNTAIN_ALTITUDE) pass = [p.x, p.y];
+    if (pass) expect(walkable(...pass)).toBe(true);
+    // a route to the peak stops at the foot of the mountains
+    const r = planRoute(peak![0] - 600, peak![1], peak![0], peak![1]);
+    if (r) { expect(r.reached).toBe(false); expect(onLand(r.path)).toBe(true); }
+  });
+
+  it('lakes are water: the explorer goes round them', async () => {
+    const { lakesNear, inLake } = await import('../world/rivers');
+    const lake = lakesNear(-30000, -30000, 30000, 30000).find((l) => l.r > 20)!;
+    expect(lake).toBeTruthy();
+    expect(inLake(lake, lake.x, lake.y)).toBe(true);
+    expect(walkable(lake.x, lake.y)).toBe(false);
+  });
+});

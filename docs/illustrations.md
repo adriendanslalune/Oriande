@@ -161,6 +161,79 @@ Subject: a maelstrom seen from above: the sea slowly turning on itself in a wide
 waves and foam, darker at its centre. The whole image is water, fading out at the edges.
 ```
 
+### Monuments — 🆕 à faire (`src/assets/monuments/`)
+
+Les grandes œuvres des Oriandais, demandées par Adrien : plus fréquentes que les merveilles,
+plus rares que les lieux étranges, vues de loin. **Même conversation et même bloc de style que
+les merveilles** (section A), pour qu'ils aillent ensemble. Ils sont plus petits que les
+merveilles à l'écran (environ 50 à 65 unités de large) : un sujet net, une silhouette lisible,
+pas trop de petits détails. En attendant les images, le jeu les dessine à la gravure.
+
+Un fil commun pour l'histoire : ce sont des ruines **anciennes, sereines, un peu mélancoliques**,
+d'une civilisation qui n'est plus. Pas de personnages, pas de drapeaux, pas d'écriture lisible.
+
+**monument-colosse.png — Colosse**
+```
+Subject: a colossal stone statue of a robed figure standing on a square pedestal, taller than
+a church, one arm raised high holding a broken spear pointed at the horizon, the other arm
+broken off at the elbow. Weathered, lichen on the shoulders, a few fallen stone fragments at
+its feet. Serene, ancient, the work of a vanished civilisation. Seen in three-quarter view.
+```
+
+**monument-pyramide.png — Grande pyramide**
+```
+Subject: a great smooth-sided stone pyramid standing in pale sand, its courses of stone
+visible, one face in light and the other in hatched shadow, a small dark doorway at the foot,
+and a capstone of dull gold at the summit. Some sand drifts against its base. Ancient and
+silent, without any people.
+```
+
+**monument-temple.png — Temple**
+```
+Subject: an ancient temple on a stepped stone platform: a row of slender columns under an
+entablature and a triangular pediment whose right corner has collapsed; one column has fallen
+in drums onto the steps. Grass growing between the stones. Calm and solemn.
+```
+
+**monument-sphinx.png — Sphinx**
+```
+Subject: a great stone sphinx lying on a long stone base: the body of a resting lion, paws
+stretched forward, and a serene human face wearing a striped headcloth that falls to its
+shoulders. Gazing to the right, worn by wind and sand, a little sand piled against its side.
+```
+
+**monument-sanctuaire.png — Sanctuaire de la jungle**
+```
+Subject: a jungle temple-mountain: three towers shaped like lotus buds, the central one
+taller, rising from a long stone gallery with dark arched openings. Roots, vines and small
+trees are taking it back, a few birds around the top. Mysterious and peaceful.
+```
+
+**monument-arc.png — Arc**
+```
+Subject: a monumental triumphal arch standing alone in open country: a massive stone block
+with a single tall arched passage, pilasters, two carved relief panels, an attic on top with
+an inscription band (abstract marks, not letters), a long crack down one side.
+```
+
+**monument-amphitheatre.png — Amphithéâtre**
+```
+Subject: an ancient oval amphitheatre seen from above at an angle: rings of stone tiers around
+a sandy arena, an outer wall with two rows of arches, the near side of the wall half collapsed
+so that the inside can be seen. Grass in the arena.
+```
+
+**monument-aqueduc.png — Aqueduc**
+```
+Subject: an ancient stone aqueduct with two tiers of round arches marching across the
+picture, a water channel along the top with a thread of blue water, the last arches at the
+right end fallen into a heap of stones. Seen from the side, slightly from above.
+```
+
+**Traitement à la réception** (comme les merveilles) : alpha nettoyé, bord érodé de 3 px,
+saturation × 0,85, recadrée, 512 px, WebP qualité 86 → `src/assets/monuments/<type>.webp`.
+Le jeu les prend automatiquement (`render/wonderArt.ts`).
+
 ---
 
 ## B. Fiches de découverte (grandes images, avec décor)
@@ -254,6 +327,7 @@ suburbs and fields outside the walls. A steam tram or a balloon in the sky hints
 ```
 public/assets/map/wonder-{tete,rocher,cristal,titan,arches,arbre}.png        1024x1024, transparent
 public/assets/map/landmark-{ruines,squelette,champignons,cratere,tour,geyser,epave,tourbillon}.png
+src/assets/monuments/{colosse,pyramide,temple,sphinx,sanctuaire,arc,amphitheatre,aqueduc}  1024x1024 → webp 512
 public/assets/cards/card-{tete,rocher,cristal,titan,arches,arbre}.png       1536x1024
 public/assets/towns/town-{village,city}.png                                  1536x1024
 ```

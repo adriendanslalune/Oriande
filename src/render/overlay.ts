@@ -7,6 +7,7 @@ import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
+import { monumentsNear } from '../world/monuments';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, type Animal, type Look } from '../world/fauna';
 import { drawAnimal, eyesOf } from './animals';
@@ -24,7 +25,7 @@ import type { TileArt } from './tiles';
 import { cityRadius } from './towns';
 import { WeatherLayer } from './weather';
 import { sky } from '../world/weather';
-import { LANDMARK_ART, WONDER_ART, landmarkImage, wonderImage } from './wonderArt';
+import { LANDMARK_ART, MONUMENT_ART, WONDER_ART, landmarkImage, monumentImage, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
 
 /** Below this zoom the map turns into the atlas overview. */
@@ -82,22 +83,24 @@ export class Overlay {
     const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
     if (v.zoom < Z_ATLAS) { this.atlas(s, v, screen, ax, ay, bx, by); return; }
 
-    // The explorer's footsteps.
-    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.setLineDash([1.5, 4]); ctx.beginPath();
-    this.tracePath(s, screen);
+    // No trail of past steps on the map (asked by Adrien): only the way ahead, drawn below.
     const [ex, ey] = screen(s.x, s.y);
-    ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
 
     // Illustrations of wonders and strange places, at full resolution, back to front; the fog
     // comes over them.
     const pictures: { x: number; y: number; img: HTMLImageElement; width: number; ground: number }[] = [];
+    for (const m of monumentsNear(ax, ay, bx, by, 90)) {
+      const img = monumentImage(m.kind);
+      if (img) pictures.push({ x: m.x, y: m.y, img, ...MONUMENT_ART[m.kind] });
+    }
     for (const w of wondersNear(ax, ay, bx, by, 120)) {
       const img = wonderImage(w.kind);
       if (img) pictures.push({ x: w.x, y: w.y, img, ...WONDER_ART[w.kind] });
     }
     for (let tj = Math.floor(ay / TILE) - 1; tj <= Math.floor(by / TILE) + 1; tj++) for (let ti = Math.floor(ax / TILE) - 1; ti <= Math.floor(bx / TILE) + 1; ti++) {
       const L = landmark(ti, tj), img = L && landmarkImage(L.kind);
-      if (L && img) pictures.push({ x: L.x, y: L.y, img, ...LANDMARK_ART[L.kind] });
+      const art = L && LANDMARK_ART[L.kind];
+      if (L && img && art) pictures.push({ x: L.x, y: L.y, img, ...art });
     }
     pictures.sort((a, b) => a.y - b.y);
     for (const p of pictures) {
@@ -153,6 +156,12 @@ export class Overlay {
       if (x < -80 || x > v.W + 80 || y < -40 || y > v.H + 40) continue;
       ctx.font = (L.water ? 'italic ' : '') + Math.round(11 + v.zoom * 2) + "px 'IM Fell English" + (L.water ? '' : ' SC') + "', serif";
       this.label(t(`landmark.${L.kind}.name`, { n: L.name }), x, y + 10 + v.zoom * 12);
+    }
+    for (const m of monumentsNear(ax, ay, bx, by, 90)) {
+      if (!isSeen(s, m.x, m.y)) continue;
+      const [x, y] = screen(m.x, m.y);
+      ctx.font = 'italic ' + Math.round(13 + v.zoom * 3) + "px 'IM Fell English SC', serif";
+      this.label(t(`monument.${m.kind}.name`, { n: m.name }), x, y + 8 * v.zoom + 15);
     }
     for (const w of wondersNear(ax, ay, bx, by, 120)) {
       if (!isSeen(s, w.x, w.y)) continue;
@@ -471,15 +480,6 @@ export class Overlay {
    * planet they jump by its circumference, so each point is unwrapped next to the previous one,
    * and the whole path is placed so that it ends at the explorer.
    */
-  private tracePath(s: GameState, screen: (x: number, y: number) => [number, number]): void {
-    const { ctx } = this, t = s.trace;
-    if (!t.length) return;
-    const xs: number[] = [t[0][0]];
-    for (let k = 1; k < t.length; k++) xs.push(nearestCopy(t[k][0], xs[k - 1]));
-    const shift = nearestCopy(xs[xs.length - 1], s.x) - xs[xs.length - 1];
-    t.forEach(([, Y], k) => { const [x, y] = screen(xs[k] + shift, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
-  }
-
   /** A name on the map, with a paper halo so it stays readable over forests and mountains. */
   private label(text: string, x: number, y: number): void {
     const { ctx } = this;
@@ -560,9 +560,6 @@ export class Overlay {
       ctx.fillStyle = h < 0 ? 'rgba(42,36,29,.38)' : h > 0.55 ? 'rgba(42,36,29,.3)' : h > 0.3 ? 'rgba(42,36,29,.14)' : 'rgba(42,36,29,.05)';
       ctx.fillRect(x - c / 2, y - c / 2, c + 0.5, c + 0.5);
     }
-    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath();
-    this.tracePath(s, screen);
-    ctx.stroke();
     ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.font = "700 11px 'Old Standard TT', serif";
     const tilesInView = (Math.floor(bx / TILE) - Math.floor(ax / TILE) + 1) * (Math.floor(by / TILE) - Math.floor(ay / TILE) + 1);
     if (tilesInView < 25_000) for (let tj = Math.floor(ay / TILE); tj <= Math.floor(by / TILE); tj++) for (let ti = Math.floor(ax / TILE); ti <= Math.floor(bx / TILE); ti++) {

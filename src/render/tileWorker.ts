@@ -7,6 +7,8 @@ import { setArtKinds } from './wonderArt';
 export interface TileRequest { id: number; ti: number; tj: number; res: number }
 export interface TileReply {
   id: number; ti: number; tj: number; res: number;
+  /** set when the tile could not be drawn here (the main thread then tries again or draws it) */
+  error?: string;
   bitmap: ImageBitmap;
   waves: [number, number, number][];
   trees: [number, number][];
@@ -18,9 +20,14 @@ const make = (): HTMLCanvasElement => new OffscreenCanvas(1, 1) as unknown as HT
 self.onmessage = (e: MessageEvent<{ art: string[] } | TileRequest>): void => {
   const m = e.data;
   if ('art' in m) { setArtKinds(m.art); return; }
-  townWindows.clear();
-  const art = drawTile(m.ti, m.tj, make, m.res);
-  const bitmap = (art.canvas as unknown as OffscreenCanvas).transferToImageBitmap();
-  const reply: TileReply = { id: m.id, ti: m.ti, tj: m.tj, res: m.res, bitmap, waves: art.waves, trees: art.trees, windows: [...townWindows] };
-  (self as unknown as Worker).postMessage(reply, [bitmap]);
+  try {
+    townWindows.clear();
+    const art = drawTile(m.ti, m.tj, make, m.res);
+    const bitmap = (art.canvas as unknown as OffscreenCanvas).transferToImageBitmap();
+    const reply: TileReply = { id: m.id, ti: m.ti, tj: m.tj, res: m.res, bitmap, waves: art.waves, trees: art.trees, windows: [...townWindows] };
+    (self as unknown as Worker).postMessage(reply, [bitmap]);
+  } catch (err) {
+    // never leave the main thread waiting: say what went wrong (out of memory on a phone...)
+    (self as unknown as Worker).postMessage({ id: m.id, ti: m.ti, tj: m.tj, res: m.res, error: String(err) });
+  }
 };

@@ -58,7 +58,9 @@ Règles qui restent :
    place, une tuile floue sert d'aperçu en attendant la bonne. Cache borné à **72 Mo** (LRU),
    textures Phaser via `addImage` (jamais `addCanvas`, qui copie les pixels). Fondu de 220 ms.
    Les fenêtres des maisons (nuit) reviennent du worker ; on lui dit quelles illustrations sont
-   chargées (`setArtKinds`). Brume : un tampon de disque pré-dessiné par taille.
+   chargées (`setArtKinds`). Brume : un tampon de disque pré-dessiné par taille. **Robustesse** (tuile
+   blanche vue sur Firefox Android) : une tuile qui échoue dans un worker est redemandée, puis
+   dessinée sur le fil principal après 2 échecs ; un worker muet 12 s ou en erreur est relancé.
 2. Ne pas « améliorer » le monde sans qu'Adrien le demande.
 3. Dessin retravaillé à sa demande : montagnes en pics gravés, collines, aventurier à
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,

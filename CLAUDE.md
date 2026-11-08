@@ -166,7 +166,9 @@ Règles qui restent :
    brillent : retirés à la demande d’Adrien). Chauves-souris et chouettes volent (`alt`, ombre au sol).
    La **brume** se lève en fondu (~0,9 s par case nouvellement vue). Le titre d'atlas et la rose
    des vents se placent sous l'en-tête (`View.top`).
-7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
+7. **Réseau routier** (routes dessinées **avant** la végétation, demande d'Adrien : en forêt elles
+   passent sous les arbres, qui évitent leur milieu, `roadMask`, et débordent sur leurs bords) :
+   un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
    plus proche des deux) : liaisons réciproques et planes, les routes se rejoignent dans les
    bourgs au lieu de se croiser. Les routes serpentent (bruit perpendiculaire, toujours sur
    terrain praticable).

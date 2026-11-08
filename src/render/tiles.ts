@@ -134,6 +134,22 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
   drawHills(g, x0, y0, (X, Y) => cleared(X, Y) || water(X, Y));
 
+  // Fields, then roads, before the vegetation (asked by Adrien): a road through a forest runs
+  // under the trees, like a river; trees keep off its middle and lean over its edges.
+  // Every road the same brown; roads to a city are wider. A detour can reach ~5 tiles from its
+  // towns (980 apart at most, 320 of detour margin), hence the radius of 6.
+  const arable = (X: number, Y: number): boolean => { const v = altitude(X, Y); return v > 0.03 && v < 0.5; };
+  for (const b of towns) drawTownGrounds(g, b, b.x - x0, b.y - y0, roads, arable);
+  g.setLineDash([]); g.lineJoin = 'round';
+  for (const r of roads) {
+    if (r.maxX + 10 < x0 || r.minX - 10 > x0 + T || r.maxY + 10 < y0 || r.minY - 10 > y0 + T) continue;
+    const line = (): void => { g.beginPath(); r.points.forEach((pt, k) => (k ? g.lineTo(pt.x - x0, pt.y - y0) : g.moveTo(pt.x - x0, pt.y - y0))); g.stroke(); };
+    g.lineWidth = r.major ? 2.6 : 1.8; g.strokeStyle = INK; line();
+    g.lineWidth = r.major ? 1.5 : 0.9; g.strokeStyle = 'rgb(200,165,112)'; line();
+  }
+  g.strokeStyle = INK;
+  const onRoad = roadMask(x0, y0, roads);
+
   // Vegetation and soils by climate: forests, marshes, grass, sands; tundra; savanna and jungle;
   // nothing in the desert.
   // NB: sands use whatever fillStyle the previous plant left, as in the proto.
@@ -142,7 +158,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     const X = gx * 10 + 5 + (hash2(wg * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(wg, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
     const hu = humidity(X, Y), r = hash2(wg * 7 + 1, gy * 13 + 2);
-    if (cleared(X, Y) || water(X, Y)) continue; // fields and gardens around towns; rivers and lakes
+    if (cleared(X, Y) || water(X, Y) || onRoad(X, Y)) continue; // fields and gardens around towns; rivers and lakes; roads
     const t = temperature(X, Y, v), cold = coldness(t) > 0.5;
     if (heat(t) > 0.5) { // hot lands
       if (hu < DESERT_HUMIDITY) continue; // the desert: dunes come later
@@ -193,7 +209,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const valleys = rivers.map((r) => r.points.filter((_, k) => k % 4 === 0 || k === r.points.length - 1).map(([x, y]) => ({ x, y })));
 
   // Climates: dune fields in the deserts, ice floes on the frozen seas.
-  drawDunes(g, x0, y0, (X, Y) => cleared(X, Y) || water(X, Y));
+  drawDunes(g, x0, y0, (X, Y) => cleared(X, Y) || water(X, Y) || onRoad(X, Y));
   drawIce(g, x0, y0);
 
   // Mountains: engraved peaks, back to front.
@@ -206,19 +222,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const L = landmark(ti, tj);
   if (L && !hasLandmarkArt(L.kind)) drawLandmarkIcon(g, L.kind, L.x - x0, L.y - y0); // else drawn by the overlay
 
-  // Roads, then settlements (those of neighbouring tiles may spill onto this one).
-  g.strokeStyle = INK;
-  // Every road the same brown; roads to a city are wider. A detour can reach ~5 tiles from its
-  // towns (980 apart at most, 320 of detour margin), hence the radius of 6.
-  const arable = (X: number, Y: number): boolean => { const v = altitude(X, Y); return v > 0.03 && v < 0.5; };
-  for (const b of towns) drawTownGrounds(g, b, b.x - x0, b.y - y0, roads, arable);
-  g.setLineDash([]); g.lineJoin = 'round';
-  for (const r of roads) {
-    if (r.maxX + 10 < x0 || r.minX - 10 > x0 + T || r.maxY + 10 < y0 || r.minY - 10 > y0 + T) continue;
-    const line = (): void => { g.beginPath(); r.points.forEach((pt, k) => (k ? g.lineTo(pt.x - x0, pt.y - y0) : g.moveTo(pt.x - x0, pt.y - y0))); g.stroke(); };
-    g.lineWidth = r.major ? 2.6 : 1.8; g.strokeStyle = INK; line();
-    g.lineWidth = r.major ? 1.5 : 0.9; g.strokeStyle = 'rgb(200,165,112)'; line();
-  }
+  // Settlements come last (those of neighbouring tiles may spill onto this one).
   g.strokeStyle = INK;
   // above the roads; a wonder with an illustration is drawn by the overlay instead
   drawBridges(g, x0, y0, roads, rivers);
@@ -235,4 +239,27 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55 && !cleared(X, Y)) trees.push([X, Y]); // no leaves off fields
   }
   return { canvas: cv, waves, trees };
+}
+
+/** Whether a plant set at (x, y) would stand in the middle of a road (its crown may still lean over). */
+function roadMask(x0: number, y0: number, roads: { points: { x: number; y: number }[]; major: boolean; minX: number; maxX: number; minY: number; maxY: number }[]): (x: number, y: number) => boolean {
+  const C = 2, M = 16, N = Math.ceil((TILE + 2 * M) / C), grid = new Uint8Array(N * N);
+  for (const r of roads) {
+    if (r.maxX + M < x0 || r.minX - M > x0 + TILE || r.maxY + M < y0 || r.minY - M > y0 + TILE) continue;
+    const half = r.major ? 2.4 : 1.8, P = r.points;
+    for (let k = 1; k < P.length; k++) {
+      const a = P[k - 1], b = P[k], L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(1, Math.ceil(L / 1.5));
+      for (let q = 0; q <= n; q++) {
+        const x = a.x + (b.x - a.x) * q / n - x0 + M, y = a.y + (b.y - a.y) * q / n - y0 + M;
+        if (x < -half || y < -half || x > N * C + half || y > N * C + half) continue;
+        for (let j = Math.floor((y - half) / C); j <= Math.floor((y + half) / C); j++) for (let i = Math.floor((x - half) / C); i <= Math.floor((x + half) / C); i++) {
+          if (i >= 0 && j >= 0 && i < N && j < N) grid[j * N + i] = 1;
+        }
+      }
+    }
+  }
+  return (x, y) => {
+    const i = Math.floor((x - x0 + M) / C), j = Math.floor((y - y0 + M) / C);
+    return i >= 0 && j >= 0 && i < N && j < N && grid[j * N + i] === 1;
+  };
 }

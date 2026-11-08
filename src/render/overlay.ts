@@ -50,6 +50,7 @@ export class Overlay {
   private leaves: Leaf[] = [];
   /** when each fog cell was first drawn as seen (ms), for its fade-in */
   private readonly seenAt = new Map<string, number>();
+  private readonly stamp = document.createElement('canvas');
   /** the sky over the map */
   readonly weather = new WeatherLayer();
   /** fish leaping out of the water: where, when it started, which way */
@@ -116,6 +117,7 @@ export class Overlay {
     // newly seen cells fade in over a moment instead of popping up, so the land unveils itself
     // smoothly at the explorer's pace (cells already seen when the game opened show at once)
     if (this.seenAt.size === 0) for (const k of s.seen) this.seenAt.set(k, -1e9);
+    const stamp = this.fogStamp(rr);
     for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) {
       const key = wrapIndex(ci, CELLS_AROUND) + ',' + cj;
       if (!s.seen.has(key)) continue;
@@ -123,10 +125,9 @@ export class Overlay {
       if (at === undefined) { at = now; this.seenAt.set(key, at); }
       const a = Math.min(1, (now - at) / 900);
       const [sx, sy] = screen(ci * CELL, cj * CELL);
-      const gr = fg.createRadialGradient(sx / 4, sy / 4, 0, sx / 4, sy / 4, rr);
-      gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(0.6, `rgba(0,0,0,${0.9 * a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
-      fg.fillStyle = gr; fg.fillRect(sx / 4 - rr, sy / 4 - rr, rr * 2, rr * 2);
+      fg.globalAlpha = a; fg.drawImage(stamp, sx / 4 - rr, sy / 4 - rr, rr * 2, rr * 2);
     }
+    fg.globalAlpha = 1;
     // the night over everything (paper included), with the lights punched out of it
     const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now);
     fg.globalCompositeOperation = 'source-over';
@@ -191,6 +192,19 @@ export class Overlay {
     this.weather.drawClouds(ctx, v, screen, (X, Y) => isSeen(s, X, Y));
     this.compass(v.W - 44, (v.top ?? 70) + 40);
     this.scaleBar(v);
+  }
+
+  /** The hole one seen cell punches in the fog: a soft disc, drawn once per size. */
+  private fogStamp(rr: number): HTMLCanvasElement {
+    const size = Math.max(2, Math.ceil(rr * 2));
+    if (this.stamp.width !== size) {
+      this.stamp.width = this.stamp.height = size;
+      const g = this.stamp.getContext('2d')!, r = size / 2;
+      const gr = g.createRadialGradient(r, r, 0, r, r, r);
+      gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.6, 'rgba(0,0,0,0.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, size, size);
+    }
+    return this.stamp;
   }
 
   /** Wild animals wandering where the explorer has seen, on the shared world clock. */

@@ -7,7 +7,8 @@ import { prefetchRivers } from '../world/rivers';
 import { sky, weatherAt } from '../world/weather';
 import { loadGame, saveGame } from '../game/save';
 import type { GameState } from '../game/state';
-import { drawTile, type TileArt } from '../render/tiles';
+import type { TileArt } from '../render/tiles';
+import { TileSource, type ReadyTile } from '../render/tileSource';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { Hud } from '../ui/hud';
 import { DPR } from '../ui/screen';
@@ -15,12 +16,26 @@ import { DPR } from '../ui/screen';
 const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
 /** Autosave period while playing, ms. The game is also saved whenever the page is hidden. */
 const SAVE_EVERY = 2500;
-/** Tile textures kept in memory (at least; more if the screen needs it). */
-const CACHE_MIN = 90;
-/** New tiles drawn per frame, to keep the frame rate when the view jumps. */
-const NEW_TILES_PER_FRAME = 2;
+/** Memory for tile pictures, bytes (more if the screen needs it). */
+const TILE_BUDGET = 72 * 1024 * 1024;
+/** Tile resolutions, pixels per world unit: the map uses the smallest that is sharp enough. */
+const LEVELS = [0.5, 1, 2];
+/** Tiles shrunk on this thread per frame when zooming out (cheap, but not free). */
+const SHRINKS_PER_FRAME = 4;
+/** How long a new tile takes to fade in, ms. */
+const FADE_MS = 220;
 
-interface CachedTile { art: TileArt; image: Phaser.GameObjects.Image; texture: string }
+interface CachedTile {
+  art: Omit<TileArt, 'canvas'>;
+  image: Phaser.GameObjects.Image;
+  texture: string;
+  source: HTMLCanvasElement | ImageBitmap;
+  res: number;
+  born: number;
+}
+
+const tileBytes = (res: number): number => (TILE * res) ** 2 * 4;
+let textureSerial = 0;
 
 /** "49°42′ N · 4°18′ O": degrees and minutes, with the compass letters of the language. */
 function formatCoords(lat: number, lon: number): string {
@@ -46,6 +61,8 @@ export class MapScene extends Phaser.Scene {
   private view!: View;
   private follow = true;
   private readonly tiles = new Map<string, CachedTile>();
+  private tileSource!: TileSource;
+  private now = 0;
   private tileLayer!: Phaser.GameObjects.Layer;
   private overlay!: Overlay;
   private overlayTexture!: Phaser.Textures.CanvasTexture;
@@ -69,6 +86,7 @@ export class MapScene extends Phaser.Scene {
     this.view = { x: this.state.x, y: this.state.y, zoom: this.state.zoom, W, H };
 
     this.tileLayer = this.add.layer();
+    this.tileSource = new TileSource((t) => this.tileReady(t));
     this.overlayTexture = this.textures.createCanvas('overlay', this.scale.width, this.scale.height)!;
     this.overlay = new Overlay(this.overlayTexture.context);
     this.overlay.resize(W, H);
@@ -166,48 +184,107 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
-  /** Make sure the visible tiles exist as textures; hide the others. Returns the visible tiles' art. */
+  /** The sharpest-needed resolution for the current zoom. */
+  private level(): number {
+    const need = this.view.zoom * DPR;
+    return LEVELS.find((l) => l >= need * 0.85) ?? LEVELS[LEVELS.length - 1];
+  }
+
+  /** Show a tile picture (new, sharper, or shrunk), as a Phaser texture without a pixel copy. */
+  private putTile(key: string, source: HTMLCanvasElement | ImageBitmap, res: number, art: Omit<TileArt, 'canvas'>): void {
+    const texture = 'tile:' + key + '#' + textureSerial++;
+    this.textures.addImage(texture, source as unknown as HTMLImageElement);
+    const c = this.tiles.get(key);
+    if (c) {
+      const old = c.texture, oldSource = c.source;
+      c.image.setTexture(texture);
+      this.textures.remove(old);
+      if (oldSource !== source && 'close' in oldSource) oldSource.close();
+      Object.assign(c, { texture, source, res, art });
+    } else {
+      const image = this.add.image(0, 0, texture).setOrigin(0, 0).setAlpha(0);
+      this.tileLayer.add(image);
+      this.tiles.set(key, { art, image, texture, source, res, born: this.now });
+    }
+  }
+
+  private tileReady(t: ReadyTile): void {
+    const key = t.ti + ',' + t.tj, c = this.tiles.get(key);
+    // keep what is there if it is already what the map wants, or sharper than this
+    if (c && (c.res === this.level() || c.res >= t.res)) { if ('close' in t.image) t.image.close(); return; }
+    this.putTile(key, t.image, t.res, t.art);
+  }
+
+  /** A smaller copy of a tile picture (halving steps, for a clean result). */
+  private shrink(c: CachedTile, res: number): HTMLCanvasElement {
+    let src: CanvasImageSource = c.source, size = TILE * c.res;
+    let out!: HTMLCanvasElement;
+    while (size > TILE * res) {
+      size /= 2;
+      out = document.createElement('canvas'); out.width = out.height = size;
+      const g = out.getContext('2d')!; g.imageSmoothingQuality = 'high'; g.drawImage(src, 0, 0, size, size);
+      src = out;
+    }
+    return out;
+  }
+
+  /**
+   * Place the visible tiles; ask for the missing or blurry ones (nearest first, then a ring
+   * around the view, ready before the map slides there); forget the least recently seen.
+   * Returns the visible tiles' art.
+   */
   private syncTiles(): TileArt[] {
     const v = this.view, visible: TileArt[] = [];
     const atlas = v.zoom < Z_ATLAS;
     this.tileLayer.setVisible(!atlas);
     for (const c of this.tiles.values()) c.image.setVisible(false);
     if (atlas) return visible;
+    const want = this.level();
     const ax = v.x - v.W / 2 / v.zoom, ay = v.y - v.H / 2 / v.zoom, bx = v.x + v.W / 2 / v.zoom, by = v.y + v.H / 2 / v.zoom;
     const sx = (x: number): number => Math.round((v.W / 2 + (x - v.x) * v.zoom) * DPR);
     const sy = (y: number): number => Math.round((v.H / 2 + (y - v.y) * v.zoom) * DPR);
-    let created = 0, count = 0;
-    for (let tj = Math.floor(ay / TILE); tj <= Math.floor(by / TILE); tj++) for (let ti = Math.floor(ax / TILE); ti <= Math.floor(bx / TILE); ti++) {
-      count++;
-      const key = ti + ',' + tj;
-      let c = this.tiles.get(key);
-      if (c) this.tiles.delete(key); // re-insert: Map order is the LRU order
-      else {
-        if (created >= NEW_TILES_PER_FRAME) continue;
-        created++;
-        const art = drawTile(ti, tj), texture = 'tile:' + key;
-        this.textures.addCanvas(texture, art.canvas);
-        const image = this.add.image(0, 0, texture).setOrigin(0, 0);
-        this.tileLayer.add(image);
-        c = { art, image, texture };
-      }
-      this.tiles.set(key, c);
+    const ti0 = Math.floor(ax / TILE), ti1 = Math.floor(bx / TILE), tj0 = Math.floor(ay / TILE), tj1 = Math.floor(by / TILE);
+    const jobs: { ti: number; tj: number; res: number; d: number }[] = [];
+    let shrinks = 0, bytes = 0;
+    for (let tj = tj0; tj <= tj1; tj++) for (let ti = ti0; ti <= ti1; ti++) {
+      const key = ti + ',' + tj, c = this.tiles.get(key);
+      const d = Math.hypot((ti + 0.5) * TILE - v.x, (tj + 0.5) * TILE - v.y);
+      if (!c) { jobs.push({ ti, tj, res: want, d }); continue; }
+      this.tiles.delete(key); this.tiles.set(key, c); // Map order is the LRU order
+      if (c.res < want) jobs.push({ ti, tj, res: want, d });
+      else if (c.res > want && shrinks < SHRINKS_PER_FRAME) { shrinks++; this.putTile(key, this.shrink(c, want), want, c.art); }
       const x0 = sx(ti * TILE), y0 = sy(tj * TILE);
-      c.image.setVisible(true).setPosition(x0, y0).setDisplaySize(sx((ti + 1) * TILE) - x0, sy((tj + 1) * TILE) - y0);
-      visible.push(c.art);
+      c.image.setVisible(true).setPosition(x0, y0).setDisplaySize(sx((ti + 1) * TILE) - x0, sy((tj + 1) * TILE) - y0)
+        .setAlpha(Math.min(1, (this.now - c.born) / FADE_MS));
+      bytes += tileBytes(c.res);
+      visible.push(c.art as TileArt);
     }
-    const max = Math.max(CACHE_MIN, count + 12);
-    while (this.tiles.size > max) {
-      const [key, c] = this.tiles.entries().next().value!;
+    jobs.sort((p, q) => p.d - q.d);
+    // the ring around the view, ready before the map slides there
+    for (let tj = tj0 - 1; tj <= tj1 + 1; tj++) for (let ti = ti0 - 1; ti <= ti1 + 1; ti++) {
+      if (tj >= tj0 && tj <= tj1 && ti >= ti0 && ti <= ti1) continue;
+      const c = this.tiles.get(ti + ',' + tj);
+      if (!c || c.res < want) jobs.push({ ti, tj, res: want, d: 0 });
+    }
+    this.tileSource.want(jobs);
+    // forget the least recently seen tiles beyond the memory budget (never the visible ones)
+    let total = 0;
+    for (const c of this.tiles.values()) total += tileBytes(c.res);
+    const budget = Math.max(TILE_BUDGET, bytes * 1.3);
+    for (const [key, c] of this.tiles) {
+      if (total <= budget || c.image.visible) break;
+      total -= tileBytes(c.res);
       this.tiles.delete(key);
       c.image.destroy();
       this.textures.remove(c.texture);
+      if ('close' in c.source) c.source.close();
     }
     return visible;
   }
 
   update(time: number, delta: number): void {
     const dt = Math.min(0.05, delta / 1000), s = this.state, v = this.view;
+    this.now = time;
     const events: TravelEvent[] = [];
     const walking = advance(s, dt, events);
     // crossing longitude 180°: the explorer comes back around the planet, the view follows

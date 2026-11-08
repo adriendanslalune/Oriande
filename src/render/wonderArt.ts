@@ -55,3 +55,14 @@ export const landmarkImage = (kind: LandmarkKind): HTMLImageElement | undefined 
 
 /** The loaded picture of a kind of wonder, if any. */
 export const wonderImage = (kind: WonderKind): HTMLImageElement | undefined => images.get(kind);
+
+/**
+ * Kinds whose pictures exist, as told to a tile worker (it cannot load images itself): the
+ * tiles leave room for those pictures instead of drawing the engraved version.
+ */
+const artKinds = new Set<string>();
+export const setArtKinds = (kinds: string[]): void => { artKinds.clear(); for (const k of kinds) artKinds.add(k); };
+/** The kinds whose pictures are loaded here, to pass to a tile worker. */
+export const loadedArtKinds = (): string[] => [...images.keys(), ...[...landmarkImages.keys()].map((k) => 'landmark:' + k)];
+export const hasWonderArt = (kind: WonderKind): boolean => images.has(kind) || artKinds.has(kind);
+export const hasLandmarkArt = (kind: LandmarkKind): boolean => landmarkImages.has(kind) || artKinds.has('landmark:' + kind);

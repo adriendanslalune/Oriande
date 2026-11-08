@@ -51,7 +51,14 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Échelle des sauvegardes : v3 ; les sauvegardes v1/v2 (monde plat) sont mises de côté.
 
 Règles qui restent :
-1. Rendu par tuiles (textures Phaser générées à la volée, cache ≥ 90 tuiles) et brume.
+1. Rendu par tuiles et brume. Les tuiles sont dessinées **hors du fil principal** par 1 à 3 Web
+   Workers (`render/tileWorker.ts`, `render/tileSource.ts`, OffscreenCanvas ; repli sur le fil
+   principal sinon), la plus proche d'abord, plus un anneau d'avance autour de la vue. Trois
+   résolutions (0,5 / 1 / 2 px par unité) selon le zoom ; une tuile trop nette est réduite sur
+   place, une tuile floue sert d'aperçu en attendant la bonne. Cache borné à **72 Mo** (LRU),
+   textures Phaser via `addImage` (jamais `addCanvas`, qui copie les pixels). Fondu de 220 ms.
+   Les fenêtres des maisons (nuit) reviennent du worker ; on lui dit quelles illustrations sont
+   chargées (`setArtKinds`). Brume : un tampon de disque pré-dessiné par taille.
 2. Ne pas « améliorer » le monde sans qu'Adrien le demande.
 3. Dessin retravaillé à sa demande : montagnes en pics gravés, collines, aventurier à
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,

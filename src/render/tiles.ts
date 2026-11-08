@@ -15,7 +15,7 @@ import { drawLandmarkIcon } from './icons';
 import { drawHills, drawMountains } from './relief';
 import { clearing, drawTown, drawTownGrounds } from './towns';
 import { drawWonder } from './wonders';
-import { landmarkImage, wonderImage } from './wonderArt';
+import { hasLandmarkArt, hasWonderArt } from './wonderArt';
 import { WONDER_CLEARING, wondersNear } from '../world/wonders';
 import { INK } from './palette';
 
@@ -61,12 +61,13 @@ function terrainColour(v: number, X: number, Y: number): number[] {
   return c;
 }
 
-export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = domCanvas): TileArt {
+/** Draw tile (ti, tj) at `res` pixels per world unit. */
+export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = domCanvas, res = TILE_RES): TileArt {
   const T = TILE;
   const cv = createCanvas();
-  cv.width = cv.height = T * TILE_RES;
+  cv.width = cv.height = Math.round(T * res);
   const g = cv.getContext('2d')!;
-  g.scale(TILE_RES, TILE_RES); g.lineCap = 'round'; g.strokeStyle = INK; g.fillStyle = INK;
+  g.scale(res, res); g.lineCap = 'round'; g.strokeStyle = INK; g.fillStyle = INK;
   const x0 = ti * T, y0 = tj * T, N = T / STEP + 1, H = new Float32Array(N * N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) H[j * N + i] = altitude(x0 + i * STEP, y0 + j * STEP);
   const h = (i: number, j: number): number => H[j * N + i];
@@ -199,7 +200,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
 
   // The strange place of this tile, if any.
   const L = landmark(ti, tj);
-  if (L && !landmarkImage(L.kind)) drawLandmarkIcon(g, L.kind, L.x - x0, L.y - y0); // else drawn by the overlay
+  if (L && !hasLandmarkArt(L.kind)) drawLandmarkIcon(g, L.kind, L.x - x0, L.y - y0); // else drawn by the overlay
 
   // Roads, then settlements (those of neighbouring tiles may spill onto this one).
   g.strokeStyle = INK;
@@ -217,7 +218,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   g.strokeStyle = INK;
   // above the roads; a wonder with an illustration is drawn by the overlay instead
   drawBridges(g, x0, y0, roads, rivers);
-  for (const w of wonders) if (!wonderImage(w.kind)) drawWonder(g, w, w.x - x0, w.y - y0);
+  for (const w of wonders) if (!hasWonderArt(w.kind)) drawWonder(g, w, w.x - x0, w.y - y0);
   for (const b of towns) drawTown(g, b, b.x - x0, b.y - y0, roads);
 
   // What moves on top: sea points for waves, forest points for leaves.

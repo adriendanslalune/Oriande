@@ -1,0 +1,26 @@
+// Draws map tiles off the main thread (OffscreenCanvas), so that walking or sliding the map
+// never stutters while new country is drawn. Same drawing code as on the main thread.
+import { drawTile } from './tiles';
+import { townWindows } from './towns';
+import { setArtKinds } from './wonderArt';
+
+export interface TileRequest { id: number; ti: number; tj: number; res: number }
+export interface TileReply {
+  id: number; ti: number; tj: number; res: number;
+  bitmap: ImageBitmap;
+  waves: [number, number, number][];
+  trees: [number, number][];
+  windows: [string, [number, number, number][]][];
+}
+
+const make = (): HTMLCanvasElement => new OffscreenCanvas(1, 1) as unknown as HTMLCanvasElement;
+
+self.onmessage = (e: MessageEvent<{ art: string[] } | TileRequest>): void => {
+  const m = e.data;
+  if ('art' in m) { setArtKinds(m.art); return; }
+  townWindows.clear();
+  const art = drawTile(m.ti, m.tj, make, m.res);
+  const bitmap = (art.canvas as unknown as OffscreenCanvas).transferToImageBitmap();
+  const reply: TileReply = { id: m.id, ti: m.ti, tj: m.tj, res: m.res, bitmap, waves: art.waves, trees: art.trees, windows: [...townWindows] };
+  (self as unknown as Worker).postMessage(reply, [bitmap]);
+};

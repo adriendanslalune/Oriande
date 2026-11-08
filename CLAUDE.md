@@ -69,7 +69,14 @@ Règles qui restent :
    s'arrête où il rejoint une rivière. Méandres par bruit, largeur croissante vers l'aval.
    Calculées par cellule de 8 192 (cache), préchauffées au Boot, puis une cellule d'avance
    toutes les 1,5 s pendant la marche. Les pics s'écartent le long des rivières (vallées).
-   Elles ne bloquent pas la marche pour l'instant.
+   Elles ne bloquent pas la marche pour l'instant. Torrents (`steep`) et **cascades** (`falls`,
+   chute d'altitude ≥ 0,22 entre deux nœuds) ; l'overlay anime le courant (écume qui
+   descend, plus vite dans les torrents), les embruns des cascades et des **poissons qui
+   sautent** (mer, lacs, grandes rivières).
+7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
+   plus proche des deux) : liaisons réciproques et planes, les routes se rejoignent dans les
+   bourgs au lieu de se croiser. Les routes serpentent (bruit perpendiculaire, toujours sur
+   terrain praticable).
 
 ## Architecture
 

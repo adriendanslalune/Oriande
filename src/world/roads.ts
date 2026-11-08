@@ -1,4 +1,5 @@
-import { hash2 } from './noise';
+import { fbm, hash2 } from './noise';
+import { CIRCUMFERENCE } from './planet';
 import { altitude, MOUNTAIN_ALTITUDE, ROAD_MAX_ALTITUDE } from './terrain';
 import { settlement, type Settlement } from './settlements';
 
@@ -26,8 +27,8 @@ const MAX_DETOUR = 1.8;
 const linkMemo = new Map<string, Settlement[]>();
 
 /**
- * The settlements a settlement is linked to by road: nearest first, 3 at most (4 for a city).
- * As in the proto, but a link also needs an actual road around mountains and water (roadPath).
+ * The settlements a settlement is linked to by road, nearest first: its relative neighbours
+ * (see below) that an actual road can reach around mountains and water.
  */
 export function neighbours(b: Settlement): Settlement[] {
   const known = linkMemo.get(b.rkey);
@@ -42,15 +43,17 @@ export function neighbours(b: Settlement): Settlement[] {
   }
   cands.sort((p, q) => p[0] - q[0]);
   const out: Settlement[] = [];
-  for (const [, o] of cands) {
-    if (out.length >= (b.city ? 4 : 3)) break;
-    // the proto's rule: no link across the sea (straight line, 9 samples)...
+  for (const [d, o] of cands) {
+    // the relative neighbourhood rule: no other town closer to both. The network is then
+    // symmetric and planar: roads meet in towns instead of crossing in the fields.
+    if (cands.some(([dc, c]) => dc < d && c !== o && Math.hypot(c.x - o.x, c.y - o.y) < d)) continue;
+    // no link across the sea (straight line, 9 samples)...
     let sea = false;
     for (let k = 1; k < 10; k++) {
       const u = k / 10;
       if (altitude(b.x + (o.x - b.x) * u, b.y + (o.y - b.y) * u) < 0) { sea = true; break; }
     }
-    // ...and ours: there must be an actual road, around mountains and water
+    // ...and there must be an actual road, around mountains and water
     if (!sea && roadPath(b, o)) out.push(o);
   }
   linkMemo.set(b.rkey, out);
@@ -205,8 +208,30 @@ function detour(p: Point, q: Point): Point[] | null {
 
 const roadMemo = new Map<string, Road>();
 
-function makeRoad(a: Settlement, b: Settlement, points: Point[]): Road {
+/**
+ * A real road winds: resample the line every few units and push each point sideways by a smooth
+ * noise of its position (less near the towns), unless that would leave passable ground.
+ */
+function wind(points: Point[]): Point[] {
+  const STEP = 8, A = 17, S = 75, out: Point[] = [points[0]];
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1], b = points[k], n = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / STEP));
+    for (let m = 1; m <= n; m++) out.push({ x: a.x + (b.x - a.x) * m / n, y: a.y + (b.y - a.y) * m / n });
+  }
+  const total = out.length;
+  return out.map((pt, k) => {
+    if (k === 0 || k === total - 1) return pt;
+    const pv = out[k - 1], nx = out[k + 1], dx = nx.x - pv.x, dy = nx.y - pv.y, L = Math.hypot(dx, dy) || 1;
+    const fade = Math.min(1, k / 4, (total - 1 - k) / 4);
+    const o = (fbm(pt.x / S, pt.y / S, 3, CIRCUMFERENCE / S) - 0.5) * 2 * A * fade;
+    const w = { x: pt.x - (dy / L) * o, y: pt.y + (dx / L) * o };
+    return passable(altitude(w.x, w.y)) ? w : pt;
+  });
+}
+
+function makeRoad(a: Settlement, b: Settlement, raw: Point[]): Road {
   const [p, q] = a.key < b.key ? [a, b] : [b, a];
+  const points = wind(raw);
   const lengths = [0];
   for (let k = 1; k < points.length; k++) lengths.push(lengths[k - 1] + Math.hypot(points[k].x - points[k - 1].x, points[k].y - points[k - 1].y));
   const xs = points.map((pt) => pt.x), ys = points.map((pt) => pt.y);

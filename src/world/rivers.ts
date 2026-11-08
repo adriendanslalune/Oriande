@@ -24,6 +24,12 @@ export interface River {
   widths: number[];
   /** ends in a lake (a hollow) rather than in the sea */
   lake: boolean;
+  /** distance along the river at each point, world units */
+  lengths: number[];
+  /** how fast the water runs at each point, 0 (calm) to 1 (a mountain torrent) */
+  steep: number[];
+  /** waterfalls: [x, y, dx, dy] where the river drops over a ledge, flowing along (dx, dy) */
+  falls: [number, number, number, number][];
   /** lakes along the way and at the end: [x, y, size in grid cells], world units */
   lakes: [number, number, number][];
   minX: number; maxX: number; minY: number; maxY: number;
@@ -174,9 +180,23 @@ export function riversOfCell(ci: number, cj: number): River[] {
     for (const [a, b] of nodes) used.add(nk(a, b));
     const points = meander(smooth(nodes.map(([a, b]) => [a * G, b * G] as [number, number]), 3));
     const n = points.length;
+    // slope between nodes: a torrent where the river drops fast, a waterfall where it plunges
+    const alts = nodes.map(([a, b]) => altitude(a * G, b * G));
+    const nodeSteep = nodes.map((_, k) => k + 1 < nodes.length ? Math.max(0, alts[k] - alts[k + 1]) : 0);
+    const steep = points.map((_, k) => Math.min(1, nodeSteep[Math.min(nodes.length - 1, Math.floor(k / (n - 1) * (nodes.length - 1)))] / 0.08));
+    const falls: [number, number, number, number][] = [];
+    for (let k = 0, last = -99; k + 1 < nodes.length; k++) {
+      if (nodeSteep[k] < 0.22 || alts[k + 1] < 0.05 || k - last < 12) continue;
+      const pk = Math.min(n - 2, Math.round((k + 0.5) / (nodes.length - 1) * (n - 1)));
+      const [x, y] = points[pk], [x2, y2] = points[pk + 1], L = Math.hypot(x2 - x, y2 - y) || 1;
+      falls.push([x, y, (x2 - x) / L, (y2 - y) / L]);
+      last = k;
+    }
+    const lengths = [0];
+    for (let k = 1; k < n; k++) lengths.push(lengths[k - 1] + Math.hypot(points[k][0] - points[k - 1][0], points[k][1] - points[k - 1][1]));
     const widths = points.map((_, k) => 0.7 + Math.min(4, (k / n) * nodes.length / 22));
     const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
-    out.push({ points, widths, lake, lakes: lakes.map(([a, b, n]) => [a * G, b * G, n] as [number, number, number]), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
+    out.push({ points, widths, lengths, steep, falls, lake, lakes: lakes.map(([a, b, n]) => [a * G, b * G, n] as [number, number, number]), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
   }
   memo.set(rkey, out);
   return out;

@@ -7,6 +7,7 @@ import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
+import { riversNear } from '../world/rivers';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
 import { CIRCUMFERENCE, nearestCopy, wrapIndex } from '../world/planet';
@@ -39,6 +40,9 @@ export class Overlay {
   private readonly fog = document.createElement('canvas');
   private readonly fg = this.fog.getContext('2d')!;
   private leaves: Leaf[] = [];
+  /** fish leaping out of the water: where, when it started, which way */
+  private fish: { x: number; y: number; t0: number; dir: number; size: number }[] = [];
+  private fishTimer = 0;
   /** the explorer faces the way they last walked: 1 = east, -1 = west */
   private facing = 1;
   private leafTimer = 0;
@@ -172,6 +176,9 @@ export class Overlay {
       ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
     ctx.fillStyle = INK;
+    this.riverLife(s, v, screen, world, time);
+    this.leapingFish(s, v, screen, world, tiles, time, dt);
+    ctx.strokeStyle = INK; ctx.fillStyle = INK; ctx.globalAlpha = 1;
     // Waves: small crests that rise, roll a little and fade.
     ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgb(40,70,90)';
     for (const tl of tiles) for (const [X, Y, ph] of tl.waves) {
@@ -245,6 +252,100 @@ export class Overlay {
         const [x, y] = screen(cx - Math.cos(a0) * k * 10 + Math.sin(a0) * (k % 2 ? 6 : -6) * k * 0.5, cy - Math.sin(a0) * k * 10 - Math.cos(a0) * (k % 2 ? 6 : -6) * k * 0.5), b = Math.sin(time * 9 + k) * 2;
         ctx.beginPath(); ctx.moveTo(x - 4, y - b); ctx.quadraticCurveTo(x - 2, y - 2, x, y); ctx.quadraticCurveTo(x + 2, y - 2, x + 4, y - b); ctx.stroke();
       }
+    }
+  }
+
+  /**
+   * Running water: flecks of foam drift downstream, faster and whiter in torrents; at the foot
+   * of waterfalls, spray rises and falls. Skipped when zoomed far out (too small to see).
+   */
+  private riverLife(s: GameState, v: View, screen: (x: number, y: number) => [number, number], world: (x: number, y: number) => [number, number], time: number): void {
+    if (v.zoom < 0.45) return;
+    const { ctx } = this, [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
+    const SPACING = 16;
+    ctx.lineCap = 'round';
+    for (const r of riversNear(ax, ay, bx, by)) {
+      const L = r.lengths[r.lengths.length - 1];
+      let k = 1;
+      for (let d = (time * 14) % SPACING; d < L; d += SPACING) {
+        while (k < r.lengths.length - 1 && r.lengths[k] < d) k++;
+        const [px, py] = r.points[k - 1], [qx, qy] = r.points[k];
+        if (px < ax - 10 || px > bx + 10 || py < ay - 10 || py > by + 10) continue;
+        const st = r.steep[k], seg = r.lengths[k] - r.lengths[k - 1] || 1, u = (d - r.lengths[k - 1]) / seg;
+        // torrents run faster: shift these flecks further along with time
+        const extra = (time * 40 * st) % SPACING, uu = Math.min(1, u + extra / seg);
+        const X = px + (qx - px) * uu, Y = py + (qy - py) * uu;
+        if (!isSeen(s, X, Y)) continue;
+        const [x, y] = screen(X, Y), dx = (qx - px) / seg, dy = (qy - py) / seg, len = (2 + st * 3) * v.zoom;
+        ctx.strokeStyle = `rgba(245,250,252,${0.45 + st * 0.45})`; ctx.lineWidth = Math.max(0.6, r.widths[k] * 0.35 * v.zoom);
+        ctx.beginPath(); ctx.moveTo(x - dx * len, y - dy * len); ctx.lineTo(x + dx * len, y + dy * len); ctx.stroke();
+        if (st > 0.6 && ((d * 7 + Math.floor(time * 6)) % 3) < 1) { // white water: little foam curls
+          ctx.beginPath(); ctx.arc(x - dy * 2 * v.zoom, y + dx * 2 * v.zoom, 0.9 * v.zoom, 0, 6.3); ctx.fillStyle = 'rgba(250,252,252,.85)'; ctx.fill();
+        }
+      }
+      for (const [fx, fy, dx, dy] of r.falls) { // spray at the foot of the falls
+        if (fx < ax - 20 || fx > bx + 20 || fy < ay - 20 || fy > by + 20 || !isSeen(s, fx, fy)) continue;
+        for (let m = 0; m < 6; m++) {
+          const ph = (time * 1.6 + m / 6) % 1, sx = fx + (m - 2.5) * 2.6, sy = fy + 6; void dx; void dy;
+          const [x, y] = screen(sx, sy - ph * 7);
+          ctx.globalAlpha = 0.7 * (1 - ph); ctx.fillStyle = 'rgb(250,252,252)';
+          ctx.beginPath(); ctx.arc(x, y, (1.4 + ph * 3) * v.zoom, 0, 6.3); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  /**
+   * Now and then a fish leaps out of the sea, a lake or a wide river: it arcs over the water,
+   * with a ring of ripples where it leaves and where it dives back.
+   */
+  private leapingFish(s: GameState, v: View, screen: (x: number, y: number) => [number, number], world: (x: number, y: number) => [number, number], tiles: TileArt[], time: number, dt: number): void {
+    if (v.zoom < 0.5) { this.fish.length = 0; return; }
+    const { ctx } = this, DUR = 1.1;
+    this.fishTimer -= dt;
+    if (this.fishTimer <= 0 && this.fish.length < 4) {
+      this.fishTimer = 0.6 + Math.random() * 1.2;
+      // candidates: open water seen on screen (sea points of the tiles, lakes, wide rivers)
+      const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H), spots: [number, number, number][] = [];
+      for (const tl of tiles) for (const [X, Y] of tl.waves) spots.push([X, Y, 1]);
+      for (const r of riversNear(ax, ay, bx, by)) {
+        for (const [lx, ly] of r.lakes) spots.push([lx, ly, 0.8]);
+        for (let k = 0; k < r.points.length; k += 12) if (r.widths[k] > 2.2) spots.push([r.points[k][0], r.points[k][1], 0.6]);
+      }
+      const ok = spots.filter(([X, Y]) => X > ax && X < bx && Y > ay && Y < by && isSeen(s, X, Y));
+      if (ok.length) {
+        const [X, Y, size] = ok[Math.floor(Math.random() * ok.length)];
+        this.fish.push({ x: X + (Math.random() - 0.5) * 6, y: Y + (Math.random() - 0.5) * 4, t0: time, dir: Math.random() < 0.5 ? -1 : 1, size });
+      }
+    }
+    this.fish = this.fish.filter((f) => time - f.t0 < DUR + 0.6);
+    for (const f of this.fish) {
+      const u = (time - f.t0) / DUR, z = v.zoom * f.size, span = 9 * z;
+      const [x0, y0] = screen(f.x, f.y);
+      // ripples where it leaves and where it lands
+      for (const [rx, start] of [[x0 - f.dir * span / 2, 0], [x0 + f.dir * span / 2, 0.8]] as const) {
+        const a = (u - start) / 0.8;
+        if (a < 0 || a > 1) continue;
+        ctx.globalAlpha = 0.8 * (1 - a); ctx.strokeStyle = 'rgb(250,252,252)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.ellipse(rx, y0, (1 + a * 4) * z, (0.5 + a * 1.6) * z, 0, 0, 6.3); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      if (u > 1) continue;
+      // the leap: a parabola, the fish turned along it
+      const px = x0 + f.dir * span * (u - 0.5), py = y0 - Math.sin(Math.PI * u) * 7 * z;
+      // heading along the arc: up at the start, level at the top, down at the end
+      const vx = f.dir * span, vy = -Math.cos(Math.PI * u) * 7 * z * Math.PI;
+      ctx.save(); ctx.translate(px, py); ctx.rotate(Math.atan2(vy, vx)); ctx.scale(z, f.dir > 0 ? z : -z); // keep the back up
+      ctx.fillStyle = 'rgb(186,198,200)'; ctx.strokeStyle = INK; ctx.lineWidth = 0.3;
+      ctx.beginPath(); ctx.ellipse(0, 0, 2.6, 1, 0, 0, 6.3); ctx.fill(); ctx.stroke(); // body
+      ctx.beginPath(); ctx.moveTo(-2.3, 0); ctx.quadraticCurveTo(-3.2, -0.3, -3.9, -1.2); ctx.lineTo(-3.4, 0); ctx.lineTo(-3.9, 1.2); ctx.quadraticCurveTo(-3.2, 0.3, -2.3, 0); ctx.fill(); ctx.stroke(); // tail
+      ctx.beginPath(); ctx.moveTo(-0.6, -0.95); ctx.lineTo(0.3, -1.5); ctx.lineTo(0.8, -0.9); ctx.stroke(); // dorsal fin
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(1.6, -0.25, 0.25, 0, 6.3); ctx.fill(); // eye
+      ctx.restore();
+      // droplets trailing behind
+      ctx.fillStyle = 'rgba(250,252,252,.9)';
+      for (let k = 1; k <= 2; k++) { const uu = Math.max(0, u - k * 0.08); ctx.beginPath(); ctx.arc(x0 + f.dir * span * (uu - 0.5), y0 - Math.sin(Math.PI * uu) * 7 * z + k, 0.5 * z, 0, 6.3); ctx.fill(); }
     }
   }
 

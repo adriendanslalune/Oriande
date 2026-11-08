@@ -103,3 +103,32 @@ describe('crossing longitude 180°', () => {
     expect(s.seen.has(cellKey(CIRCUMFERENCE / 2, y))).toBe(true);
   });
 });
+
+describe('road network', () => {
+  const crosses = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }, d: { x: number; y: number }) => {
+    const o = (p: typeof a, q: typeof a, r: typeof a) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  };
+  it('links are mutual, and roads meet in towns instead of crossing', async () => {
+    const { neighbours } = await import('./roads');
+    const s = startPosition(), ti = Math.floor(s.x / TILE), tj = Math.floor(s.y / TILE);
+    const rs = roadsAround(ti, tj, 6);
+    expect(rs.length).toBeGreaterThan(20);
+    for (const r of rs) expect(neighbours(r.q).map((n) => n.key)).toContain(r.p.key);
+    // crossings between the straight links (town to town): none for a relative neighbourhood graph
+    let crossings = 0;
+    for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+      const A = rs[i], B = rs[j];
+      if ([A.p, A.q].some((t) => t === B.p || t === B.q)) continue;
+      if (crosses(A.p, A.q, B.p, B.q)) crossings++;
+    }
+    expect(crossings).toBe(0);
+  });
+  it('roads wind instead of running straight', () => {
+    const s = startPosition();
+    for (const r of roadsAround(Math.floor(s.x / TILE), Math.floor(s.y / TILE), 4)) {
+      const L = r.lengths[r.lengths.length - 1], d = Math.hypot(r.q.x - r.p.x, r.q.y - r.p.y);
+      expect(L).toBeGreaterThan(d * 1.01);
+    }
+  });
+});

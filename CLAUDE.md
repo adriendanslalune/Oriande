@@ -95,7 +95,9 @@ Règles qui restent :
    Effet : la vision (`visibilityAt`) baisse sous la pluie, la neige, le brouillard, le sable
    et la nuit (jusqu'à −40 %). Pas d'effet sur la marche pour l'instant. Rendu
    (`render/weather.ts`) : petits nuages dessinés « ligne claire » (Moebius) qui vivent dans
-   l'air emporté par le vent (`airShift`), avec leur ombre au sol ; pluie/neige/sable en tracés
+   l'air emporté par le vent (`airShift`), avec leur ombre au sol ; les nuages passent
+   **au-dessus** de l'explorateur et s'effacent quand on zoome (absents au zoom ≥ 1,2, le
+   zoom par défaut est 1,3 ; pleins à ≤ 0,8) ; les ombres restent visibles à tout zoom ; pluie/neige/sable en tracés
    groupés, éclairs, lueur de l'aube et du crépuscule. **Nuit** : voile bleu nuit (quart de
    résolution, peint dans le canvas de brume) percé par les lumières : la **torche** de
    l'explorateur et les **fenêtres** des maisons (`townWindows`, remplies au dessin des bourgs). HUD : temps, vent, moment.

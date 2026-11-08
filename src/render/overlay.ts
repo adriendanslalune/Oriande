@@ -170,6 +170,8 @@ export class Overlay {
       if (Math.abs(ahead.dx) > 0.5) this.facing = ahead.dx > 0 ? 1 : -1;
     }
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
+    // the clouds pass over the explorer (they fade out as the view zooms in under them)
+    this.weather.drawClouds(ctx, v, screen, (X, Y) => isSeen(s, X, Y));
     this.compass(v.W - 44, 96);
     this.scaleBar(v);
   }

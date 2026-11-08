@@ -16,6 +16,8 @@ type World = (x: number, y: number) => [number, number];
 const CELL_PX = 18;
 const REFRESH_MS = 400;
 
+interface Cloud { x: number; y: number; r: number; dark: number; puffs: [number, number, number][] }
+
 export class WeatherLayer {
   /** the night, at a quarter of the screen's resolution, with the lights punched out of it */
   private readonly night = document.createElement('canvas');
@@ -52,7 +54,8 @@ export class WeatherLayer {
   draw(ctx: CanvasRenderingContext2D, v: View, screen: Screen, world: World, now: number, dt: number, seen: (x: number, y: number) => boolean): void {
     if (now - this.last > REFRESH_MS || Math.abs(this.zoom - v.zoom) / v.zoom > 0.02) this.refresh(v, world, now);
     const t = now / 1000, step = CELL_PX / this.zoom;
-    this.drawClouds(ctx, v, screen, world, worldTime(), seen); // the shared world clock, not the page's
+    this.clouds = this.makeClouds(v, world, worldTime()); // the shared world clock, not the page's
+    this.drawShadows(ctx, v, screen, seen);
     {
 
     // precipitation: drops placed on a fixed pseudo-random lattice of the screen, kept only
@@ -130,10 +133,14 @@ export class WeatherLayer {
    * base, a pale shaded underside; their shadows drift over the ground. Each cloud lives in the
    * air, which moves with the wind: everyone sees the same clouds at the same moment.
    */
-  private drawClouds(ctx: CanvasRenderingContext2D, v: View, screen: Screen, world: World, t: number, seen: (x: number, y: number) => boolean): void {
-    if (v.zoom < 0.22) return; // in the atlas, no clouds
+  private clouds: Cloud[] = [];
+  private readonly layer = document.createElement('canvas');
+  private readonly lg = this.layer.getContext('2d')!;
+
+  private makeClouds(v: View, world: World, t: number): Cloud[] {
+    if (v.zoom < 0.22) return []; // in the atlas, no clouds
     const CS = 200, N = CIRCUMFERENCE / CS, [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
-    const clouds: { x: number; y: number; r: number; dark: number; puffs: [number, number, number][] }[] = [];
+    const clouds: Cloud[] = [];
     for (let aj = Math.floor(ay / CS) - 1; aj <= Math.floor(by / CS) + 2; aj++) {
       const shift = airShift(aj * CS, t);
       for (let ai = Math.floor((ax - shift) / CS) - 1; ai <= Math.floor((bx - shift) / CS) + 1; ai++) {
@@ -151,32 +158,66 @@ export class WeatherLayer {
         clouds.push({ x, y, r, dark, puffs });
       }
     }
-    const z = v.zoom, path = (c: (typeof clouds)[number], dx: number, dy: number): Path2D => {
+    return clouds;
+  }
+
+  /** The outline of a cloud on screen (puffs and flat base), shifted by (dx, dy) world units. */
+  private path(c: Cloud, v: View, screen: Screen, dx: number, dy: number): Path2D {
+    const z = v.zoom;
+    {
       const p = new Path2D(), [sx, sy] = screen(c.x + dx, c.y + dy);
       for (const [px, py, pr] of c.puffs) { p.moveTo(sx + (px + pr) * z, sy + py * z); p.arc(sx + px * z, sy + py * z, pr * z, 0, Math.PI * 2); }
       const xs = c.puffs.map(([px, , pr]) => [px - pr * 0.8, px + pr * 0.8]).flat();
       p.rect(sx + Math.min(...xs) * z, sy - c.r * 0.05 * z, (Math.max(...xs) - Math.min(...xs)) * z, c.r * 0.28 * z);
       return p;
-    };
-    // the shadows on the ground, cast to the south-east
+    }
+  }
+
+  /** The clouds' shadows on the ground, cast to the south-east: seen at every zoom. */
+  private drawShadows(ctx: CanvasRenderingContext2D, v: View, screen: Screen, seen: (x: number, y: number) => boolean): void {
     ctx.save();
     ctx.fillStyle = 'rgba(40,40,60,.13)';
-    for (const c of clouds) if (seen(c.x + 18, c.y + 30)) ctx.fill(path(c, 18, 30));
+    for (const c of this.clouds) if (seen(c.x + 18, c.y + 30)) ctx.fill(this.path(c, v, screen, 18, 30));
     ctx.restore();
-    // the clouds: ink outline (strokes first, then fills hide the inner ones), flat base, shading
-    for (const c of clouds) {
+  }
+
+  /**
+   * The clouds themselves, above everything on the ground, the explorer included. Seen from close
+   * up we are under them: they fade in only as the view zooms out. At night they take the blue
+   * of the sky.
+   */
+  drawClouds(ctx: CanvasRenderingContext2D, v: View, screen: Screen, seen: (x: number, y: number) => boolean): void {
+    const fade = Math.max(0, Math.min(1, (1.2 - v.zoom) / 0.4)); // none at zoom 1.2+ (the default is 1.3), full at 0.8-
+    if (fade <= 0 || !this.clouds.length) return;
+    const z = v.zoom, night = sky(v.x).darkness;
+    const tint = (c: number[]): string => c.map((n, k) => Math.round(n + ([30, 48, 100][k] - n) * night * 0.7)).join(',');
+    // while fading, draw them opaque on a layer, then lay the layer down at once: otherwise the
+    // inner outlines would show through
+    const out = ctx;
+    if (fade < 1) {
+      if (this.layer.width !== out.canvas.width || this.layer.height !== out.canvas.height) { this.layer.width = out.canvas.width; this.layer.height = out.canvas.height; }
+      this.lg.setTransform(out.getTransform()); this.lg.clearRect(0, 0, v.W, v.H);
+      ctx = this.lg;
+    }
+    ctx.save();
+    // ink outline (strokes first, then fills hide the inner ones), flat base, shading
+    for (const c of this.clouds) {
       if (!seen(c.x, c.y)) continue;
-      const p = path(c, 0, 0), [sx, sy] = screen(c.x, c.y), base = sy + c.r * 0.23 * z;
+      const p = this.path(c, v, screen, 0, 0), [sx, sy] = screen(c.x, c.y), base = sy + c.r * 0.23 * z;
       ctx.save();
-      ctx.strokeStyle = 'rgba(70,74,92,.75)'; ctx.lineWidth = Math.max(0.8, 1.1 * z); ctx.stroke(p);
+      ctx.strokeStyle = `rgba(${tint([70, 74, 92])},.75)`; ctx.lineWidth = Math.max(0.8, 1.1 * z); ctx.stroke(p);
       const shade = 252 - c.dark * 120;
-      ctx.fillStyle = `rgba(${shade},${shade},${shade + 2 - c.dark * 10},.95)`; ctx.fill(p);
+      ctx.fillStyle = `rgba(${tint([shade, shade, shade + 2 - c.dark * 10])},.95)`; ctx.fill(p);
       ctx.clip(p); // a pale blue-grey underside
-      ctx.fillStyle = `rgba(${170 - c.dark * 60},${182 - c.dark * 60},${204 - c.dark * 60},.55)`;
+      ctx.fillStyle = `rgba(${tint([170 - c.dark * 60, 182 - c.dark * 60, 204 - c.dark * 60])},.55)`;
       ctx.fillRect(sx - c.r * 2 * z, base - c.r * 0.22 * z, c.r * 4 * z, c.r * 0.5 * z);
       ctx.strokeStyle = 'rgba(70,74,92,.35)'; ctx.lineWidth = 0.6; // a couple of curls on the puffs
       for (const [px, py, pr] of c.puffs.slice(1, -1)) { ctx.beginPath(); ctx.arc(sx + px * z, sy + py * z + pr * 0.15 * z, pr * 0.55 * z, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke(); }
       ctx.restore();
+    }
+    ctx.restore();
+    if (fade < 1) {
+      out.save(); out.setTransform(1, 0, 0, 1, 0, 0); out.globalAlpha = fade; out.drawImage(this.layer, 0, 0); out.restore();
     }
   }
 

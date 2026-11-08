@@ -4,6 +4,10 @@ import { TILE, TILES_AROUND, altitude } from './terrain';
 import { wrapIndex } from './planet';
 import { wondersNear } from './wonders';
 import { monumentsNear } from './monuments';
+import { settlement } from './settlements';
+
+/** A strange place keeps this far from a village (a city's walls and fields reach further). */
+export const TOWN_CLEARANCE = 80, CITY_CLEARANCE = 130;
 
 import { biome, type Biome } from './climate';
 import { humidity } from './terrain';
@@ -103,7 +107,13 @@ export function landmark(ti: number, tj: number): Landmark | null {
       let pick = hash2(wi * 3, tj * 7) * total, L = choices[0];
       for (const c of choices) { pick -= c.w; if (pick < 0) { L = c; break; } }
       // a wonder stands alone in its corner of the map
-      if (!wondersNear(x, y, x, y, 120).some((w) => Math.hypot(w.x - x, w.y - y) < 120)
+      // and never on a village or a city, nor in its fields (asked by Adrien)
+      let town = false;
+      for (let dj = -1; dj <= 1 && !town; dj++) for (let di = -1; di <= 1; di++) {
+        const b = settlement(ti + di, tj + dj);
+        if (b && Math.hypot(b.x - x, b.y - y) < (b.city ? CITY_CLEARANCE : TOWN_CLEARANCE)) { town = true; break; }
+      }
+      if (!town && !wondersNear(x, y, x, y, 120).some((w) => Math.hypot(w.x - x, w.y - y) < 120)
         && !monumentsNear(x, y, x, y, 100).some((m) => Math.hypot(m.x - x, m.y - y) < 100)) {
         out = { kind: L.kind, water: L.water, x, y, name: properName(wi, tj), key };
       }

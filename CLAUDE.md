@@ -83,7 +83,8 @@ Règles qui restent :
    (`LANDMARK_KINDS`, demande d'Adrien : une vraie variété) tirés selon le climat, l'altitude et
    l'eau (oasis au désert, ziggourat et idole en jungle, cimetière des éléphants et termitières en
    savane, mammouth en toundra, navire pris dans les glaces sur la banquise, phare et clocher
-   englouti près des côtes, tortue et maelström au large...), jamais en montagne ;
+   englouti près des côtes, tortue et maelström au large...), jamais en montagne, jamais sur un
+   bourg (80 d’un village, 130 d’une ville : `TOWN_CLEARANCE`, `CITY_CLEARANCE`) ;
    pictogrammes dans `render/icons.ts` et `render/icons-more.ts`. **Monuments**
    (`world/monuments.ts`, 8 types : colosse, pyramide, temple, sphinx, sanctuaire, arc,
    amphithéâtre, aqueduc), au plus un par cellule de 4×4 tuiles (CHANCE = 0,3), selon le climat,

@@ -38,6 +38,22 @@ describe('monuments and strange places', () => {
     expect(max / total).toBeLessThan(0.15); // no single kind dominates
   });
 
+  it('a strange place is never on a village or a city', async () => {
+    const { TOWN_CLEARANCE, CITY_CLEARANCE } = await import('./landmarks');
+    let n = 0;
+    for (let tj = -120; tj < 120; tj++) for (let ti = -150; ti < 150; ti++) {
+      const L = landmark(ti, tj);
+      if (!L) continue;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        const b = settlement(ti + di, tj + dj);
+        if (!b) continue;
+        n++;
+        expect(Math.hypot(b.x - L.x, b.y - L.y)).toBeGreaterThanOrEqual(b.city ? CITY_CLEARANCE : TOWN_CLEARANCE);
+      }
+    }
+    expect(n).toBeGreaterThan(100);
+  });
+
   it('every kind has a name and a text in both languages', () => {
     for (const lang of ['fr', 'en'] as const) {
       setLang(lang);

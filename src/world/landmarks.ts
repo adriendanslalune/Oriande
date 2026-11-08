@@ -5,6 +5,7 @@ import { wrapIndex } from './planet';
 import { wondersNear } from './wonders';
 import { monumentsNear } from './monuments';
 import { settlement } from './settlements';
+import { nearWater } from './rivers';
 
 /** A strange place keeps this far from a village (a city's walls and fields reach further). */
 export const TOWN_CLEARANCE = 80, CITY_CLEARANCE = 130;
@@ -113,7 +114,8 @@ export function landmark(ti: number, tj: number): Landmark | null {
         const b = settlement(ti + di, tj + dj);
         if (b && Math.hypot(b.x - x, b.y - y) < (b.city ? CITY_CLEARANCE : TOWN_CLEARANCE)) { town = true; break; }
       }
-      if (!town && !wondersNear(x, y, x, y, 120).some((w) => Math.hypot(w.x - x, w.y - y) < 120)
+      // a place on land never stands in a river or a lake
+      if (!town && !(!L.water && nearWater(x, y, 20)) && !wondersNear(x, y, x, y, 120).some((w) => Math.hypot(w.x - x, w.y - y) < 120)
         && !monumentsNear(x, y, x, y, 100).some((m) => Math.hypot(m.x - x, m.y - y) < 100)) {
         out = { kind: L.kind, water: L.water, x, y, name: properName(wi, tj), key };
       }

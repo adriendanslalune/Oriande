@@ -355,3 +355,25 @@ export function prefetchRivers(x: number, y: number, R = 3): boolean {
   }
   return false;
 }
+
+/**
+ * Whether (x, y) is within `margin` of a river's water or of a lake: monuments, wonders and
+ * strange places keep off the water (a colossus once stood in a river). Uses the rivers of
+ * the cells around, as they spring (cached), with the lakes along them.
+ */
+export function nearWater(x: number, y: number, margin: number): boolean {
+  const ci = Math.floor(x / RIVER_CELL), cj = Math.floor(y / RIVER_CELL);
+  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) for (const r of riversOfCell(ci + di, cj + dj)) {
+    const m = margin + 12;
+    if (r.maxX + m < x || r.minX - m > x || r.maxY + m < y || r.minY - m > y) continue;
+    for (const l of r.lakes) if (Math.hypot(l.x - x, l.y - y) < l.r * 1.4 + margin) return true;
+    const P = r.points;
+    for (let k = 1; k < P.length; k++) {
+      const [ax, ay] = P[k - 1], [bx, by] = P[k];
+      if (Math.min(ax, bx) - m > x || Math.max(ax, bx) + m < x || Math.min(ay, by) - m > y || Math.max(ay, by) + m < y) continue;
+      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2));
+      if (Math.hypot(ax + dx * u - x, ay + dy * u - y) < r.widths[k] / 2 + margin) return true;
+    }
+  }
+  return false;
+}

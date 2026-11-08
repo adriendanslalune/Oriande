@@ -94,6 +94,8 @@ Règles qui restent :
    savane, mammouth en toundra, navire pris dans les glaces sur la banquise, phare et clocher
    englouti près des côtes, tortue et maelström au large...), jamais en montagne, jamais sur un
    bourg (80 d’un village, 130 d’une ville : `TOWN_CLEARANCE`, `CITY_CLEARANCE`) ;
+   **rien dans l’eau** : monuments, merveilles (sauf les arches, en mer) et lieux terrestres évitent
+   rivières et lacs (`nearWater` de `world/rivers.ts`) ;
    pictogrammes dans `render/icons.ts` et `render/icons-more.ts`. **Monuments**
    (`world/monuments.ts`, 8 types : colosse, pyramide, temple, sphinx, sanctuaire, arc,
    amphithéâtre, aqueduc), au plus un par cellule de 4×4 tuiles (CHANCE = 0,3), selon le climat,
@@ -282,3 +284,5 @@ Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand 
 - Avant de proposer une fonctionnalité hors liste : demander.
 - Toujours terminer une session en vérifiant que `npm run build` passe et que
   le pipeline GitLab Pages est vert.
+- **Version** affichée en bas à gauche du jeu (`v<package> · <commit> · <date>`, posée au build par
+  `vite.config.ts`) : pour savoir d’un coup d’œil si un téléphone a la dernière version.

@@ -1,6 +1,14 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+// The version shown in a corner of the game: package version, commit, build date. The tester
+// (and Adrien) can tell at a glance whether the phone has the latest build.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+const commit = process.env.CI_COMMIT_SHORT_SHA ?? (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; } })();
+const version = `v${pkg.version} · ${commit} · ${new Date().toISOString().slice(0, 10)}`;
 
 // Relative base: the same build works at a domain root (GitLab Pages unique domain) and
 // under a sub-path (<user>.gitlab.io/<project>/). Override with BASE_PATH if needed.
@@ -8,6 +16,7 @@ const base = process.env.BASE_PATH ?? './';
 
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(version) },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 2000, // Phaser alone is ~1.2 MB

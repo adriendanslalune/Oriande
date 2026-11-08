@@ -9,6 +9,7 @@ import { biome, type Biome } from './climate';
 import { settlement } from './settlements';
 import { CIRCUMFERENCE, wrapIndex } from './planet';
 import { wondersNear } from './wonders';
+import { nearWater } from './rivers';
 
 export type MonumentKind = 'colosse' | 'pyramide' | 'temple' | 'sphinx' | 'sanctuaire' | 'arc' | 'amphitheatre' | 'aqueduc';
 
@@ -67,7 +68,8 @@ export function monument(mi: number, mj: number): Monument | null {
         const s = settlement(ti + di, tj + dj);
         if (s && Math.hypot(s.x - x, s.y - y) < 140) { clear = false; break; }
       }
-      if (clear) out = { kind: K.kind, x, y, name: properName(wm + 2600, mj + 900), key };
+      // never in a river or a lake
+      if (clear && !nearWater(x, y, 34)) out = { kind: K.kind, x, y, name: properName(wm + 2600, mj + 900), key };
     }
   }
   memo.set(rkey, out);

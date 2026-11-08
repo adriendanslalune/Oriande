@@ -5,6 +5,7 @@ import { properName } from './names';
 import { TILE, altitude, humidity } from './terrain';
 import { settlement } from './settlements';
 import { CIRCUMFERENCE, wrapIndex } from './planet';
+import { nearWater } from './rivers';
 
 export type WonderKind = 'tete' | 'rocher' | 'cristal' | 'titan' | 'arches' | 'arbre';
 
@@ -60,7 +61,8 @@ export function wonder(mi: number, mj: number): Wonder | null {
         const b = settlement(ti + di, tj + dj);
         if (b && Math.hypot(b.x - x, b.y - y) < 160) { town = true; break; }
       }
-      if (!town) out = { kind: K.kind, x, y, name: properName(wm + 1200, mj - 1200), key };
+      // the arches stand in the sea; the others never in a river or a lake
+      if (!town && (K.kind === 'arches' || !nearWater(x, y, 40))) out = { kind: K.kind, x, y, name: properName(wm + 1200, mj - 1200), key };
     }
   }
   memo.set(rkey, out);

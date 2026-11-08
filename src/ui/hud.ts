@@ -21,6 +21,8 @@ const CSS = `
 .hud-walk .go i { display: block; font: italic 400 13px "IM Fell English", serif; text-transform: none; letter-spacing: 0; color: #6a5f4f; }
 .hud-walk .no { width: 46px; font-size: 20px; padding: 0; }
 .hud-walk button:focus-visible { outline: 2px dashed #2a241d; }
+.hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
+  color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
 .hud-buttons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; z-index: 2; }
 .hud-buttons button { width: 46px; height: 46px; padding: 0; font: 700 20px "Old Standard TT", serif; color: #2a241d;
   background: #ece3cb; border: 1.5px solid #2a241d; cursor: pointer; touch-action: manipulation; }
@@ -74,7 +76,10 @@ export class Hud {
       b.addEventListener('click', fn);
       buttons.append(b);
     }
-    this.root.push(style, header, this.note, this.walk, buttons);
+    const version = document.createElement('div');
+    version.className = 'hud-version';
+    version.textContent = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
+    this.root.push(style, header, this.note, this.walk, buttons, version);
     document.body.append(...this.root);
   }
 

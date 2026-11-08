@@ -159,8 +159,8 @@ Règles qui restent :
    **Nuit** (demande d'Adrien) : chaque case a aussi un troupeau de nuit (`herd(ci, cj, true)`,
    tirage séparé, poids `night` dans le JSON) ; les animaux de jour s'effacent à la tombée de la
    nuit, ceux de la nuit (chauves-souris, chouettes, hérissons, renards, loups, sangliers...)
-   sortent, dessinés **par-dessus** le voile de nuit dans des couleurs bleuies, yeux qui brillent
-   pour les prédateurs et les chouettes. Chauves-souris et chouettes volent (`alt`, ombre au sol).
+   sortent, dessinés **par-dessus** le voile de nuit dans des couleurs bleuies (plus d’yeux qui
+   brillent : retirés à la demande d’Adrien). Chauves-souris et chouettes volent (`alt`, ombre au sol).
    La **brume** se lève en fondu (~0,9 s par case nouvellement vue). Le titre d'atlas et la rose
    des vents se placent sous l'en-tête (`View.top`).
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg

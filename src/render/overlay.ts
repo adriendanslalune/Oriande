@@ -10,7 +10,7 @@ import { wondersNear } from '../world/wonders';
 import { monumentsNear } from '../world/monuments';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, type Animal, type Look } from '../world/fauna';
-import { drawAnimal, eyesOf } from './animals';
+import { drawAnimal } from './animals';
 import { DPR } from '../ui/screen';
 import { isGL } from './glPainter';
 import { worldTime } from '../world/weather';
@@ -239,14 +239,14 @@ export class Overlay {
   /**
    * Wild animals wandering where the explorer has seen, on the shared world clock. By day the
    * day herds; after dark they sleep and the night's own come out (bats, owls, hedgehogs,
-   * foxes, wolves...), drawn over the night veil in the colours of the dark, eyes shining.
+   * foxes, wolves...), drawn over the night veil in the colours of the dark (no eyeshine: asked by Adrien).
    */
   private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number, night: boolean): void {
     const t = worldTime(), time = now / 1000, scale = 2 * v.zoom / START_ZOOM, ctx = this.ctx;
     const lakes = lakesNear(ax, ay, bx, by);
     // how much of the night has fallen there (by longitude): day herds fade out as it falls
     const nightness = (x: number): number => Math.max(0, Math.min(1, (sky(x).darkness - 0.25) / 0.5));
-    const list: { a: Animal; look: Look; x: number; y: number; alpha: number; eyes: boolean }[] = [];
+    const list: { a: Animal; look: Look; x: number; y: number; alpha: number }[] = [];
     for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320, night)) {
       const look = h.species.look;
       if (look.len * scale < 4) continue; // too small to make out at this zoom
@@ -254,24 +254,17 @@ export class Overlay {
       if (alpha < 0.03) continue;
       const water = h.species.biomes.includes('sea') || h.species.biomes.includes('ice');
       const flies = look.kind === 'bat' || look.kind === 'owl';
-      const eyes = night && (look.kind === 'owl' || (look.kind === 'quad' && (h.species.danger >= 2 || look.tail === 'bush')));
       for (const a of animalsOf(h, t)) {
         if (a.x < ax - 40 || a.x > bx + 40 || a.y < ay - 40 || a.y > by + 40 || !isSeen(s, a.x, a.y)) continue;
         if (!water && !flies && lakes.some((l) => inLake(l, a.x, a.y))) continue;
         const [x, y] = screen(a.x, a.y);
-        list.push({ a, look, x, y, alpha, eyes });
+        list.push({ a, look, x, y, alpha });
       }
     }
     list.sort((p, q) => p.y - q.y);
     for (const p of list) {
       ctx.globalAlpha = p.alpha;
       drawAnimal(ctx, p.look, p.a, p.x, p.y, scale, time + p.a.phase, DPR, night);
-      if (p.eyes && Math.sin(time * 0.7 + p.a.phase * 3) > -0.6) { // eyeshine, now and then a blink
-        const [ex, ey] = eyesOf(p.look), x = p.x + ex * scale * p.a.dir, y = p.y + (ey - (p.a.alt ?? 0)) * scale, r = Math.max(1.2, scale * 0.9);
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.5);
-        g.addColorStop(0, 'rgba(255,240,150,1)'); g.addColorStop(0.35, 'rgba(230,220,110,.55)'); g.addColorStop(1, 'rgba(230,220,110,0)');
-        ctx.fillStyle = g; ctx.fillRect(x - r * 2.5, y - r * 2.5, r * 5, r * 5);
-      }
     }
     ctx.globalAlpha = 1;
   }

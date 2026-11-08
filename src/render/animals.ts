@@ -132,14 +132,6 @@ export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal,
   ctx.restore();
 }
 
-/** Where its eyes are (drawing units from its feet, facing east), for the eyeshine at night. */
-export function eyesOf(look: Look): [number, number] {
-  if (look.kind === 'owl') return [look.len * 0.25, -look.len * 0.35];
-  if (look.kind !== 'quad') return [look.len * 0.45, -look.len * 0.45];
-  const H = look.height ?? look.len * 0.7, up = (look.neckUp ?? 30) * Math.PI / 180, nk = (look.neck ?? 1) + H * (1 - (look.legs ?? 0.55)) * 0.15;
-  return [look.len * 0.4 + Math.cos(up) * nk + (look.head ?? 2) * 0.3, -H * 0.9 - Math.sin(up) * nk + (look.headDepth ?? 1) * 0.2];
-}
-
 /** Draw a pose at the origin (feet), facing east, in drawing units already scaled by `scale`. */
 function render(ctx: CanvasRenderingContext2D, look: Look, p: Pose, scale: number): void {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';

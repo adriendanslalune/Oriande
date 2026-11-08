@@ -17,13 +17,15 @@ export interface TileReply {
 
 const make = (): HTMLCanvasElement => new OffscreenCanvas(1, 1) as unknown as HTMLCanvasElement;
 
-self.onmessage = (e: MessageEvent<{ art: string[] } | TileRequest>): void => {
+self.onmessage = async (e: MessageEvent<{ art: string[] } | TileRequest>): Promise<void> => {
   const m = e.data;
   if ('art' in m) { setArtKinds(m.art); return; }
   try {
     townWindows.clear();
     const art = drawTile(m.ti, m.tj, make, m.res);
-    const bitmap = (art.canvas as unknown as OffscreenCanvas).transferToImageBitmap();
+    // an independent copy of the picture, not a hand-over of the canvas's own memory: on
+    // Firefox for Android a handed-over picture could come out blank, or showing another tile
+    const bitmap = await createImageBitmap(art.canvas as unknown as OffscreenCanvas);
     const reply: TileReply = { id: m.id, ti: m.ti, tj: m.tj, res: m.res, bitmap, waves: art.waves, trees: art.trees, windows: [...townWindows] };
     (self as unknown as Worker).postMessage(reply, [bitmap]);
   } catch (err) {

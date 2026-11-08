@@ -13,7 +13,12 @@ export interface ReadyTile {
 
 interface Job { ti: number; tj: number; res: number; key: string }
 
-const canWork = typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined' && (() => {
+/** Firefox: its pictures from workers are copied into a canvas of the page at once (see below). */
+const FIREFOX = typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
+/** `?tiles=main` in the address draws every tile on the main thread (to tell a worker bug apart). */
+const MAIN_ONLY = typeof location !== 'undefined' && /[?&]tiles=main\b/.test(location.search);
+
+const canWork = !MAIN_ONLY && typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined' && (() => {
   try { return !!new OffscreenCanvas(1, 1).getContext('2d'); } catch { return false; }
 })();
 
@@ -64,7 +69,7 @@ export class TileSource {
       } else {
         for (const [key, win] of r.windows) townWindows.set(key, win);
         release(false);
-        this.ready({ ti: r.ti, tj: r.tj, res: r.res, image: r.bitmap, art: { waves: r.waves, trees: r.trees } });
+        this.ready({ ti: r.ti, tj: r.tj, res: r.res, image: FIREFOX ? toCanvas(r.bitmap) : r.bitmap, art: { waves: r.waves, trees: r.trees } });
       }
       this.pump();
     };
@@ -125,4 +130,16 @@ export class TileSource {
       s.w.postMessage({ id: this.nextId++, ti: j.ti, tj: j.tj, res: j.res });
     }
   }
+}
+
+/**
+ * Copy a picture from a worker into a canvas of the page and let the picture go: on Firefox
+ * (Android above all) an ImageBitmap kept as a texture could later show blank or another tile.
+ */
+function toCanvas(b: ImageBitmap): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = b.width; c.height = b.height;
+  c.getContext('2d')!.drawImage(b, 0, 0);
+  b.close();
+  return c;
 }

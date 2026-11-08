@@ -61,6 +61,9 @@ Règles qui restent :
    chargées (`setArtKinds`). Brume : un tampon de disque pré-dessiné par taille. **Robustesse** (tuile
    blanche vue sur Firefox Android) : une tuile qui échoue dans un worker est redemandée, puis
    dessinée sur le fil principal après 2 échecs ; un worker muet 12 s ou en erreur est relancé.
+   Le worker renvoie une **copie** (`createImageBitmap`, jamais `transferToImageBitmap` : tuiles
+   vides ou décalées sur Firefox Android) ; sur Firefox, la copie est remise dans un canvas de la
+   page. `?tiles=main` dans l'adresse force le dessin sur le fil principal (diagnostic).
 2. Ne pas « améliorer » le monde sans qu'Adrien le demande.
 3. Dessin retravaillé à sa demande : montagnes en pics gravés, collines, aventurier à
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,

@@ -111,8 +111,7 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
   const parts = near.map((r) => ({ r, bs: runs(r, x0, y0).map(([a, b]) => banks(r, a, b, x0, y0)) }));
   // 1. sandy edges, wider than the water
   const dry = (r: River, k: number): boolean => r.join < 0 || k < r.join; // a tributary has no banks inside the river it joins
-  for (const { r, bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
-    if (!dry(r, b.idx[k])) continue;
+  for (const { bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
     g.strokeStyle = SAND; g.lineWidth = b.w[k] + 2.6;
     g.beginPath(); g.moveTo(...b.mid[k - 1]); g.lineTo(...b.mid[k]); g.stroke();
   }
@@ -134,11 +133,36 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
     if (pts.length > 1) { line(g, pts); g.stroke(); }
   }
   g.setLineDash([]);
-  // 4. ink banks, with reeds and tufts here and there
+  // 4. ink banks. At a confluence the banks of each river stop at the other's water: the
+  // tributary's banks are clipped out of the river it joins, and that river's bank is clipped
+  // out of the tributary's mouth, so the two waters open into one another.
+  const ribbon = (b: ReturnType<typeof banks>, from = 0): Path2D => {
+    const path = new Path2D(), l = b.left.slice(from), rr = b.right.slice(from).reverse();
+    [...l, ...rr].forEach((p, k) => (k ? path.lineTo(...p) : path.moveTo(...p)));
+    path.closePath();
+    return path;
+  };
+  const holes = new Map<River, Path2D[]>(); // water each river's banks must not cross
+  for (const { r, bs } of parts) {
+    if (r.join < 0 || !bs.length) continue;
+    const [ex, ey] = r.points[r.points.length - 1];
+    const main = parts.find((o) => o.r !== r && o.r.points.some(([x, y]) => Math.abs(x - ex) < 1.5 && Math.abs(y - ey) < 1.5));
+    if (!main) continue;
+    holes.set(r, [...(holes.get(r) ?? []), ...main.bs.map((b) => ribbon(b))]);
+    const last = bs[bs.length - 1], from = Math.max(0, last.idx.findIndex((k) => k >= r.join - 2));
+    holes.set(main.r, [...(holes.get(main.r) ?? []), ribbon(last, from)]);
+  }
   g.strokeStyle = INK; g.lineWidth = 0.6;
-  for (const { r, bs } of parts) for (const b of bs) {
-    const n = b.idx.filter((k) => dry(r, k)).length;
-    if (n > 1) { line(g, b.left.slice(0, n)); g.stroke(); line(g, b.right.slice(0, n)); g.stroke(); }
+  for (const { r, bs } of parts) {
+    const hs = holes.get(r);
+    if (hs) {
+      g.save();
+      const keep = new Path2D(); keep.rect(-M * 2, -M * 2, T + M * 4, T + M * 4);
+      for (const h of hs) keep.addPath(h);
+      g.clip(keep, 'evenodd');
+    }
+    for (const b of bs) { line(g, b.left); g.stroke(); line(g, b.right); g.stroke(); }
+    if (hs) g.restore();
   }
   g.strokeStyle = 'rgba(40,60,40,.75)'; g.lineWidth = 0.35;
   for (const { r, bs } of parts) for (const b of bs) for (const [bank, sign] of [[b.left, 1], [b.right, -1]] as const) {

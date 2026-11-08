@@ -77,8 +77,11 @@ Règles qui restent :
    sont dessinés par-dessus (une rivière qui traverse un lac y disparaît), évitent les
    bourgs (rétrécissent ou disparaissent), et les **routes contournent les lacs**
    (`roads.ts` charge les lacs du coin : les routes dépendent des rivières, jamais l'inverse).
-   **Ponts** en pierre là où une route croise une rivière. Un affluent se termine sur le fleuve
-   qu'il rejoint (`join` : plus de berges dedans). La rive d'un lac s'ouvre où une rivière
+   **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
+   deux rivières qui se rencontrent partagent leurs nœuds ; la plus petite (moins d'eau écoulée
+   au nœud) devient affluent et s'arrête au milieu de la plus grande (`cut`, `join`), même entre
+   cellules : jamais deux rivières dans le même lit. Au dessin, les berges de chacune sont
+   découpées dans l'eau de l'autre (clip), l'embouchure s'ouvre. La rive d'un lac s'ouvre où une rivière
    entre. Rivières et lacs sont dessinés **avant** la végétation, qui les évite (`waterMask`)
    et déborde sur les berges. Animation du courant : reflets fins et lents qui scintillent. Les bourgs évitent les abords
    des montagnes (rien ≥ 0,55 à moins de 40).

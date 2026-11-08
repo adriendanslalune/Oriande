@@ -70,3 +70,36 @@ describe('lakes and towns', () => {
     for (const road of roadsAround(ti0, tj0, 12)) for (const p of road.points) expect(lakes.some((l) => inLake(l, p.x, p.y))).toBe(false);
   }, 120000);
 });
+
+describe('confluences', () => {
+  it('no two rivers share a bed: past a meeting, only the bigger one goes on', () => {
+    const rs = riversNear(s.x - 3000, s.y - 3000, s.x + 3000, s.y + 3000);
+    const seen = new Map<string, number>();
+    let tribs = 0;
+    rs.forEach((r, ri) => {
+      if (r.join >= 0) tribs++;
+      // sample points well before the end: no other river runs through the same spot
+      for (let k = 0; k < r.points.length - 12; k += 6) {
+        const key = Math.round(r.points[k][0] / 6) + ',' + Math.round(r.points[k][1] / 6);
+        const o = seen.get(key);
+        if (o !== undefined && o !== ri) throw new Error(`rivers ${o} and ${ri} overlap at ${r.points[k]}`);
+        seen.set(key, ri);
+      }
+    });
+    expect(tribs).toBeGreaterThan(5);
+  }, 120000);
+
+  it('a tributary ends in the middle of the river it joins', () => {
+    const rs = riversNear(s.x - 3000, s.y - 3000, s.x + 3000, s.y + 3000);
+    let checked = 0;
+    for (const r of rs) {
+      if (r.join < 0) continue;
+      const [x, y] = r.points[r.points.length - 1];
+      if (Math.abs(x - s.x) > 2000 || Math.abs(y - s.y) > 2000) continue; // its river may lie outside the box
+      checked++;
+      const d = Math.min(...rs.filter((o) => o !== r).flatMap((o) => o.points.map(([a, b]) => Math.hypot(a - x, b - y))));
+      expect(d).toBeLessThan(1);
+    }
+    expect(checked).toBeGreaterThan(3);
+  }, 120000);
+});

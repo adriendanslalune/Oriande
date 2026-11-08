@@ -53,6 +53,17 @@ describe('fauna', () => {
     expect(moved).toBeGreaterThan(0);
   });
 
+  it('the night has its own creatures: bats and owls come out, day animals sleep', () => {
+    const night = herdsNear(sx - 6000, sy - 6000, sx + 6000, sy + 6000, 0, true);
+    const ids = new Set(night.map((h) => h.species.id));
+    expect(ids.has('bat')).toBe(true);
+    for (const h of night) expect(h.species.night).toBeGreaterThan(0);
+    for (const h of sample()) expect(h.species.weight).toBeGreaterThan(0);
+    expect(sample().some((h) => h.species.id === 'bat')).toBe(false);
+    const bats = night.find((h) => h.species.id === 'bat')!;
+    for (const a of animalsOf(bats, worldTime())) expect(a.alt).toBeGreaterThan(0);
+  });
+
   it('every species has a name in both languages', () => {
     for (const lang of ['fr', 'en'] as const) {
       setLang(lang);

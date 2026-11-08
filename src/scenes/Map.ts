@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
-import { newGame, advance, startJourney, leaguesLeft, wrapPosition, START_ZOOM, type TravelEvent } from '../game/travel';
+import { newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type TravelEvent } from '../game/travel';
+import { pathLength, planRoute } from '../game/route';
 import { latitude, longitude } from '../world/planet';
 import { prefetchRivers } from '../world/rivers';
 import { sky, weatherAt } from '../world/weather';
@@ -164,14 +165,34 @@ export class MapScene extends Phaser.Scene {
       if (this.fingers.size < 2) this.pinchStart = 0;
       if (tap && this.view.zoom >= Z_ATLAS) {
         const [sx, sy] = css(p), v = this.view;
-        this.follow = true;
-        this.hud.hideNote();
-        if (!startJourney(this.state, v.x + (sx - v.W / 2) / v.zoom, v.y + (sy - v.H / 2) / v.zoom)) this.onEvent({ type: 'shore' });
+        this.propose(v.x + (sx - v.W / 2) / v.zoom, v.y + (sy - v.H / 2) / v.zoom);
       }
     };
     this.input.on('pointerup', up);
     this.input.on('pointerupoutside', up);
     this.input.on('wheel', (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => this.setZoom(this.view.zoom * (dy > 0 ? 0.88 : 1.13)));
+  }
+
+  /**
+   * A tap on the map does not set off at once: it shows the way there and asks first
+   * ("Walk to"), so that sliding or checking the map never sends the explorer off by mistake.
+   */
+  private propose(x: number, y: number): void {
+    const s = this.state, route = planRoute(s.x, s.y, x, y);
+    const L = route ? pathLength(route.path) : 0;
+    if (!route || L < 1) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
+    this.overlay.plan = route.path;
+    const detail = tn('walk.leagues', L / LEAGUE, { n: num(L / LEAGUE, 1) }) + (route.reached ? '' : ' · ' + t('walk.shore'));
+    this.hud.showWalk(detail, () => {
+      this.cancelPlan();
+      this.follow = true;
+      if (!startJourney(s, x, y)) this.onEvent({ type: 'shore' });
+    }, () => this.cancelPlan());
+  }
+
+  private cancelPlan(): void {
+    this.overlay.plan = null;
+    this.hud.hideWalk();
   }
 
   private onEvent(e: TravelEvent): void {
@@ -311,15 +332,13 @@ export class MapScene extends Phaser.Scene {
     if (this.hudTimer <= 0) {
       this.hudTimer = 250;
       v.top = this.hud.headerHeight();
-      const n = s.named.length;
       this.hud.setCoords(formatCoords(latitude(s.y), longitude(s.x)));
+      // the weather where the explorer stands, the local hour and the sun over the horizon
       const w = weatherAt(s.x, s.y), light = sky(s.x);
-      this.hud.setSky([t(`weather.${w.kind}`), w.kind === 'clear' && light.phase === 'night' ? '' : windName(w.wind), t(`sky.${light.phase}`)].filter(Boolean).join(' · '));
-      this.hud.setCounters(
-        tn('hud.leagues', s.leagues, { n: num(s.leagues, 2) }),
-        n ? tn('hud.places', n, { n, cells: num(s.seen.size) }) : t('hud.places.none'),
-        s.journey ? t('hud.eta', { n: num(leaguesLeft(s), 1) }) : '',
-      );
+      this.hud.setSky([t(`weather.${w.kind}`), w.kind === 'clear' && light.phase === 'night' ? '' : windName(w.wind)].filter(Boolean).join(' · '));
+      const minutes = Math.floor(light.hour * 60);
+      this.hud.setTime(t('hud.time', { h: Math.floor(minutes / 60), m: String(minutes % 60).padStart(2, '0') }), t(`sky.${light.phase}`));
+      this.hud.setDial(light.hour, w.kind, light.darkness, light.glow);
     }
   }
 }

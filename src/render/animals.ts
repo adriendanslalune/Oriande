@@ -9,12 +9,16 @@ type P = [number, number];
 const PAPER_RGB = [236, 227, 203];
 
 /** A colour washed a little towards the paper, as watercolour on a plate. */
+const NIGHT_RGB = [44, 52, 78];
 const wash = (c: number[], k = 1, a = 1): string => {
-  const m = (i: number): number => Math.round((c[i] * 0.86 + PAPER_RGB[i] * 0.14) * k);
+  // at night the colours sink towards the blue of the dark
+  const m = (i: number): number => { const v = (c[i] * 0.86 + PAPER_RGB[i] * 0.14) * k; return Math.round(v + (NIGHT_RGB[i] - v) * dim); };
   return `rgba(${m(0)},${m(1)},${m(2)},${a})`;
 };
 /** the current figure's hatching strength (set per animal) */
 let shading = 1;
+/** how far the current figure's colours sink into the night (0 by day) */
+let dim = 0;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 const add = (a: P, b: P, k = 1): P => [a[0] + b[0] * k, a[1] + b[1] * k];
@@ -67,6 +71,14 @@ function poseOf(L: Look, a: Animal, time: number): Pose {
   } else if (L.kind === 'hopper') {
     if (moving) gait = Math.floor(((time * 2.2) % 1) * GAIT_FRAMES) / GAIT_FRAMES;
     else if (L.sits) up = q(clamp01((Math.sin(time * 0.35) - 0.2) * 3), LEVELS);
+  } else if (L.kind === 'bat') {
+    gait = Math.floor(((time * 9) % 1) * GAIT_FRAMES) / GAIT_FRAMES; // quick wingbeats
+  } else if (L.kind === 'owl') {
+    const beat = Math.sin(time * 0.9) > 0.55; // glides, beats its wings now and then
+    gait = beat ? Math.floor(((time * 3) % 1) * GAIT_FRAMES) / GAIT_FRAMES : 0.25;
+  } else if (L.kind === 'hedgehog') {
+    if (moving) gait = Math.floor(((time * 3) % 1) * GAIT_FRAMES) / GAIT_FRAMES;
+    else up = q(clamp01(Math.sin(time * 0.8)), 2); // sniffing
   } else if (L.kind === 'whale') {
     cycle = Math.floor((((time / 14) % 1 + 1) % 1) * WHALE_FRAMES) / WHALE_FRAMES;
   } else {
@@ -83,31 +95,49 @@ const looks = new Map<Look, number>();
  * Draw one animal at screen (x, y) (its feet), `scale` CSS pixels per drawing unit, `time` in
  * seconds (with the animal's own phase already added), `dpr` the device pixel ratio.
  */
-export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal, x: number, y: number, scale: number, time: number, dpr = 1): void {
+export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal, x: number, y: number, scale: number, time: number, dpr = 1, night = false): void {
   const pose = poseOf(look, a, time);
+  const flying = look.kind === 'bat' || look.kind === 'owl';
   if (look.kind === 'whale' && pose.cycle > 0.75) return; // under water
   // sizes snap to steps of ~8 %, so a zoom does not fill the cache with near-copies
   const s = Math.pow(1.08, Math.round(Math.log(scale) / Math.log(1.08)));
   if (!looks.has(look)) looks.set(look, looks.size);
-  const key = looks.get(look) + '|' + s.toFixed(3) + '|' + dpr + '|' + (pose.moving ? 1 : 0) + pose.gait + ',' + pose.graze + ',' + pose.look + ',' + pose.sway + ',' + pose.cycle + ',' + pose.up;
+  const key = looks.get(look) + (night ? 'n|' : '|') + s.toFixed(3) + '|' + dpr + '|' + (pose.moving ? 1 : 0) + pose.gait + ',' + pose.graze + ',' + pose.look + ',' + pose.sway + ',' + pose.cycle + ',' + pose.up;
   let c = cache.get(key);
   if (!c) {
     if (cache.size > 600) cache.clear();
-    const size = Math.max(look.len, look.height ?? 0) + (look.tailLen ?? 0) + (look.trunk ?? 0);
-    const half = size * 0.95 + 3, above = Math.max(look.len, look.height ?? 0) + (look.antlers ?? 0) * 1.2 + (look.hornLen ?? 0) + (look.ears === 'flap' ? 0 : look.earSize ?? 0) + 3 + (look.kind === 'whale' ? look.len * 0.5 : 0);
+    const size = Math.max(look.len, look.height ?? 0) * (flying ? 2.2 : 1) + (look.tailLen ?? 0) + (look.trunk ?? 0);
+    const half = size * 0.95 + 3, above = Math.max(look.len, look.height ?? 0) * (flying ? 1.6 : 1) + (look.antlers ?? 0) * 1.2 + (look.hornLen ?? 0) + (look.ears === 'flap' ? 0 : look.earSize ?? 0) + 3 + (look.kind === 'whale' ? look.len * 0.5 : 0);
     const k = s * dpr, img = document.createElement('canvas');
     img.width = Math.ceil(half * 2 * k); img.height = Math.ceil((above + 2) * k);
     const g = img.getContext('2d')!;
     g.setTransform(k, 0, 0, k, half * k, above * k);
+    dim = night ? 0.55 : 0;
     render(g, look, pose, s);
+    dim = 0;
     c = { img, ox: half, oy: above, k };
     cache.set(key, c);
   }
   ctx.save();
-  ctx.translate(x, y); if (a.dir < 0) ctx.scale(-1, 1);
+  ctx.translate(x, y);
+  if (a.alt) { // in flight: its shadow on the ground, the creature above
+    ctx.globalAlpha *= 0.18; ctx.fillStyle = INK;
+    ctx.beginPath(); ctx.ellipse(0, 0, look.len * scale * 0.7, look.len * scale * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha /= 0.18;
+    ctx.translate(0, -a.alt * scale);
+  }
+  if (a.dir < 0) ctx.scale(-1, 1);
   const r = c.k / dpr;
   ctx.drawImage(c.img, -c.ox * r, -c.oy * r, c.img.width / dpr, c.img.height / dpr);
   ctx.restore();
+}
+
+/** Where its eyes are (drawing units from its feet, facing east), for the eyeshine at night. */
+export function eyesOf(look: Look): [number, number] {
+  if (look.kind === 'owl') return [look.len * 0.25, -look.len * 0.35];
+  if (look.kind !== 'quad') return [look.len * 0.45, -look.len * 0.45];
+  const H = look.height ?? look.len * 0.7, up = (look.neckUp ?? 30) * Math.PI / 180, nk = (look.neck ?? 1) + H * (1 - (look.legs ?? 0.55)) * 0.15;
+  return [look.len * 0.4 + Math.cos(up) * nk + (look.head ?? 2) * 0.3, -H * 0.9 - Math.sin(up) * nk + (look.headDepth ?? 1) * 0.2];
 }
 
 /** Draw a pose at the origin (feet), facing east, in drawing units already scaled by `scale`. */
@@ -121,6 +151,9 @@ function render(ctx: CanvasRenderingContext2D, look: Look, p: Pose, scale: numbe
     case 'whale': whale(ctx, look, p, pen); break;
     case 'seal': seal(ctx, look, p, pen); break;
     case 'hopper': hopper(ctx, look, p, pen); break;
+    case 'bat': bat(ctx, look, p, pen); break;
+    case 'owl': owl(ctx, look, p, pen); break;
+    case 'hedgehog': hedgehog(ctx, look, p, pen); break;
     default: quad(ctx, look, p, pen);
   }
 }
@@ -474,4 +507,70 @@ function seal(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
   inked(ctx, pen, wash(c, 0.8), () => ctx.ellipse(len * 0.18, -len * 0.04, len * 0.09, len * 0.035, 0.5, 0, Math.PI * 2));
   ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(len * 0.43, -len * 0.23 - lift, len * 0.022, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = pen.fine; ctx.beginPath(); ctx.moveTo(len * 0.5, -len * 0.18 - lift); ctx.lineTo(len * 0.6, -len * 0.2 - lift); ctx.moveTo(len * 0.5, -len * 0.17 - lift); ctx.lineTo(len * 0.59, -len * 0.14 - lift); ctx.stroke();
+}
+
+// ---- creatures of the night ----
+
+/** A bat, seen from below-side: jagged membrane wings that beat fast. */
+function bat(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
+  const s = L.len, c = L.color, f = Math.sin(p.gait * Math.PI * 2); // wings up (1) … down (-1)
+  const wing = (side: number): void => {
+    const tipY = -f * s * 0.9, span = s * 1.6 * (0.75 + 0.25 * Math.abs(f));
+    inked(ctx, pen, wash(c, 0.9), () => {
+      ctx.moveTo(0, -s * 0.15);
+      ctx.lineTo(side * span * 0.45, tipY * 0.7 - s * 0.2);
+      ctx.lineTo(side * span, tipY);
+      // the scalloped trailing edge, between the finger bones
+      ctx.quadraticCurveTo(side * span * 0.85, tipY * 0.5 + s * 0.15, side * span * 0.7, tipY * 0.45 + s * 0.25);
+      ctx.quadraticCurveTo(side * span * 0.55, tipY * 0.35 + s * 0.05, side * span * 0.4, tipY * 0.3 + s * 0.3);
+      ctx.quadraticCurveTo(side * span * 0.25, s * 0.1, 0, s * 0.15);
+      ctx.closePath();
+    });
+  };
+  wing(-1); wing(1);
+  inked(ctx, pen, wash(c, 0.7), () => ctx.ellipse(0, 0, s * 0.18, s * 0.32, 0, 0, Math.PI * 2));
+  inked(ctx, pen, wash(c, 0.7), () => { ctx.moveTo(-s * 0.12, -s * 0.3); ctx.lineTo(-s * 0.16, -s * 0.52); ctx.lineTo(0, -s * 0.36); ctx.lineTo(s * 0.16, -s * 0.52); ctx.lineTo(s * 0.12, -s * 0.3); ctx.closePath(); });
+}
+
+/** An owl in flight: broad rounded wings, a round head, gliding mostly. */
+function owl(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
+  const s = L.len, c = L.color, f = Math.sin(p.gait * Math.PI * 2);
+  const wing = (side: number, k: number): void => {
+    const tipY = -f * s * 0.6 - s * 0.1, span = s * 1.5;
+    const pts: [number, number][] = [[side * s * 0.15, -s * 0.2], [side * span * 0.5, tipY * 0.8 - s * 0.25], [side * span, tipY], [side * span * 0.95, tipY + s * 0.25], [side * span * 0.5, tipY * 0.4 + s * 0.2], [side * s * 0.15, s * 0.1]];
+    inked(ctx, pen, wash(c, k), () => smooth(ctx, pts));
+    ctx.save(); ctx.beginPath(); smooth(ctx, pts); ctx.clip();
+    ctx.strokeStyle = INK; ctx.lineWidth = pen.fine; ctx.beginPath(); // the bars on the feathers
+    for (let j = 1; j < 5; j++) { const x = side * span * j / 5; ctx.moveTo(x, tipY * j / 5 - s * 0.4); ctx.lineTo(x + side * s * 0.1, tipY * j / 5 + s * 0.3); }
+    ctx.stroke(); ctx.restore();
+  };
+  wing(-1, 0.75);
+  inked(ctx, pen, wash(c), () => ctx.ellipse(0, 0, s * 0.42, s * 0.24, 0, 0, Math.PI * 2)); // body
+  inked(ctx, pen, wash(c, 0.6), () => { ctx.moveTo(-s * 0.4, -s * 0.05); ctx.lineTo(-s * 0.7, -s * 0.12); ctx.lineTo(-s * 0.7, s * 0.1); ctx.closePath(); }); // tail
+  inked(ctx, pen, wash(c, 1.05), () => ctx.arc(s * 0.38, -s * 0.18, s * 0.2, 0, Math.PI * 2)); // head
+  inked(ctx, pen, wash([236, 226, 200]), () => ctx.arc(s * 0.44, -s * 0.17, s * 0.12, 0, Math.PI * 2)); // the pale face disc
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(s * 0.48, -s * 0.19, s * 0.035, 0, Math.PI * 2); ctx.fill();
+  wing(1, 1);
+}
+
+/** A hedgehog trotting on tiny legs, all prickles, its snout up to sniff. */
+function hedgehog(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
+  const s = L.len, c = L.color, step = p.moving ? Math.sin(p.gait * Math.PI * 2) * s * 0.06 : 0;
+  shadow(ctx, 0, s * 0.5);
+  ctx.strokeStyle = INK; ctx.lineWidth = s * 0.07;
+  ctx.beginPath(); for (const [x, d] of [[-0.25, 1], [0.2, -1]] as [number, number][]) { ctx.moveTo(s * x, -s * 0.15); ctx.lineTo(s * x + step * d, 0); } ctx.stroke();
+  const back: [number, number][] = [[-s * 0.5, -s * 0.12], [-s * 0.42, -s * 0.42], [-s * 0.1, -s * 0.58], [s * 0.25, -s * 0.48], [s * 0.4, -s * 0.25], [s * 0.3, -s * 0.12], [-s * 0.1, -s * 0.1]];
+  inked(ctx, pen, wash(c), () => smooth(ctx, back));
+  // the spines: short strokes all over the back, pointing back
+  ctx.strokeStyle = INK; ctx.lineWidth = pen.fine * 1.2; ctx.beginPath();
+  for (let k = 0; k < 26; k++) {
+    const u = (k * 0.618) % 1, v = (k * 0.381) % 1, x = -s * 0.42 + u * s * 0.75, y = -s * (0.18 + v * 0.36) - Math.sin(u * Math.PI) * s * 0.06;
+    ctx.moveTo(x, y); ctx.lineTo(x - s * 0.12, y - s * 0.05);
+  }
+  ctx.stroke();
+  const lift = p.up * s * 0.06;
+  inked(ctx, pen, wash([196, 170, 140]), () => { ctx.moveTo(s * 0.28, -s * 0.38); ctx.quadraticCurveTo(s * 0.5, -s * 0.32 - lift, s * 0.62, -s * 0.22 - lift); ctx.quadraticCurveTo(s * 0.45, -s * 0.1, s * 0.25, -s * 0.12); ctx.closePath(); });
+  ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.arc(s * 0.62, -s * 0.22 - lift, s * 0.04, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s * 0.42, -s * 0.28 - lift * 0.5, s * 0.03, 0, Math.PI * 2); ctx.fill();
 }

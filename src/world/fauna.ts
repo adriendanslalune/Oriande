@@ -12,7 +12,7 @@ export type Habitat = 'temperate' | 'savanna' | 'tundra' | 'jungle' | 'desert' |
 
 /** How an animal is drawn (side view, drawing units; see render/animals.ts). */
 export interface Look {
-  kind: 'quad' | 'hopper' | 'whale' | 'seal';
+  kind: 'quad' | 'hopper' | 'whale' | 'seal' | 'bat' | 'owl' | 'hedgehog';
   /** body length, rump to chest */
   len: number;
   /** height at the shoulder, legs included */
@@ -40,7 +40,10 @@ export interface Species {
   id: string;
   size: 'small' | 'medium' | 'large';
   biomes: Habitat[];
+  /** frequency by day (0: asleep by day) */
   weight: number;
+  /** frequency at night (0: asleep at night) */
+  night: number;
   herd: number[];
   /** world units per second when moving */
   speed: number;
@@ -82,6 +85,8 @@ export interface Animal {
   pace: number;
   /** an individual phase, for gaits and gestures */
   phase: number;
+  /** height above the ground, world units (birds and bats) */
+  alt?: number;
 }
 
 /** The habitat at a point, or null where nothing lives (shallow water, beyond the ice). */
@@ -94,10 +99,14 @@ export function habitat(x: number, y: number): Habitat | null {
   return b;
 }
 
-const byHabitat = new Map<Habitat, { s: Species; w: number }[]>();
-for (const s of SPECIES) for (const h of s.biomes) {
-  if (!byHabitat.has(h)) byHabitat.set(h, []);
-  byHabitat.get(h)!.push({ s, w: s.weight });
+/** Species by habitat, by day and at night, with their frequencies. */
+const byHabitat = [new Map<Habitat, { s: Species; w: number }[]>(), new Map<Habitat, { s: Species; w: number }[]>()];
+for (const s of SPECIES) for (const h of s.biomes) for (const n of [0, 1]) {
+  const w = n ? s.night : s.weight;
+  if (!w) continue;
+  const m = byHabitat[n];
+  if (!m.has(h)) m.set(h, []);
+  m.get(h)!.push({ s, w });
 }
 
 /** Where the herd may be: the right kind of ground, and away from towns. */
@@ -117,22 +126,26 @@ function fits(s: Species, h: Habitat, x: number, y: number): boolean {
 
 const memo = new Map<string, Herd | null>();
 
-/** The herd of fauna cell (ci, cj), if any. */
-export function herd(ci: number, cj: number): Herd | null {
-  const rkey = ci + ',' + cj;
+/**
+ * The herd of fauna cell (ci, cj), if any: the day one, or with `night` the one that comes out
+ * after dark (drawn separately: the night has its own creatures).
+ */
+export function herd(ci: number, cj: number, night = false): Herd | null {
+  const rkey = ci + ',' + cj + (night ? 'n' : '');
   const known = memo.get(rkey);
   if (known !== undefined) return known;
   if (memo.size > 60_000) memo.clear();
   const wi = wrapIndex(ci, CELLS_AROUND); // draw lots with the wrapped index: the planet wraps
+  const o = night ? 7919 : 0; // other lots at night
   let out: Herd | null = null;
-  const x = (ci + 0.15 + hash2(wi * 31 + 5, cj * 37 - 2) * 0.7) * FAUNA_CELL;
-  const y = (cj + 0.15 + hash2(wi * 43 - 9, cj * 29 + 4) * 0.7) * FAUNA_CELL;
+  const x = (ci + 0.15 + hash2(wi * 31 + 5 + o, cj * 37 - 2) * 0.7) * FAUNA_CELL;
+  const y = (cj + 0.15 + hash2(wi * 43 - 9 + o, cj * 29 + 4) * 0.7) * FAUNA_CELL;
   const h = habitat(x, y);
   const chance = h === 'sea' ? SEA_CHANCE : h === 'ice' ? ICE_CHANCE : LAND_CHANCE;
-  if (h && hash2(wi * 17 + 3, cj * 19 + 11) < chance) {
-    const list = byHabitat.get(h) ?? [];
+  if (h && hash2(wi * 17 + 3 + o, cj * 19 + 11) < chance) {
+    const list = byHabitat[night ? 1 : 0].get(h) ?? [];
     const total = list.reduce((a, e) => a + e.w, 0);
-    let r = hash2(wi * 7 - 13, cj * 11 + 23) * total, s: Species | null = null;
+    let r = hash2(wi * 7 - 13 + o, cj * 11 + 23) * total, s: Species | null = null;
     for (const e of list) { r -= e.w; if (r < 0) { s = e.s; break; } }
     if (s && fits(s, h, x, y)) {
       // roam as far as the species likes, but no farther than the ground allows
@@ -148,8 +161,8 @@ export function herd(ci: number, cj: number): Herd | null {
       }
       if (range > 0) {
         const [lo, hi] = s.herd;
-        const count = lo + Math.floor(hash2(wi * 3 + 1, cj * 5 - 7) * (hi - lo + 1));
-        out = { key: wi + ',' + cj, species: s, x, y, range, count, seed: hash2(wi * 53, cj * 59) * 1000 };
+        const count = lo + Math.floor(hash2(wi * 3 + 1 + o, cj * 5 - 7) * (hi - lo + 1));
+        out = { key: wi + ',' + cj + (night ? 'n' : ''), species: s, x, y, range, count, seed: hash2(wi * 53 + o, cj * 59) * 1000 };
       }
     }
   }
@@ -158,11 +171,11 @@ export function herd(ci: number, cj: number): Herd | null {
 }
 
 /** Herds whose roaming area may reach into the box [x0, x1] x [y0, y1]. */
-export function herdsNear(x0: number, y0: number, x1: number, y1: number, margin = 300): Herd[] {
+export function herdsNear(x0: number, y0: number, x1: number, y1: number, margin = 300, night = false): Herd[] {
   const out: Herd[] = [];
   for (let cj = Math.floor((y0 - margin) / FAUNA_CELL); cj <= Math.floor((y1 + margin) / FAUNA_CELL); cj++)
     for (let ci = Math.floor((x0 - margin) / FAUNA_CELL); ci <= Math.floor((x1 + margin) / FAUNA_CELL); ci++) {
-      const h = herd(ci, cj);
+      const h = herd(ci, cj, night);
       if (h && h.x + h.range + 30 > x0 && h.x - h.range - 30 < x1 && h.y + h.range + 30 > y0 && h.y - h.range - 30 < y1) out.push(h);
     }
   return out;
@@ -181,6 +194,7 @@ const wander = (s: number, seed: number): number => (noise(s, seed) - 0.5) * 2.4
 /** Where each animal of the herd is at world time t (seconds). */
 export function animalsOf(hd: Herd, t: number): Animal[] {
   const s = hd.species, out: Animal[] = [];
+  if (s.look.kind === 'bat' || s.look.kind === 'owl') return flyers(hd, t);
   // one "step" of the path is about range / speed seconds of walking
   const period = Math.max(8, (hd.range / s.speed) * 1.2);
   const spread = Math.sqrt(hd.count) * s.look.len * 1.6;
@@ -199,6 +213,26 @@ export function animalsOf(hd: Herd, t: number): Animal[] {
     // facing: the way it walks, or for a grazing animal a fixed whim of its own
     const dir = Math.abs(x2 - x) > 0.02 ? Math.sign(x2 - x) : (hash2(Math.floor(t / period + hd.seed - lag), Math.floor(seed)) < 0.5 ? -1 : 1);
     out.push({ x, y, dir, pace: Math.min(1, v / s.speed), phase: seed });
+  }
+  return out;
+}
+
+/**
+ * Bats flit in quick, jerky loops around their roost; an owl glides in wide slow circles,
+ * hunting. Both fly some way above the ground.
+ */
+function flyers(hd: Herd, t: number): Animal[] {
+  const out: Animal[] = [], bat = hd.species.look.kind === 'bat';
+  for (let k = 0; k < hd.count; k++) {
+    const seed = hd.seed + k * 13.7, r = hd.range * (bat ? 0.25 + (k * 0.37 % 1) * 0.35 : 0.6);
+    const w = hd.species.speed / Math.max(10, r) * (k % 2 ? 1 : -1); // angular speed
+    const pos = (tt: number): [number, number] => {
+      const a = tt * w + seed, j = bat ? (noise(tt * 0.8, seed) - 0.5) * r * 0.9 : 0;
+      const cx = hd.x + wander(tt / 60, seed) * hd.range * 0.5, cy = hd.y + wander(tt / 60, seed + 5) * hd.range * 0.4;
+      return [cx + Math.cos(a) * r + j, cy + Math.sin(a * (bat ? 1.7 : 1)) * r * 0.6 + j * 0.5];
+    };
+    const [x, y] = pos(t), [x2] = pos(t + 0.2);
+    out.push({ x, y, dir: x2 >= x ? 1 : -1, pace: 1, phase: seed, alt: bat ? 14 + Math.sin(t * 3 + seed) * 4 : 22 });
   }
   return out;
 }

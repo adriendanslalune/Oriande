@@ -8,8 +8,8 @@ import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
-import { animalsOf, herdsNear } from '../world/fauna';
-import { drawAnimal } from './animals';
+import { animalsOf, herdsNear, type Animal, type Look } from '../world/fauna';
+import { drawAnimal, eyesOf } from './animals';
 import { DPR } from '../ui/screen';
 import { worldTime } from '../world/weather';
 import { SEA_CELL, seaLabel } from '../world/names';
@@ -51,6 +51,8 @@ export class Overlay {
   /** when each fog cell was first drawn as seen (ms), for its fade-in */
   private readonly seenAt = new Map<string, number>();
   private readonly stamp = document.createElement('canvas');
+  /** the way to a tapped spot, waiting for the player to confirm the walk */
+  plan: [number, number][] | null = null;
   /** the sky over the map */
   readonly weather = new WeatherLayer();
   /** fish leaping out of the water: where, when it started, which way */
@@ -104,7 +106,7 @@ export class Overlay {
     }
 
     this.animate(s, v, screen, world, tiles, now, dt);
-    if (v.zoom >= 0.45) this.animals(s, v, screen, ax, ay, bx, by, now);
+    if (v.zoom >= 0.45) this.animals(s, v, screen, ax, ay, bx, by, now, false);
 
     // The sky: clouds, rain, snow, sand, fog, lightning, dawn, dusk and night.
     this.weather.draw(ctx, v, screen, world, now, dt, (X, Y) => isSeen(s, X, Y));
@@ -134,6 +136,7 @@ export class Overlay {
     this.weather.paintNight(fg, v, 4, lights);
     ctx.imageSmoothingEnabled = true; ctx.drawImage(fog, 0, 0, v.W, v.H);
     this.weather.drawLights(ctx, v, lights);
+    if (v.zoom >= 0.45 && sky(v.x).darkness > 0.25) this.animals(s, v, screen, ax, ay, bx, by, now, true);
     ctx.fillStyle = 'rgba(42,36,29,.18)'; ctx.font = "italic 22px 'IM Fell English', serif"; ctx.textAlign = 'center';
     for (let k = 0; k < 3; k++) {
       const a = k * 2.1 + 0.4, X = s.x + Math.cos(a) * 560, Y = s.y + Math.sin(a) * 560;
@@ -176,6 +179,19 @@ export class Overlay {
     }
     ctx.fillStyle = INK;
 
+    // The way proposed to a tapped spot: dotted, with a little flag where it ends.
+    if (this.plan) {
+      const P = this.plan;
+      ctx.strokeStyle = 'rgba(42,36,29,.7)'; ctx.lineWidth = 1.4; ctx.setLineDash([1, 4]); ctx.lineCap = 'round'; ctx.beginPath();
+      P.forEach(([X, Y], k) => { const [x, y] = screen(X, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+      ctx.stroke(); ctx.setLineDash([]);
+      const [fx, fy] = screen(...P[P.length - 1]), wave = Math.sin(now / 260) * 1.5;
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 20); ctx.stroke();
+      ctx.fillStyle = 'rgb(168,52,40)';
+      ctx.beginPath(); ctx.moveTo(fx, fy - 20); ctx.quadraticCurveTo(fx + 6, fy - 19 + wave, fx + 11, fy - 17 + wave); ctx.lineTo(fx, fy - 13); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.globalAlpha = 0.3; ctx.fillStyle = INK; ctx.beginPath(); ctx.ellipse(fx, fy, 4, 1.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
     // Where the explorer is heading: the rest of the route, faintly, and a cross at the end.
     const ahead = routeAhead(s);
     if (ahead) {
@@ -207,24 +223,44 @@ export class Overlay {
     return this.stamp;
   }
 
-  /** Wild animals wandering where the explorer has seen, on the shared world clock. */
-  private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number): void {
-    const t = worldTime(), time = now / 1000, scale = 2 * v.zoom / START_ZOOM;
+  /**
+   * Wild animals wandering where the explorer has seen, on the shared world clock. By day the
+   * day herds; after dark they sleep and the night's own come out (bats, owls, hedgehogs,
+   * foxes, wolves...), drawn over the night veil in the colours of the dark, eyes shining.
+   */
+  private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number, night: boolean): void {
+    const t = worldTime(), time = now / 1000, scale = 2 * v.zoom / START_ZOOM, ctx = this.ctx;
     const lakes = lakesNear(ax, ay, bx, by);
-    const list: { a: ReturnType<typeof animalsOf>[number]; look: Parameters<typeof drawAnimal>[1]; x: number; y: number }[] = [];
-    for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320)) {
-      if (h.species.look.len * scale < 4) continue; // too small to make out at this zoom
+    // how much of the night has fallen there (by longitude): day herds fade out as it falls
+    const nightness = (x: number): number => Math.max(0, Math.min(1, (sky(x).darkness - 0.25) / 0.5));
+    const list: { a: Animal; look: Look; x: number; y: number; alpha: number; eyes: boolean }[] = [];
+    for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320, night)) {
+      const look = h.species.look;
+      if (look.len * scale < 4) continue; // too small to make out at this zoom
+      const n = nightness(h.x), alpha = night ? n : 1 - n;
+      if (alpha < 0.03) continue;
       const water = h.species.biomes.includes('sea') || h.species.biomes.includes('ice');
+      const flies = look.kind === 'bat' || look.kind === 'owl';
+      const eyes = night && (look.kind === 'owl' || (look.kind === 'quad' && (h.species.danger >= 2 || look.tail === 'bush')));
       for (const a of animalsOf(h, t)) {
         if (a.x < ax - 40 || a.x > bx + 40 || a.y < ay - 40 || a.y > by + 40 || !isSeen(s, a.x, a.y)) continue;
-        if (!water && lakes.some((l) => inLake(l, a.x, a.y))) continue;
+        if (!water && !flies && lakes.some((l) => inLake(l, a.x, a.y))) continue;
         const [x, y] = screen(a.x, a.y);
-        list.push({ a, look: h.species.look, x, y });
+        list.push({ a, look, x, y, alpha, eyes });
       }
     }
     list.sort((p, q) => p.y - q.y);
-    for (const p of list) drawAnimal(this.ctx, p.look, p.a, p.x, p.y, scale, time + p.a.phase, DPR);
-    this.ctx.globalAlpha = 1;
+    for (const p of list) {
+      ctx.globalAlpha = p.alpha;
+      drawAnimal(ctx, p.look, p.a, p.x, p.y, scale, time + p.a.phase, DPR, night);
+      if (p.eyes && Math.sin(time * 0.7 + p.a.phase * 3) > -0.6) { // eyeshine, now and then a blink
+        const [ex, ey] = eyesOf(p.look), x = p.x + ex * scale * p.a.dir, y = p.y + (ey - (p.a.alt ?? 0)) * scale, r = Math.max(1.2, scale * 0.9);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.5);
+        g.addColorStop(0, 'rgba(255,240,150,1)'); g.addColorStop(0.35, 'rgba(230,220,110,.55)'); g.addColorStop(1, 'rgba(230,220,110,0)');
+        ctx.fillStyle = g; ctx.fillRect(x - r * 2.5, y - r * 2.5, r * 5, r * 5);
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** Waves, leaves, chimney smoke, travellers on the roads, a flight of birds now and then. */

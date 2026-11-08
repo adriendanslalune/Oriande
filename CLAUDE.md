@@ -64,7 +64,8 @@ Règles qui restent :
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,
    liaison abandonnée au-delà de 1,8 × la ligne droite), villages et villes réalistes,
    noms détourés, vision selon le terrain (forêt 100, plaine 200, jusqu'à 600 en altitude),
-   contournement de l'eau par l'explorateur.
+   contournement de l'eau par l'explorateur. **Marche** : un tap montre l'itinéraire (pointillés,
+   drapeau) et propose « Marcher vers » (distance en lieues) ; rien ne part sans confirmation.
 4. Rareté : lieux étranges ~10 % des tuiles (KEEP = 0,28), pictogrammes gravés ;
    **merveilles** illustrées (`world/wonders.ts`, 6 types), au plus une par cellule de
    8×8 tuiles (CHANCE = 0,45), repérées à 500 unités, fiche prioritaire.
@@ -107,7 +108,9 @@ Règles qui restent :
    zoom par défaut est 1,3 ; pleins à ≤ 0,8) ; les ombres restent visibles à tout zoom ; pluie/neige/sable en tracés
    groupés, éclairs, lueur de l'aube et du crépuscule. **Nuit** : voile bleu nuit (quart de
    résolution, peint dans le canvas de brume) percé par les lumières : la **torche** de
-   l'explorateur et les **fenêtres** des maisons (`townWindows`, remplies au dessin des bourgs). HUD : temps, vent, moment.
+   l'explorateur et les **fenêtres** des maisons (`townWindows`, remplies au dessin des bourgs). HUD : météo et vent au lieu de l'explorateur ; à droite un **cadran** gravé (horizon, soleil à sa
+   hauteur de 6 h à 18 h, lune et étoiles la nuit, nuages/pluie/neige/brume/sable du lieu) et
+   l'**heure locale** (plus de compteurs de lieues ni de cases, demande d'Adrien).
 9. **Animaux** (`world/fauna.ts`, `data/animals.json`, 22 espèces, dessin `render/animals.ts`) :
    un troupeau possible par case de 128 (32 % sur terre, 3 % en haute mer, 12 % sur la banquise),
    espèce tirée selon l'habitat (biome, `mountain` au-dessus de 0,6, `sea` en eau profonde, `ice`) ;
@@ -119,6 +122,11 @@ Règles qui restent :
    pâture où le cou descend, lièvres qui sautent, marmottes qui se dressent, baleines qui soufflent
    et plongent. Chaque pose est quantifiée et mise en cache (bitmap par pose et par taille) :
    < 1 ms par image. Invisibles quand ils feraient moins de 4 px. Champs `food` et `danger` prêts pour la chasse et le combat (plus tard).
+   **Nuit** (demande d'Adrien) : chaque case a aussi un troupeau de nuit (`herd(ci, cj, true)`,
+   tirage séparé, poids `night` dans le JSON) ; les animaux de jour s'effacent à la tombée de la
+   nuit, ceux de la nuit (chauves-souris, chouettes, hérissons, renards, loups, sangliers...)
+   sortent, dessinés **par-dessus** le voile de nuit dans des couleurs bleuies, yeux qui brillent
+   pour les prédateurs et les chouettes. Chauves-souris et chouettes volent (`alt`, ombre au sol).
    La **brume** se lève en fondu (~0,9 s par case nouvellement vue). Le titre d'atlas et la rose
    des vents se placent sous l'en-tête (`View.top`).
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg

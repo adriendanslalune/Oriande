@@ -129,7 +129,9 @@ Règles qui restent :
    des montagnes (rien ≥ 0,55 à moins de 40).
 8. **Météo et jour/nuit** (`world/weather.ts`, choix d'Adrien) : **partagés par tous**, calculés
    à partir de l'heure réelle (`worldTime`, figée dans les tests par `src/test-setup.ts`).
-   Une journée dure `DAY_SECONDS` = 2 h réelles ; l'heure locale dépend de la longitude.
+   Une journée dure `DAY_SECONDS` = 2 h réelles ; l'heure locale dépend de la longitude. **Nuit
+   raccourcie** (demande d'Adrien) : 18 h → 6 h ne prend que `NIGHT_SHARE` = 25 % du temps réel
+   (~28 min de nuit noire, ~5 min d'aube et de crépuscule, ~80 min de jour).
    Vents par latitude (alizés d'est, vents d'ouest tempérés, vents polaires d'est) ; nuages =
    bruit emporté par le vent (une averse passe en quelques minutes) dans de grands systèmes
    plus lents ; pluie, orage, neige (froid ou haute altitude), tempête de sable (désert venté),

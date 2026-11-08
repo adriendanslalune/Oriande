@@ -25,10 +25,19 @@ export const freezeTime = (t: number | null): void => { frozen = t; };
 
 // ---- the hour ----
 
-/** Local solar time at x, in hours [0, 24). */
+/**
+ * Share of the real day spent between sunset and sunrise (18 h to 6 h on the clock). Shorter
+ * than half (asked by Adrien: the nights were too long): the night's twelve hours go by faster
+ * than the day's.
+ */
+export const NIGHT_SHARE = 0.25;
+
+/** Local solar time at x, in hours [0, 24): 6 h to 18 h take 1 − NIGHT_SHARE of the real day. */
 export function localHour(x: number, t = worldTime()): number {
-  const day = (t / DAY_SECONDS + longitude(x) / 360) % 1;
-  return ((day + 1) % 1) * 24;
+  const day = (((t / DAY_SECONDS + longitude(x) / 360) % 1) + 1) % 1;
+  const d = day - 0.5, a = Math.abs(d), half = (1 - NIGHT_SHARE) / 2; // from noon, in real time
+  const fromNoon = a <= half ? (a / half) * 6 : 6 + ((a - half) / (0.5 - half)) * 6;
+  return (((12 + Math.sign(d) * fromNoon) % 24) + 24) % 24;
 }
 
 export type DayPhase = 'dawn' | 'day' | 'dusk' | 'night';

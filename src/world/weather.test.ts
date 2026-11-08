@@ -5,6 +5,15 @@ import { startPosition } from '../game/travel';
 
 const s = startPosition(), T = worldTime();
 
+describe('the night', () => {
+  it('is short: about a quarter of the real day is dark', () => {
+    let dark = 0; const N = 400;
+    for (let k = 0; k < N; k++) if (sky(0, k * DAY_SECONDS / N).phase === 'night') dark++;
+    expect(dark / N).toBeGreaterThan(0.12);
+    expect(dark / N).toBeLessThan(0.28);
+  });
+});
+
 describe('weather and the hour', () => {
   it('is the same for everyone: a function of place and real time only', () => {
     expect(weatherAt(s.x, s.y, T)).toEqual(weatherAt(s.x, s.y, T));
@@ -13,7 +22,7 @@ describe('weather and the hour', () => {
 
   it('a day lasts two real hours; the hour follows longitude', () => {
     expect(localHour(s.x, T + DAY_SECONDS)).toBeCloseTo(localHour(s.x, T), 6);
-    expect(localHour(s.x + CIRCUMFERENCE / 4, T)).toBeCloseTo((localHour(s.x, T) + 6) % 24, 6);
+    expect(localHour(s.x + CIRCUMFERENCE / 4, T)).toBeCloseTo(localHour(s.x, T + DAY_SECONDS / 4), 6);
     expect(sky(s.x, T).phase).toBe('day');
     expect(sky(s.x, T + DAY_SECONDS / 2).phase).toBe('night');
     expect(sky(s.x, T + DAY_SECONDS / 2).darkness).toBeGreaterThan(0.9);

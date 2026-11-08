@@ -38,6 +38,7 @@ describe('wonders', () => {
   it('are spotted from afar, once, and the ground around them is revealed', () => {
     const w = all().find((x) => x.kind !== 'arches')!;
     const s = newGame(), out: TravelEvent[] = [];
+    s.calmUntil = 1e9; // no monsters on this walk
     discover(s, w.x + WONDER_SIGHT * 0.9, w.y, out);
     expect(out.filter((e) => e.type === 'wonder')).toHaveLength(1);
     expect(s.seen.has(cellKey(w.x, w.y))).toBe(true);

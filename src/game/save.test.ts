@@ -17,6 +17,7 @@ class MemoryStore implements KeyValueStore {
 /** A game that has walked a while: several journeys, fog revealed, a place or two found. */
 function playedGame(): GameState {
   const s = newGame();
+  s.calmUntil = 1e9; // no monsters on this walk
   for (const [dx, dy] of [[300, 0], [0, 400], [-500, 120], [200, -700]]) {
     if (startJourney(s, s.x + dx, s.y + dy)) while (advance(s, 0.05));
   }
@@ -113,6 +114,7 @@ describe('footsteps', () => {
   it('one footstep every 10 units, whatever the frame rate', () => {
     for (const dt of [1 / 120, 1 / 30, 0.05]) {
       const s = newGame(), before = s.trace.length;
+      s.calmUntil = 1e9; // no monsters on this walk
       startJourney(s, s.x + 300, s.y);
       const L = pathLength(s.journey!.path);
       while (advance(s, dt));

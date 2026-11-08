@@ -18,6 +18,7 @@ import { TileSource, type ReadyTile } from '../render/tileSource';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { GLPainter } from '../render/glPainter';
 import { Hud } from '../ui/hud';
+import type { BattleData } from './Battle';
 import { DPR, DPR_FORCED, setDPR } from '../ui/screen';
 
 const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
@@ -120,6 +121,8 @@ export class MapScene extends Phaser.Scene {
     });
     this.game.canvas.setAttribute('aria-label', t('ui.map'));
     this.setupInput();
+    // a fight left unfinished when the game was closed: back to it
+    if (this.state.battle) this.time.delayedCall(600, () => this.openBattle());
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     // Phones kill background tabs without warning: save the moment the game is hidden.
     const saveNow = (): void => { saveGame(this.state); };
@@ -237,10 +240,31 @@ export class MapScene extends Phaser.Scene {
     this.hud.hideWalk();
   }
 
+  /** A monster: the map holds still under the battle page until the fight is over. */
+  private openBattle(): void {
+    if (!this.state.battle || this.scene.isActive('Battle')) return;
+    this.cancelPlan();
+    this.hud.hideNote();
+    saveGame(this.state);
+    const data: BattleData = {
+      state: this.state,
+      changed: (hp) => this.hud.setLife(hp, this.state.maxHp, this.state.gold),
+      done: (outcome) => {
+        saveGame(this.state);
+        this.scene.resume();
+        this.follow = true;
+        if (outcome === 'lost') { this.view.x = this.state.x; this.view.y = this.state.y; this.hud.showNote(t('battle.wake.title'), t('battle.wake.text'), 8000); }
+      },
+    };
+    this.scene.launch('Battle', data);
+    this.scene.pause();
+  }
+
   private onEvent(e: TravelEvent): void {
     if (e.type === 'shore') this.hud.showNote(t('shore.title'), t('shore.text'));
     else if (e.type === 'wonder') this.hud.showNote(t('wonder.heading') + ' · ' + t(`wonder.${e.wonder.kind}.name`, { n: e.wonder.name }), t(`wonder.${e.wonder.kind}.text`), 14000, true);
     else if (e.type === 'monument') this.hud.showNote(t('monument.heading') + ' · ' + t(`monument.${e.monument.kind}.name`, { n: e.monument.name }), t(`monument.${e.monument.kind}.text`), 10000, true);
+    else if (e.type === 'encounter') this.openBattle();
     else if (e.type === 'landmark') this.hud.showNote(t(`landmark.${e.landmark.kind}.name`, { n: e.landmark.name }), t(`landmark.${e.landmark.kind}.text`));
     else {
       const b = e.settlement;
@@ -408,6 +432,7 @@ export class MapScene extends Phaser.Scene {
       const w = weatherAt(s.x, s.y), light = sky(s.x);
       this.hud.setSky([t(`weather.${w.kind}`), w.kind === 'clear' && light.phase === 'night' ? '' : windName(w.wind)].filter(Boolean).join(' · '));
       const minutes = Math.floor(light.hour * 60);
+      this.hud.setLife(s.hp, s.maxHp, s.gold);
       this.hud.setTime(t('hud.time', { h: Math.floor(minutes / 60), m: String(minutes % 60).padStart(2, '0') }), t(`sky.${light.phase}`));
       this.hud.setDial(light.hour, w.kind, light.darkness, light.glow);
     }

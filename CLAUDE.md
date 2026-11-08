@@ -48,7 +48,8 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v3 ; les sauvegardes v1/v2 (monde plat) sont mises de côté.
+- Échelle des sauvegardes : v4 (v3 migrée : vie, écus, sac, dés, combat) ; les sauvegardes v1/v2
+  (monde plat) sont mises de côté.
 
 Règles qui restent :
 0. **Rendu WebGL** (demande d'Adrien, pour tourner comme un vrai jeu) : Phaser en `AUTO` (WebGL, repli
@@ -239,6 +240,13 @@ sur le téléphone de Doudou via GitLab Pages.
 4. **Combat** : une scène Battle au tour par tour, simple et lisible
    (attaquer / objet / fuir), 2 monstres dans `monsters.json`. Rencontres
    aléatoires sur la carte, fréquence dépendant du terrain.
+   (Fait : `game/combat.ts` règles pures et testées, dés à graine sauvegardée `seed`/`roll` ;
+   `data/monsters.json` rôdeur des brumes et gardien d’airain, `data/items.json` remède et
+   biscuit ; rencontres pendant la marche, `encounterRate` par lieue : forêt et jungle ~0,1,
+   collines 0,09, plaine 0,05, ×0,2 sur une route, 0 à moins de 180 d’un bourg, 4 lieues de calme
+   après un combat ; scène `Battle` = page d’atlas DOM par-dessus la carte figée, illustrations
+   provisoires gravées dans `render/monsterArt.ts` ; défaite = réveil au dernier bourg vu (`rest`)
+   avec la moitié de la vie et des écus ; combat en cours sauvegardé ; sauvegarde **v4**.)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).
    PAS de plan de ville à parcourir pour l'instant.

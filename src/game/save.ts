@@ -1,12 +1,13 @@
 // Save and load the GameState in localStorage: small, versioned, robust.
 // What is saved: position, leagues, zoom, discovered places, the walk in progress, revealed fog
 // cells (run-length encoded) and footsteps (delta encoded). Never anything drawn.
-import type { GameState, Journey } from './state';
+import type { Battle, GameState, Journey } from './state';
+import { CALM_LEAGUES, START_HP, START_ITEMS, monsterById } from './combat';
 
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -23,6 +24,15 @@ export interface SaveFile {
   seen: string;
   /** footsteps, see encodeTrace */
   trace: number[];
+  // v4: the explorer and the fight
+  hp: number;
+  maxHp: number;
+  gold: number;
+  items: Record<string, number>;
+  seed: number;
+  calmUntil: number;
+  rest: [number, number];
+  battle: Battle | null;
 }
 
 // ---- fog cells: run-length encoding by row ----
@@ -108,6 +118,8 @@ export function toSaveFile(s: GameState, now = new Date()): SaveFile {
     journey: s.journey ? { ...s.journey, path: s.journey.path.map((p) => [...p] as [number, number]) } : null,
     seen: encodeCells(s.seen),
     trace: encodeTrace(s.trace),
+    hp: s.hp, maxHp: s.maxHp, gold: s.gold, items: { ...s.items }, seed: s.seed,
+    calmUntil: s.calmUntil, rest: [s.rest[0], s.rest[1]], battle: s.battle ? { ...s.battle } : null,
   };
 }
 
@@ -141,7 +153,16 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> |
     }
     save.v = 2;
   }
-  // next: if (save.v === 2) { ...; save.v = 3; }
+  if (save.v === 3) {
+    // v4 brings the explorer's life, purse and pack, the dice and the fights
+    Object.assign(save, {
+      hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },
+      seed: (Math.random() * 4294967296) >>> 0,
+      calmUntil: (save.leagues as number) + CALM_LEAGUES, rest: [save.x, save.y], battle: null,
+    });
+    save.v = 4;
+  }
+  // next: if (save.v === 4) { ...; save.v = 5; }
   return save;
 }
 
@@ -159,8 +180,18 @@ export function fromSaveFile(json: string): GameState {
   const seen = decodeCells(f.seen);
   if ([...seen].some((k) => !/^-?\d+,-?\d+$/.test(k))) throw new Error('bad cells');
   const trace = decodeTrace(f.trace as number[]);
+  if (![f.hp, f.maxHp, f.gold, f.seed, f.calmUntil].every(isNum)) throw new Error('bad explorer');
+  const items = f.items as Record<string, unknown>;
+  if (!items || typeof items !== 'object' || !Object.values(items).every(isNum)) throw new Error('bad items');
+  const rest = f.rest as unknown[];
+  if (!Array.isArray(rest) || rest.length !== 2 || !rest.every(isNum)) throw new Error('bad rest');
+  const battle = f.battle as Battle | null;
+  if (battle !== null && (typeof battle !== 'object' || !isNum(battle.hp) || !monsterById(battle.monster))) throw new Error('bad battle');
   return {
-    version: 3,
+    version: 4,
+    hp: Math.max(1, f.hp as number), maxHp: f.maxHp as number, gold: f.gold as number,
+    items: items as Record<string, number>, seed: (f.seed as number) >>> 0, calmUntil: f.calmUntil as number,
+    rest: [rest[0] as number, rest[1] as number], battle: battle ? { ...battle } : null,
     x: f.x as number, y: f.y as number, leagues: f.leagues as number, zoom: f.zoom as number,
     named: f.named as string[],
     journey: f.journey as Journey | null,

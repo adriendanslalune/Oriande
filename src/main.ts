@@ -10,6 +10,7 @@ import '@fontsource/old-standard-tt/400-italic.css';
 
 import { BootScene } from './scenes/Boot';
 import { MapScene } from './scenes/Map';
+import { BattleScene } from './scenes/Battle';
 import { getLang, setLang } from './i18n';
 import { DPR } from './ui/screen';
 
@@ -32,7 +33,7 @@ const game = new Phaser.Game({
   // canvas `image-rendering: pixelated` and draw scaled tiles without smoothing.
   render: { antialias: true, pixelArt: false, roundPixels: false },
   input: { activePointers: 3 },
-  scene: [BootScene, MapScene],
+  scene: [BootScene, MapScene, BattleScene],
 });
 
 window.addEventListener('resize', () => {

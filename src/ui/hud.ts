@@ -9,6 +9,8 @@ const CSS = `
   align-items: flex-start; gap: 10px; pointer-events: none; z-index: 2; }
 .hud-header .t { font: 19px/1.15 "IM Fell English SC", serif; letter-spacing: .04em; }
 .hud-header .t .coords, .hud-header .t .sky { font: italic 13px "IM Fell English", serif; letter-spacing: 0; }
+.hud-header .t .life { font: 700 12px "Old Standard TT", serif; letter-spacing: .04em; }
+.hud-header .t .life b { color: #a83428; font-weight: 700; }
 .hud-header .c { text-align: center; flex: none; }
 .hud-header .c canvas { display: block; width: 92px; height: 46px; }
 .hud-header .c .time { font: 700 13px/1.2 "Old Standard TT", serif; letter-spacing: .04em; }
@@ -39,6 +41,7 @@ export class Hud {
   private readonly dial: HTMLCanvasElement;
   private readonly time: HTMLElement;
   private readonly walk: HTMLElement;
+  private readonly life: HTMLElement;
   private dialKey = '';
   private readonly coords: HTMLElement;
   private readonly header: HTMLElement;
@@ -55,10 +58,11 @@ export class Hud {
     const header = document.createElement('header');
     header.className = 'hud-header';
     this.header = header;
-    header.innerHTML = '<div class="t"><span></span><br><i class="coords"></i><br><i class="sky"></i></div><div class="c"><canvas role="img"></canvas><div class="time"></div></div>';
+    header.innerHTML = '<div class="t"><span></span><br><i class="coords"></i><br><i class="sky"></i><br><span class="life"></span></div><div class="c"><canvas role="img"></canvas><div class="time"></div></div>';
     header.querySelector('.t > span')!.textContent = t('title');
     this.coords = header.querySelector('.coords')!;
     this.sky = header.querySelector('.sky')!;
+    this.life = header.querySelector('.life')!;
     this.dial = header.querySelector('canvas')!;
     this.dial.setAttribute('aria-label', t('ui.dial'));
     this.time = header.querySelector('.time')!;
@@ -96,6 +100,15 @@ export class Hud {
   /** Latitude and longitude of the explorer, under the title. */
   setCoords(text: string): void {
     if (this.coords.textContent !== text) this.coords.textContent = text;
+  }
+
+  /** The explorer's life and purse, under the weather. */
+  setLife(hp: number, max: number, gold: number): void {
+    const key = hp + '/' + max + '/' + gold;
+    if (this.life.dataset.v === key) return;
+    this.life.dataset.v = key;
+    const heart = document.createElement('b'); heart.textContent = '♥ ';
+    this.life.replaceChildren(heart, t('hud.life', { hp, max, n: gold }));
   }
 
   /** The local hour (and its moment of the day) under the dial. */

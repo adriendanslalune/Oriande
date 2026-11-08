@@ -1,0 +1,7 @@
+{
+  "_comment": "Things the explorer carries. heal: life given back when used. price: in écus (the merchant, later).",
+  "items": [
+    { "id": "remede", "heal": 8, "price": 6 },
+    { "id": "biscuit", "heal": 3, "price": 2 }
+  ]
+}

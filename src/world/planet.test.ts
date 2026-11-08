@@ -88,6 +88,8 @@ describe('crossing longitude 180°', () => {
   it('the explorer walks across and comes back around, walk, fog and trace intact', async () => {
     const { newGame, startJourney, advance, wrapPosition } = await import('../game/travel');
     const s = newGame();
+  s.calmUntil = 1e9; // no monsters on this walk
+    s.calmUntil = 1e9; // no monsters on this walk
     // find walkable land on both sides of the antimeridian
     let y = 0;
     for (let yy = -40000; yy < 40000; yy += 50) if (walkable(CIRCUMFERENCE / 2 - 60, yy) && walkable(CIRCUMFERENCE / 2 + 60, yy) && walkable(CIRCUMFERENCE / 2, yy)) { y = yy; break; }

@@ -7,7 +7,7 @@ import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
-import { riversNear } from '../world/rivers';
+import { inLake, riversNear } from '../world/rivers';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
 import { CIRCUMFERENCE, nearestCopy, wrapIndex } from '../world/planet';
@@ -264,7 +264,8 @@ export class Overlay {
     const { ctx } = this, [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
     const SPACING = 16;
     ctx.lineCap = 'round';
-    for (const r of riversNear(ax, ay, bx, by)) {
+    const rivers = riversNear(ax, ay, bx, by), lakes = rivers.flatMap((r) => r.lakes);
+    for (const r of rivers) {
       const L = r.lengths[r.lengths.length - 1];
       let k = 1;
       for (let d = (time * 14) % SPACING; d < L; d += SPACING) {
@@ -275,7 +276,7 @@ export class Overlay {
         // torrents run faster: shift these flecks further along with time
         const extra = (time * 40 * st) % SPACING, uu = Math.min(1, u + extra / seg);
         const X = px + (qx - px) * uu, Y = py + (qy - py) * uu;
-        if (!isSeen(s, X, Y)) continue;
+        if (!isSeen(s, X, Y) || lakes.some((l) => inLake(l, X, Y))) continue; // not over lakes
         const [x, y] = screen(X, Y), dx = (qx - px) / seg, dy = (qy - py) / seg, len = (2 + st * 3) * v.zoom;
         ctx.strokeStyle = `rgba(245,250,252,${0.45 + st * 0.45})`; ctx.lineWidth = Math.max(0.6, r.widths[k] * 0.35 * v.zoom);
         ctx.beginPath(); ctx.moveTo(x - dx * len, y - dy * len); ctx.lineTo(x + dx * len, y + dy * len); ctx.stroke();
@@ -286,7 +287,7 @@ export class Overlay {
       for (const [fx, fy, dx, dy] of r.falls) { // spray at the foot of the falls
         if (fx < ax - 20 || fx > bx + 20 || fy < ay - 20 || fy > by + 20 || !isSeen(s, fx, fy)) continue;
         for (let m = 0; m < 6; m++) {
-          const ph = (time * 1.6 + m / 6) % 1, sx = fx + (m - 2.5) * 2.6, sy = fy + 6; void dx; void dy;
+          const ph = (time * 1.6 + m / 6) % 1, o = (m - 2.5) * 2.4, sx = fx + dx * 13 - dy * o, sy = fy + dy * 13 + dx * o;
           const [x, y] = screen(sx, sy - ph * 7);
           ctx.globalAlpha = 0.7 * (1 - ph); ctx.fillStyle = 'rgb(250,252,252)';
           ctx.beginPath(); ctx.arc(x, y, (1.4 + ph * 3) * v.zoom, 0, 6.3); ctx.fill();
@@ -306,12 +307,11 @@ export class Overlay {
     this.fishTimer -= dt;
     if (this.fishTimer <= 0 && this.fish.length < 4) {
       this.fishTimer = 0.6 + Math.random() * 1.2;
-      // candidates: open water seen on screen (sea points of the tiles, lakes, wide rivers)
+      // candidates: open water seen on screen (sea points of the tiles, lakes)
       const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H), spots: [number, number, number][] = [];
       for (const tl of tiles) for (const [X, Y] of tl.waves) spots.push([X, Y, 1]);
       for (const r of riversNear(ax, ay, bx, by)) {
-        for (const [lx, ly] of r.lakes) spots.push([lx, ly, 0.8]);
-        for (let k = 0; k < r.points.length; k += 12) if (r.widths[k] > 2.2) spots.push([r.points[k][0], r.points[k][1], 0.6]);
+        for (const l of r.lakes) spots.push([l.x, l.y, 0.8]); // fish in lakes and the sea, not in rivers
       }
       const ok = spots.filter(([X, Y]) => X > ax && X < bx && Y > ay && Y < by && isSeen(s, X, Y));
       if (ok.length) {

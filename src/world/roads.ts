@@ -1,5 +1,6 @@
 import { fbm, hash2 } from './noise';
 import { CIRCUMFERENCE } from './planet';
+import { inLake, lakesNear, type Lake } from './rivers';
 import { altitude, MOUNTAIN_ALTITUDE, ROAD_MAX_ALTITUDE } from './terrain';
 import { settlement, type Settlement } from './settlements';
 
@@ -77,9 +78,13 @@ export const pointOnCurve = (p: Point, q: Point, c: Point, u: number): Point => 
 });
 
 /** Whether the straight segment a-b stays on passable ground (sampled every 6 units). */
+/** Lakes around the road being computed: roads keep to dry land, so they go around them. */
+let lakes: Lake[] = [];
+const wet = (x: number, y: number, margin = 0): boolean => lakes.some((l) => inLake(l, x, y) || (margin > 0 && Math.hypot(l.x - x, (l.y - y) / 0.75) < l.r * 1.3 + margin));
+
 function clear(a: Point, b: Point): boolean {
   const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6));
-  for (let k = 1; k <= n; k++) if (!passable(altitude(a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n))) return false;
+  for (let k = 1; k <= n; k++) { const x = a.x + (b.x - a.x) * k / n, y = a.y + (b.y - a.y) * k / n; if (!passable(altitude(x, y)) || wet(x, y)) return false; }
   return true;
 }
 
@@ -97,6 +102,7 @@ export function roadPath(a: Settlement, b: Settlement): Point[] | null {
   const key = p.rkey + '|' + q.rkey;
   const known = pathMemo.get(key);
   if (known !== undefined) return known;
+  lakes = lakesNear(Math.min(p.x, q.x) - 340, Math.min(p.y, q.y) - 340, Math.max(p.x, q.x) + 340, Math.max(p.y, q.y) + 340);
   let out: Point[] | null = [];
   for (let k = 0; k <= 48; k++) out.push(pointOnCurve(p, q, c, k / 48));
   if (!out.every((pt, k) => k === 0 || clear(out![k - 1], pt))) {
@@ -134,7 +140,7 @@ function detour(p: Point, q: Point): Point[] | null {
   const nearest = (pt: Point): number => {
     const ci = Math.round(pt.x / G), cj = Math.round(pt.y / G);
     for (let r = 0; r <= 4; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
-      if (roomy(gridAlt(ci + di, cj + dj))) return id(ci + di, cj + dj);
+      if (roomy(gridAlt(ci + di, cj + dj)) && !wet((ci + di) * G, (cj + dj) * G, 4)) return id(ci + di, cj + dj);
     }
     return -1;
   };
@@ -172,7 +178,7 @@ function detour(p: Point, q: Point): Point[] | null {
       const m = id(mi, mj);
       if (done[m]) continue;
       const v = gridAlt(mi, mj);
-      if (!roomy(v)) continue;
+      if (!roomy(v) || wet(mi * G, mj * G, 4)) continue;
       const c = cost[n] + (di && dj ? Math.SQRT2 : 1) * G * groundCost(v);
       if (c < cost[m]) { cost[m] = c; from[m] = n; push(c + Math.hypot(mi - gi, mj - gj) * G, m); }
     }
@@ -225,12 +231,13 @@ function wind(points: Point[]): Point[] {
     const fade = Math.min(1, k / 4, (total - 1 - k) / 4);
     const o = (fbm(pt.x / S, pt.y / S, 3, CIRCUMFERENCE / S) - 0.5) * 2 * A * fade;
     const w = { x: pt.x - (dy / L) * o, y: pt.y + (dx / L) * o };
-    return passable(altitude(w.x, w.y)) ? w : pt;
+    return passable(altitude(w.x, w.y)) && !wet(w.x, w.y, 2) ? w : pt;
   });
 }
 
 function makeRoad(a: Settlement, b: Settlement, raw: Point[]): Road {
   const [p, q] = a.key < b.key ? [a, b] : [b, a];
+  lakes = lakesNear(Math.min(p.x, q.x) - 340, Math.min(p.y, q.y) - 340, Math.max(p.x, q.x) + 340, Math.max(p.y, q.y) + 340);
   const points = wind(raw);
   const lengths = [0];
   for (let k = 1; k < points.length; k++) lengths.push(lengths[k - 1] + Math.hypot(points[k].x - points[k - 1].x, points[k].y - points[k - 1].y));

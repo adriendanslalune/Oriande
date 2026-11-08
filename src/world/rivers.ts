@@ -3,7 +3,8 @@
 // grid nodes from there on, so they merge into one. Deterministic, and periodic around the
 // planet: sources are drawn with wrapped indices, traces run on the (periodic) terrain.
 import { fbm, hash2 } from './noise';
-import { altitude, drainage } from './terrain';
+import { altitude, drainage, TILE } from './terrain';
+import { settlement } from './settlements';
 import { CIRCUMFERENCE, beyondIce, wrapIndex } from './planet';
 
 /** Rivers are computed and cached per cell of this size (32 tiles). */
@@ -30,9 +31,40 @@ export interface River {
   steep: number[];
   /** waterfalls: [x, y, dx, dy] where the river drops over a ledge, flowing along (dx, dy) */
   falls: [number, number, number, number][];
-  /** lakes along the way and at the end: [x, y, size in grid cells], world units */
-  lakes: [number, number, number][];
+  /** lakes along the way and at the end (see lakeRadius for their shape) */
+  lakes: Lake[];
   minX: number; maxX: number; minY: number; maxY: number;
+}
+
+/** A lake: centre, mean radius (world units) and a seed for its irregular shore. */
+export interface Lake { x: number; y: number; r: number; seed: number }
+
+/** Radius of a lake's shore in direction `a` (radians): an irregular, smooth outline. */
+export function lakeRadius(l: Lake, a: number): number {
+  let k = 1;
+  for (let h = 1; h <= 3; h++) k += Math.sin(a * (h + 1) + l.seed * (7 + h * 3)) * 0.12 / h;
+  return l.r * k;
+}
+
+/** Whether (x, y) lies in the lake (the outline is flattened north-south like the map). */
+export function inLake(l: Lake, x: number, y: number): boolean {
+  const dx = x - l.x, dy = (y - l.y) / 0.75;
+  return Math.hypot(dx, dy) < lakeRadius(l, Math.atan2(dy, dx));
+}
+
+/**
+ * A lake in the hollow at (x, y) of `cells` flooded grid cells, kept clear of towns (they stand
+ * on dry land, so the lake shrinks or disappears). Null when there is no room for one.
+ */
+function makeLake(x: number, y: number, cells: number): Lake | null {
+  let r = Math.min(70, 10 + Math.sqrt(cells) * 7);
+  const ti = Math.floor(x / TILE), tj = Math.floor(y / TILE);
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const b = settlement(ti + di, tj + dj);
+    if (b) r = Math.min(r, (Math.hypot(b.x - x, (b.y - y) / 0.75) - (b.city ? 60 : 30)) / 1.4);
+  }
+  if (r < 9) return null;
+  return { x, y, r, seed: hash2(wrapIndex(Math.round(x), CIRCUMFERENCE), Math.round(y)) * 100 };
 }
 
 const memo = new Map<string, River[]>();
@@ -194,11 +226,19 @@ export function riversOfCell(ci: number, cj: number): River[] {
     }
     const lengths = [0];
     for (let k = 1; k < n; k++) lengths.push(lengths[k - 1] + Math.hypot(points[k][0] - points[k - 1][0], points[k][1] - points[k - 1][1]));
-    const widths = points.map((_, k) => 0.7 + Math.min(4, (k / n) * nodes.length / 22));
+    // width grows with the distance flowed: a brook at the spring, a broad river downstream
+    const widths = points.map((_, k) => 1.2 + Math.min(9, lengths[k] / 380));
     const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
-    out.push({ points, widths, lengths, steep, falls, lake, lakes: lakes.map(([a, b, n]) => [a * G, b * G, n] as [number, number, number]), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
+    out.push({ points, widths, lengths, steep, falls, lake, lakes: lakes.map(([a, b, n]) => makeLake(a * G, b * G, n)).filter((l): l is Lake => !!l), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
   }
   memo.set(rkey, out);
+  return out;
+}
+
+/** Lakes that may reach into the box [x0, x1] x [y0, y1]. */
+export function lakesNear(x0: number, y0: number, x1: number, y1: number): Lake[] {
+  const out: Lake[] = [];
+  for (const r of riversNear(x0, y0, x1, y1)) for (const l of r.lakes) if (l.x + l.r * 1.4 > x0 && l.x - l.r * 1.4 < x1 && l.y + l.r > y0 && l.y - l.r < y1 && !out.includes(l)) out.push(l);
   return out;
 }
 

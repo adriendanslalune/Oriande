@@ -6,7 +6,7 @@ import { CIRCUMFERENCE, wrapIndex, wrapX } from '../world/planet';
 import { TILE, altitude, humidity } from '../world/terrain';
 import { DESERT_HUMIDITY, JUNGLE_HUMIDITY, coldness, heat, temperature } from '../world/climate';
 import { drawDunes, drawIce, drawJungle, drawSavanna } from './climate';
-import { drawRivers } from './rivers';
+import { drawBridges, drawRivers } from './rivers';
 import { riversNear } from '../world/rivers';
 import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
@@ -212,6 +212,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
   g.strokeStyle = INK;
   // above the roads; a wonder with an illustration is drawn by the overlay instead
+  drawBridges(g, x0, y0, roads, rivers);
   for (const w of wonders) if (!wonderImage(w.kind)) drawWonder(g, w, w.x - x0, w.y - y0);
   for (const b of towns) drawTown(g, b, b.x - x0, b.y - y0, roads);
 

@@ -47,3 +47,26 @@ describe('rivers', () => {
     expect(riversNear(s.x - 10, s.y - 10, s.x + 10, s.y + 10)).toBeInstanceOf(Array);
   });
 });
+
+describe('lakes and towns', () => {
+  it('no town stands in a lake, no lake covers a road, no town in the mountains', async () => {
+    const { inLake } = await import('./rivers');
+    const { settlement } = await import('./settlements');
+    const { roadsAround } = await import('./roads');
+    const { TILE, MOUNTAIN_ALTITUDE } = await import('./terrain');
+    const lakes = [];
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) for (const r of riversOfCell(ci + di, cj + dj)) lakes.push(...r.lakes);
+    expect(lakes.length).toBeGreaterThan(10);
+    const ti0 = Math.floor(s.x / TILE), tj0 = Math.floor(s.y / TILE);
+    let towns = 0;
+    for (let tj = tj0 - 40; tj <= tj0 + 40; tj++) for (let ti = ti0 - 40; ti <= ti0 + 40; ti++) {
+      const b = settlement(ti, tj);
+      if (!b) continue;
+      towns++;
+      expect(lakes.some((l) => inLake(l, b.x, b.y))).toBe(false);
+      expect(altitude(b.x, b.y)).toBeLessThan(MOUNTAIN_ALTITUDE);
+    }
+    expect(towns).toBeGreaterThan(50);
+    for (const road of roadsAround(ti0, tj0, 12)) for (const p of road.points) expect(lakes.some((l) => inLake(l, p.x, p.y))).toBe(false);
+  }, 120000);
+});

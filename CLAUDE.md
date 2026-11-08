@@ -72,7 +72,13 @@ Règles qui restent :
    Elles ne bloquent pas la marche pour l'instant. Torrents (`steep`) et **cascades** (`falls`,
    chute d'altitude ≥ 0,22 entre deux nœuds) ; l'overlay anime le courant (écume qui
    descend, plus vite dans les torrents), les embruns des cascades et des **poissons qui
-   sautent** (mer, lacs, grandes rivières).
+   sautent** (mer et lacs seulement, pas les rivières). Rendu : ruban à rives irrégulières,
+   liseré de sable, roseaux ; largeur 1,2 → ~10 selon la distance parcourue. Les **lacs**
+   sont dessinés par-dessus (une rivière qui traverse un lac y disparaît), évitent les
+   bourgs (rétrécissent ou disparaissent), et les **routes contournent les lacs**
+   (`roads.ts` charge les lacs du coin : les routes dépendent des rivières, jamais l'inverse).
+   **Ponts** en pierre là où une route croise une rivière. Les bourgs évitent les abords
+   des montagnes (rien ≥ 0,55 à moins de 40).
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
    plus proche des deux) : liaisons réciproques et planes, les routes se rejoignent dans les
    bourgs au lieu de se croiser. Les routes serpentent (bruit perpendiculaire, toujours sur

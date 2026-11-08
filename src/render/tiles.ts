@@ -6,6 +6,8 @@ import { CIRCUMFERENCE, wrapIndex, wrapX } from '../world/planet';
 import { TILE, altitude, humidity } from '../world/terrain';
 import { DESERT_HUMIDITY, JUNGLE_HUMIDITY, coldness, heat, temperature } from '../world/climate';
 import { drawDunes, drawIce, drawJungle, drawSavanna } from './climate';
+import { drawRivers } from './rivers';
+import { riversNear } from '../world/rivers';
 import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
 import { landmark } from '../world/landmarks';
@@ -175,6 +177,12 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     }
   }
 
+  // Rivers and lakes, over the plants, under the dunes, peaks and roads.
+  const rivers = riversNear(x0 - 40, y0 - 40, x0 + T + 40, y0 + T + 60);
+  drawRivers(g, x0, y0, rivers);
+  // where a river crosses a range, the peaks step aside: a valley (every 4th point is enough)
+  const valleys = rivers.map((r) => r.points.filter((_, k) => k % 4 === 0 || k === r.points.length - 1).map(([x, y]) => ({ x, y })));
+
   // Climates: dune fields in the deserts, ice floes on the frozen seas.
   drawDunes(g, x0, y0, cleared);
   drawIce(g, x0, y0);
@@ -182,7 +190,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   // Mountains: engraved peaks, back to front.
   // no peak over a wonder: its clearing counts as an obstacle like a road
   const wonderGround = wonders.map((w) => [{ x: w.x - 30, y: w.y - 10 }, { x: w.x + 30, y: w.y - 10 }]);
-  drawMountains(g, x0, y0, terrainColour, [...roads.map((r) => r.points), ...wonderGround]);
+  drawMountains(g, x0, y0, terrainColour, [...roads.map((r) => r.points), ...wonderGround, ...valleys]);
   g.strokeStyle = INK; g.fillStyle = INK;
 
   // The strange place of this tile, if any.

@@ -3,6 +3,7 @@ import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
 import { newGame, advance, startJourney, leaguesLeft, wrapPosition, START_ZOOM, type TravelEvent } from '../game/travel';
 import { latitude, longitude } from '../world/planet';
+import { prefetchRivers } from '../world/rivers';
 import { loadGame, saveGame } from '../game/save';
 import type { GameState } from '../game/state';
 import { drawTile, type TileArt } from '../render/tiles';
@@ -42,6 +43,7 @@ export class MapScene extends Phaser.Scene {
   private hud!: Hud;
   private hudTimer = 0;
   private saveTimer = SAVE_EVERY;
+  private riverTimer = 3000;
   // gestures
   private readonly fingers = new Map<number, [number, number]>();
   private pinchStart = 0;
@@ -202,6 +204,9 @@ export class MapScene extends Phaser.Scene {
     // crossing longitude 180°: the explorer comes back around the planet, the view follows
     v.x += wrapPosition(s);
     for (const e of events) this.onEvent(e);
+    // rivers ahead: one more cell computed now and then, so they are ready before we get there
+    this.riverTimer -= delta;
+    if (this.riverTimer <= 0) { this.riverTimer = 1500; prefetchRivers(s.x, s.y); }
     this.saveTimer -= delta;
     // Save on a timer, and right away when a walk ends or something was discovered.
     if (this.saveTimer <= 0 || events.length || (walking && !s.journey)) {

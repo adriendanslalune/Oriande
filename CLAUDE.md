@@ -62,6 +62,14 @@ Règles qui restent :
    **merveilles** illustrées (`world/wonders.ts`, 6 types), au plus une par cellule de
    8×8 tuiles (CHANCE = 0,45), repérées à 500 unités, fiche prioritaire.
 5. Pas de traversée d'eau en phase 1 : le **tour du monde** viendra avec bateau/montgolfière.
+6. **Rivières** (`world/rivers.ts`) : sources dans les collines (altitude 0,22–1,1, une
+   candidate par carré de 512), descente de plus grande pente sur une grille de 64 le long de
+   `drainage` (relief de grande échelle) ; une cuvette se remplit et déborde par son col le
+   plus bas (lac si ≥ 3 cases), trop grande → la rivière finit dans un lac. Un affluent
+   s'arrête où il rejoint une rivière. Méandres par bruit, largeur croissante vers l'aval.
+   Calculées par cellule de 8 192 (cache), préchauffées au Boot, puis une cellule d'avance
+   toutes les 1,5 s pendant la marche. Les pics s'écartent le long des rivières (vallées).
+   Elles ne bloquent pas la marche pour l'instant.
 
 ## Architecture
 

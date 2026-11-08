@@ -38,4 +38,12 @@ export function altitude(x: number, y: number): number {
   return 0.9 * s + 0.45 * (c - 0.5) + 0.25 * (d - 0.5) + Math.pow(r, 5) * 4.5 * Math.max(0, Math.min(1, s + 0.2)) * Math.max(0, c - 0.42) * 2;
 }
 
+/**
+ * The broad slope of the land, without the small bumps: water drains along it (rivers follow
+ * it), so they run over long distances to the sea instead of getting stuck in every hollow.
+ */
+export function drainage(x: number, y: number): number {
+  return 0.9 * continent(x, y) + 0.1 * (field(x, y, 1_024, 4, 0, 0) - 0.5);
+}
+
 export const humidity = (x: number, y: number): number => field(x, y, 400, 4, 300, -200) * 0.9 + 0.12;

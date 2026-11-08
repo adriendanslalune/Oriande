@@ -77,7 +77,10 @@ Règles qui restent :
    sont dessinés par-dessus (une rivière qui traverse un lac y disparaît), évitent les
    bourgs (rétrécissent ou disparaissent), et les **routes contournent les lacs**
    (`roads.ts` charge les lacs du coin : les routes dépendent des rivières, jamais l'inverse).
-   **Ponts** en pierre là où une route croise une rivière. Les bourgs évitent les abords
+   **Ponts** en pierre là où une route croise une rivière. Un affluent se termine sur le fleuve
+   qu'il rejoint (`join` : plus de berges dedans). La rive d'un lac s'ouvre où une rivière
+   entre. Rivières et lacs sont dessinés **avant** la végétation, qui les évite (`waterMask`)
+   et déborde sur les berges. Animation du courant : reflets fins et lents qui scintillent. Les bourgs évitent les abords
    des montagnes (rien ≥ 0,55 à moins de 40).
 7. **Réseau routier** : un bourg n'est relié qu'à ses voisins « relatifs » (aucun autre bourg
    plus proche des deux) : liaisons réciproques et planes, les routes se rejoignent dans les

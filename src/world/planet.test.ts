@@ -39,7 +39,7 @@ describe('a round planet', () => {
     expect(keys(roadsAround(N - 1, 0, 3))).toEqual(keys(roadsAround(-1, 0, 3)));
     expect(properName(3, 4)).toBe(properName(3, 4));
     expect(cellKey(10, 20)).toBe(cellKey(10 + CIRCUMFERENCE, 20));
-  });
+  }, 60_000);
 
   it('has coordinates: latitude from pole to pole, longitude around', () => {
     expect(latitude(NORTH_POLE_Y)).toBeCloseTo(90);

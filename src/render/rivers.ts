@@ -3,7 +3,7 @@
 // so a river crossing a lake disappears into it.
 import { fbm, hash2 } from '../world/noise';
 import { CIRCUMFERENCE, wrapX } from '../world/planet';
-import { lakeRadius, type Lake, type River } from '../world/rivers';
+import { inLake, lakeRadius, type Lake, type River } from '../world/rivers';
 import type { Road } from '../world/roads';
 import { INK } from './palette';
 
@@ -16,8 +16,8 @@ const inView = (x: number, y: number, x0: number, y0: number, m = M): boolean =>
 const wobble = (x: number, y: number, s: number): number => (fbm(x / s, y / s, 2, CIRCUMFERENCE / s) - 0.5) * 2;
 
 /** The two banks of a river over points [a, b], in tile coordinates. */
-function banks(r: River, a: number, b: number, x0: number, y0: number): { left: P[]; right: P[]; mid: P[]; w: number[] } {
-  const left: P[] = [], right: P[] = [], mid: P[] = [], w: number[] = [];
+function banks(r: River, a: number, b: number, x0: number, y0: number): { left: P[]; right: P[]; mid: P[]; w: number[]; idx: number[] } {
+  const left: P[] = [], right: P[] = [], mid: P[] = [], w: number[] = [], idx: number[] = [];
   for (let k = a; k <= b; k++) {
     const [px, py] = r.points[Math.max(0, k - 1)], [qx, qy] = r.points[Math.min(r.points.length - 1, k + 1)];
     const dx = qx - px, dy = qy - py, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
@@ -26,9 +26,9 @@ function banks(r: River, a: number, b: number, x0: number, y0: number): { left: 
     left.push([x - x0 + nx * hl, y - y0 + ny * hl]);
     right.push([x - x0 - nx * hr, y - y0 - ny * hr]);
     mid.push([x - x0, y - y0]);
-    w.push(r.widths[k]);
+    w.push(r.widths[k]); idx.push(k);
   }
-  return { left, right, mid, w };
+  return { left, right, mid, w, idx };
 }
 
 const line = (g: CanvasRenderingContext2D, pts: P[]): void => { g.beginPath(); pts.forEach((p, k) => (k ? g.lineTo(...p) : g.moveTo(...p))); };
@@ -110,7 +110,9 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
   const near = rivers.filter((r) => r.maxX + M > x0 && r.minX - M < x0 + T && r.maxY + M > y0 && r.minY - M < y0 + T);
   const parts = near.map((r) => ({ r, bs: runs(r, x0, y0).map(([a, b]) => banks(r, a, b, x0, y0)) }));
   // 1. sandy edges, wider than the water
-  for (const { bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
+  const dry = (r: River, k: number): boolean => r.join < 0 || k < r.join; // a tributary has no banks inside the river it joins
+  for (const { r, bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
+    if (!dry(r, b.idx[k])) continue;
     g.strokeStyle = SAND; g.lineWidth = b.w[k] + 2.6;
     g.beginPath(); g.moveTo(...b.mid[k - 1]); g.lineTo(...b.mid[k]); g.stroke();
   }
@@ -134,10 +136,14 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
   g.setLineDash([]);
   // 4. ink banks, with reeds and tufts here and there
   g.strokeStyle = INK; g.lineWidth = 0.6;
-  for (const { bs } of parts) for (const b of bs) { line(g, b.left); g.stroke(); line(g, b.right); g.stroke(); }
+  for (const { r, bs } of parts) for (const b of bs) {
+    const n = b.idx.filter((k) => dry(r, k)).length;
+    if (n > 1) { line(g, b.left.slice(0, n)); g.stroke(); line(g, b.right.slice(0, n)); g.stroke(); }
+  }
   g.strokeStyle = 'rgba(40,60,40,.75)'; g.lineWidth = 0.35;
   for (const { r, bs } of parts) for (const b of bs) for (const [bank, sign] of [[b.left, 1], [b.right, -1]] as const) {
     for (let k = 2; k < bank.length - 2; k += 3) {
+      if (!dry(r, b.idx[k])) break;
       const [x, y] = bank[k], [mx, my] = b.mid[k], wx = wrapX(x + x0), h = hash2(Math.round(wx * 0.5), Math.round((y + y0) * 0.5) + sign * 17);
       if (h > 0.4) continue;
       const ox = x - mx, oy = y - my, L = Math.hypot(ox, oy) || 1, ux = ox / L, uy = oy / L;
@@ -146,7 +152,24 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
     }
   }
   // 5. lakes over the rivers: a river crossing a lake disappears into it
-  for (const r of near) for (const l of r.lakes) if (inView(l.x, l.y, x0, y0, l.r * 1.3 + 4)) drawLake(g, l, x0, y0);
+  const lakes = near.flatMap((r) => r.lakes).filter((l, k, all) => all.indexOf(l) === k && inView(l.x, l.y, x0, y0, l.r * 1.3 + 4));
+  for (const l of lakes) drawLake(g, l, x0, y0);
+  // where a river meets a lake, the shore opens: redraw the river's water over the shore line,
+  // and its banks up to the water's edge
+  for (const { r, bs } of parts) for (const b of bs) {
+    const near = (k: number): boolean => lakes.some((l) => Math.hypot(b.mid[k][0] + x0 - l.x, (b.mid[k][1] + y0 - l.y) / 0.75) < lakeRadius(l, Math.atan2((b.mid[k][1] + y0 - l.y) / 0.75, b.mid[k][0] + x0 - l.x)) * 1.12 + b.w[k]);
+    const wet = (k: number): boolean => lakes.some((l) => inLake(l, b.mid[k][0] + x0, b.mid[k][1] + y0));
+    for (let k = 1; k < b.mid.length; k++) {
+      if (!near(k) && !near(k - 1)) continue;
+      g.fillStyle = WATER;
+      g.beginPath(); g.moveTo(...b.left[k - 1]); g.lineTo(...b.left[k]); g.lineTo(...b.right[k]); g.lineTo(...b.right[k - 1]); g.closePath(); g.fill();
+      g.strokeStyle = WATER; g.lineWidth = 0.8; g.stroke(); // no seam between the pieces
+      if (!wet(k) && !wet(k - 1) && dry(r, b.idx[k])) {
+        g.strokeStyle = INK; g.lineWidth = 0.6;
+        g.beginPath(); g.moveTo(...b.left[k - 1]); g.lineTo(...b.left[k]); g.moveTo(...b.right[k - 1]); g.lineTo(...b.right[k]); g.stroke();
+      }
+    }
+  }
   // 6. waterfalls
   for (const r of near) for (const [fx, fy, dx, dy] of r.falls) {
     if (!inView(fx, fy, x0, y0, 30)) continue;
@@ -206,4 +229,30 @@ function drawBridge(g: CanvasRenderingContext2D, x: number, y: number, ux: numbe
   // end posts
   g.fillStyle = INK;
   for (const a of [-half, half]) for (const s of [-W, W]) { g.beginPath(); g.arc(...at(a, s), 0.8, 0, 6.3); g.fill(); }
+}
+
+/**
+ * Where the water is on a tile (rivers and lakes), on a 4-unit grid, so that plants and hills
+ * are not drawn in it: drawn before the vegetation, the rivers then get trees leaning over them.
+ */
+export function waterMask(x0: number, y0: number, rivers: River[]): (x: number, y: number) => boolean {
+  const C = 4, N = (T + 2 * M) / C, grid = new Uint8Array(N * N);
+  const mark = (x: number, y: number, r: number): void => {
+    const i0 = Math.floor((x - x0 + M - r) / C), i1 = Math.floor((x - x0 + M + r) / C), j0 = Math.floor((y - y0 + M - r) / C), j1 = Math.floor((y - y0 + M + r) / C);
+    for (let j = Math.max(0, j0); j <= Math.min(N - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(N - 1, i1); i++) {
+      if (Math.hypot((i + 0.5) * C - (x - x0 + M), (j + 0.5) * C - (y - y0 + M)) <= r + C * 0.3) grid[j * N + i] = 1;
+    }
+  };
+  for (const r of rivers) {
+    if (r.maxX + M < x0 || r.minX - M > x0 + T || r.maxY + M < y0 || r.minY - M > y0 + T) continue;
+    for (let k = 0; k < r.points.length; k++) { const [x, y] = r.points[k]; if (inView(x, y, x0, y0)) mark(x, y, r.widths[k] / 2 - 0.5); }
+    for (const l of r.lakes) {
+      if (!inView(l.x, l.y, x0, y0, l.r * 1.5)) continue;
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (inLake(l, x0 - M + (i + 0.5) * C, y0 - M + (j + 0.5) * C)) grid[j * N + i] = 1;
+    }
+  }
+  return (x, y) => {
+    const i = Math.floor((x - x0 + M) / C), j = Math.floor((y - y0 + M) / C);
+    return i >= 0 && j >= 0 && i < N && j < N && grid[j * N + i] === 1;
+  };
 }

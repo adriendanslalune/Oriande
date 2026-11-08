@@ -6,7 +6,7 @@ import { CIRCUMFERENCE, wrapIndex, wrapX } from '../world/planet';
 import { TILE, altitude, humidity } from '../world/terrain';
 import { DESERT_HUMIDITY, JUNGLE_HUMIDITY, coldness, heat, temperature } from '../world/climate';
 import { drawDunes, drawIce, drawJungle, drawSavanna } from './climate';
-import { drawBridges, drawRivers } from './rivers';
+import { drawBridges, drawRivers, waterMask } from './rivers';
 import { riversNear } from '../world/rivers';
 import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
@@ -120,8 +120,14 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const cleared = (X: number, Y: number): boolean => towns.some((b) => Math.hypot(X - b.x, (Y - b.y) * 1.15) < clearing(b))
     || wonders.some((w) => Math.hypot(X - w.x, Y - w.y + 15) < WONDER_CLEARING);
 
+  // Rivers and lakes first: plants are drawn after them (never in the water), so trees on the
+  // banks lean over the water.
+  const rivers = riversNear(x0 - 40, y0 - 40, x0 + T + 40, y0 + T + 60);
+  drawRivers(g, x0, y0, rivers);
+  const water = waterMask(x0, y0, rivers);
+
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
-  drawHills(g, x0, y0, cleared);
+  drawHills(g, x0, y0, (X, Y) => cleared(X, Y) || water(X, Y));
 
   // Vegetation and soils by climate: forests, marshes, grass, sands; tundra; savanna and jungle;
   // nothing in the desert.
@@ -131,7 +137,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     const X = gx * 10 + 5 + (hash2(wg * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(wg, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
     const hu = humidity(X, Y), r = hash2(wg * 7 + 1, gy * 13 + 2);
-    if (cleared(X, Y)) continue; // fields and gardens around towns
+    if (cleared(X, Y) || water(X, Y)) continue; // fields and gardens around towns; rivers and lakes
     const t = temperature(X, Y, v), cold = coldness(t) > 0.5;
     if (heat(t) > 0.5) { // hot lands
       if (hu < DESERT_HUMIDITY) continue; // the desert: dunes come later
@@ -177,14 +183,12 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     }
   }
 
-  // Rivers and lakes, over the plants, under the dunes, peaks and roads.
-  const rivers = riversNear(x0 - 40, y0 - 40, x0 + T + 40, y0 + T + 60);
-  drawRivers(g, x0, y0, rivers);
+
   // where a river crosses a range, the peaks step aside: a valley (every 4th point is enough)
   const valleys = rivers.map((r) => r.points.filter((_, k) => k % 4 === 0 || k === r.points.length - 1).map(([x, y]) => ({ x, y })));
 
   // Climates: dune fields in the deserts, ice floes on the frozen seas.
-  drawDunes(g, x0, y0, cleared);
+  drawDunes(g, x0, y0, (X, Y) => cleared(X, Y) || water(X, Y));
   drawIce(g, x0, y0);
 
   // Mountains: engraved peaks, back to front.

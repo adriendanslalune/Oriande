@@ -25,6 +25,8 @@ export interface River {
   widths: number[];
   /** ends in a lake (a hollow) rather than in the sea */
   lake: boolean;
+  /** a tributary: from this point on it runs inside the river it joins (no banks); -1 if none */
+  join: number;
   /** distance along the river at each point, world units */
   lengths: number[];
   /** how fast the water runs at each point, 0 (calm) to 1 (a mountain torrent) */
@@ -137,7 +139,7 @@ function spill(i: number, j: number): { way: [number, number][]; flooded: number
  * spills over its lowest pass (a lake if the hollow is big enough); a hollow too big to fill
  * ends the river in a lake.
  */
-function trace(i: number, j: number, used: Set<number>): { nodes: [number, number][]; lakes: [number, number, number][]; lake: boolean } {
+function trace(i: number, j: number, used: Set<number>): { nodes: [number, number][]; lakes: [number, number, number][]; lake: boolean; joins?: number } {
   const nodes: [number, number][] = [[i, j]], lakes: [number, number, number][] = [];
   let v = level(i, j);
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -159,7 +161,7 @@ function trace(i: number, j: number, used: Set<number>): { nodes: [number, numbe
       nodes.push([i, j]);
     }
     if (altitude(i * G, j * G) < 0) return { nodes, lakes, lake: false }; // the sea
-    if (used.has(nk(i, j))) return { nodes, lakes, lake: false }; // joins a river: a tributary
+    if (used.has(nk(i, j))) return { nodes, lakes, lake: false, joins: nk(i, j) }; // joins a river: a tributary
   }
   return { nodes, lakes, lake: false };
 }
@@ -198,7 +200,7 @@ export function riversOfCell(ci: number, cj: number): River[] {
   const rkey = ci + ',' + cj;
   const known = memo.get(rkey);
   if (known) return known;
-  const out: River[] = [], used = new Set<number>();
+  const out: River[] = [], used = new Set<number>(), owner = new Map<number, number>();
   const per = RIVER_CELL / SOURCE_STEP, around = CIRCUMFERENCE / SOURCE_STEP;
   for (let sj = 0; sj < per; sj++) for (let si = 0; si < per; si++) {
     const gi = ci * per + si, gj = cj * per + sj, wg = wrapIndex(gi, around);
@@ -207,10 +209,27 @@ export function riversOfCell(ci: number, cj: number): River[] {
     const x = (gi + 0.2 + hash2(wg * 13, gj * 17) * 0.6) * SOURCE_STEP, y = (gj + 0.2 + hash2(wg * 19, gj * 23) * 0.6) * SOURCE_STEP;
     const i = Math.round(x / G), j = Math.round(y / G), v = altitude(i * G, j * G);
     if (v < 0.22 || v > 1.1 || used.has(nk(i, j))) continue;
-    const { nodes, lakes, lake } = trace(i, j, used);
+    const { nodes, lakes, lake, joins } = trace(i, j, used);
     if (nodes.length < MIN_STEPS) continue;
-    for (const [a, b] of nodes) used.add(nk(a, b));
-    const points = meander(smooth(nodes.map(([a, b]) => [a * G, b * G] as [number, number]), 3));
+    for (const [a, b] of nodes) { used.add(nk(a, b)); if (!owner.has(nk(a, b))) owner.set(nk(a, b), out.length); }
+    let points = meander(smooth(nodes.map(([a, b]) => [a * G, b * G] as [number, number]), 3));
+    // a tributary ends exactly on the river it joins (whose meanders put it off the grid node):
+    // cut it where it reaches that river's middle, and note where it reaches its bank
+    let join = -1;
+    const main = joins !== undefined ? out[owner.get(joins)!] : undefined;
+    if (main) {
+      const nearest = (x: number, y: number): [number, number, number, number] => {
+        let best: [number, number, number, number] = [Infinity, 0, 0, 0];
+        for (let m = 0; m < main.points.length; m++) { const d = Math.hypot(main.points[m][0] - x, main.points[m][1] - y); if (d < best[0]) best = [d, main.points[m][0], main.points[m][1], main.widths[m]]; }
+        return best;
+      };
+      for (let k = Math.max(1, points.length - 60); k < points.length; k++) {
+        const [d, mx, my, mw] = nearest(points[k][0], points[k][1]);
+        if (join < 0 && d < mw / 2) join = k;
+        if (d < mw * 0.15 || k === points.length - 1) { points = [...points.slice(0, k), [mx, my]]; break; }
+      }
+      if (join < 0 || join >= points.length) join = points.length - 1;
+    }
     const n = points.length;
     // slope between nodes: a torrent where the river drops fast, a waterfall where it plunges
     const alts = nodes.map(([a, b]) => altitude(a * G, b * G));
@@ -229,7 +248,7 @@ export function riversOfCell(ci: number, cj: number): River[] {
     // width grows with the distance flowed: a brook at the spring, a broad river downstream
     const widths = points.map((_, k) => 1.2 + Math.min(9, lengths[k] / 380));
     const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
-    out.push({ points, widths, lengths, steep, falls, lake, lakes: lakes.map(([a, b, n]) => makeLake(a * G, b * G, n)).filter((l): l is Lake => !!l), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
+    out.push({ points, widths, lengths, steep, falls, join, lake, lakes: lakes.map(([a, b, n]) => makeLake(a * G, b * G, n)).filter((l): l is Lake => !!l), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
   }
   memo.set(rkey, out);
   return out;

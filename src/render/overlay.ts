@@ -262,27 +262,27 @@ export class Overlay {
   private riverLife(s: GameState, v: View, screen: (x: number, y: number) => [number, number], world: (x: number, y: number) => [number, number], time: number): void {
     if (v.zoom < 0.45) return;
     const { ctx } = this, [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
-    const SPACING = 16;
+    const SPACING = 11;
     ctx.lineCap = 'round';
     const rivers = riversNear(ax, ay, bx, by), lakes = rivers.flatMap((r) => r.lakes);
     for (const r of rivers) {
       const L = r.lengths[r.lengths.length - 1];
       let k = 1;
-      for (let d = (time * 14) % SPACING; d < L; d += SPACING) {
+      // calm water: faint, thin glints drifting slowly downstream, a little livelier in torrents
+      for (let d = (time * 6) % SPACING; d < L; d += SPACING) {
         while (k < r.lengths.length - 1 && r.lengths[k] < d) k++;
         const [px, py] = r.points[k - 1], [qx, qy] = r.points[k];
         if (px < ax - 10 || px > bx + 10 || py < ay - 10 || py > by + 10) continue;
         const st = r.steep[k], seg = r.lengths[k] - r.lengths[k - 1] || 1, u = (d - r.lengths[k - 1]) / seg;
-        // torrents run faster: shift these flecks further along with time
-        const extra = (time * 40 * st) % SPACING, uu = Math.min(1, u + extra / seg);
+        const extra = (time * 10 * st) % SPACING, uu = Math.min(1, u + extra / seg);
         const X = px + (qx - px) * uu, Y = py + (qy - py) * uu;
         if (!isSeen(s, X, Y) || lakes.some((l) => inLake(l, X, Y))) continue; // not over lakes
-        const [x, y] = screen(X, Y), dx = (qx - px) / seg, dy = (qy - py) / seg, len = (2 + st * 3) * v.zoom;
-        ctx.strokeStyle = `rgba(245,250,252,${0.45 + st * 0.45})`; ctx.lineWidth = Math.max(0.6, r.widths[k] * 0.35 * v.zoom);
-        ctx.beginPath(); ctx.moveTo(x - dx * len, y - dy * len); ctx.lineTo(x + dx * len, y + dy * len); ctx.stroke();
-        if (st > 0.6 && ((d * 7 + Math.floor(time * 6)) % 3) < 1) { // white water: little foam curls
-          ctx.beginPath(); ctx.arc(x - dy * 2 * v.zoom, y + dx * 2 * v.zoom, 0.9 * v.zoom, 0, 6.3); ctx.fillStyle = 'rgba(250,252,252,.85)'; ctx.fill();
-        }
+        // each glint fades in and out as it drifts, so the water shimmers instead of streaming
+        const life = Math.sin(((d / SPACING + time * 0.35) % 1) * Math.PI);
+        const [x, y] = screen(X, Y), dx = (qx - px) / seg, dy = (qy - py) / seg, len = (1.2 + st * 1.5) * v.zoom;
+        const off = ((Math.floor(d / SPACING) * 7) % 5 - 2) / 2 * r.widths[k] * 0.25 * v.zoom; // spread across the river
+        ctx.strokeStyle = `rgba(235,245,248,${(0.18 + st * 0.22) * life})`; ctx.lineWidth = 0.6 * Math.min(1.5, v.zoom);
+        ctx.beginPath(); ctx.moveTo(x - dx * len - dy * off, y - dy * len + dx * off); ctx.lineTo(x + dx * len - dy * off, y + dy * len + dx * off); ctx.stroke();
       }
       for (const [fx, fy, dx, dy] of r.falls) { // spray at the foot of the falls
         if (fx < ax - 20 || fx > bx + 20 || fy < ay - 20 || fy > by + 20 || !isSeen(s, fx, fy)) continue;

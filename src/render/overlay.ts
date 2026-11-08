@@ -244,13 +244,16 @@ export class Overlay {
   private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number, night: boolean): void {
     const t = worldTime(), time = now / 1000, scale = 2 * v.zoom / START_ZOOM, ctx = this.ctx;
     const lakes = lakesNear(ax, ay, bx, by);
-    // how much of the night has fallen there (by longitude): day herds fade out as it falls
+    // how much of the night has fallen there (by longitude)
     const nightness = (x: number): number => Math.max(0, Math.min(1, (sky(x).darkness - 0.25) / 0.5));
     const list: { a: Animal; look: Look; x: number; y: number; alpha: number }[] = [];
     for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320, night)) {
       const look = h.species.look;
       if (look.len * scale < 4) continue; // too small to make out at this zoom
-      const n = nightness(h.x), alpha = night ? n : 1 - n;
+      // At dawn and dusk the herds do not fade (they looked like ghosts, said Adrien): each one
+      // goes to rest or comes out at its own moment of the twilight, in a few seconds.
+      const turn = 0.12 + hash2(Math.floor(h.x), Math.floor(h.y)) * 0.76, n = nightness(h.x);
+      const out = Math.max(0, Math.min(1, (n - turn) / 0.03 + 0.5)), alpha = night ? out : 1 - out;
       if (alpha < 0.03) continue;
       const water = h.species.biomes.includes('sea') || h.species.biomes.includes('ice');
       const flies = look.kind === 'bat' || look.kind === 'owl';

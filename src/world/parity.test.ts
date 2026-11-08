@@ -133,7 +133,8 @@ describe('tile animation points parity', () => {
     const fake = () => ({ width: 0, height: 0, getContext: () => new Proxy({ createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }) } as Record<string | symbol, unknown>, { get: (t, p) => (p in t ? t[p] : () => undefined), set: (t, p, v) => { t[p] = v; return true; } }) }) as unknown as HTMLCanvasElement;
     for (const [ti, tj] of [[0, 0], [-3, 2], [5, -7], [12, 12]]) {
       const ours = drawTile(ti, tj, fake), theirs = proto.tuile(ti, tj);
-      expect(ours.waves).toEqual(theirs.vagues);
+      // waves: the proto's, minus those on frozen seas
+      expect(theirs.vagues).toEqual(expect.arrayContaining(ours.waves));
       // trees: the proto's, minus those in the fields now cleared around towns
       expect(theirs.arbres).toEqual(expect.arrayContaining(ours.trees));
     }

@@ -56,6 +56,11 @@ Règles :
    6 types (tête colossale, rocher suspendu, forêt de cristal, titan pétrifié, arches
    englouties, arbre-lumière), au plus une par cellule de 8×8 tuiles (~1/3 des cellules),
    repérées à 500 unités, fiche prioritaire. Aucun lieu étrange à moins de 120 d'une merveille.
+8. Climats (demandé par Adrien) : `world/climate.ts` ajoute une température (zones de
+   ~50 lieues, plus froid en altitude). Froid (< 0,333, ~15 % des terres) : toundra et
+   banquise (pas de vagues) ; chaud (> 0,635) et sec : désert de dunes (pas de forêt).
+   Les régions violettes de champignons géants du proto sont supprimées (le lieu
+   « Forêt-Champignon » reste). L'altitude, les bourgs et les lieux ne changent pas.
 
 ## Architecture
 

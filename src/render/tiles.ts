@@ -2,7 +2,9 @@
 // strange places, roads and houses. Verbatim port of the proto's tuile(); a tile is drawn once
 // on a canvas and then cached as a Phaser texture by the Map scene.
 import { hash2 } from '../world/noise';
-import { TILE, altitude, humidity, strangeness } from '../world/terrain';
+import { TILE, altitude, humidity } from '../world/terrain';
+import { coldness, heat, temperature } from '../world/climate';
+import { drawDunes, drawIce } from './climate';
 import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
 import { landmark } from '../world/landmarks';
@@ -37,11 +39,18 @@ const SEGMENTS: Record<number, string[]> = {
 
 /** Watercolour of the ground at (X, Y) with altitude v, before relief shading. */
 function terrainColour(v: number, X: number, Y: number): number[] {
-  if (v < 0) { const p = Math.min(1, -v / 0.45); return [168 - 60 * p, 202 - 46 * p, 214 - 26 * p]; }
-  const hu = humidity(X, Y), et = strangeness(X, Y);
-  let c = v < 0.03 ? [228, 216, 176] : hu > 0.55 && v < 0.45 ? (et > 0.62 ? [196, 178, 196] : [170, 186, 132]) : hu < 0.32 ? [230, 208, 156] : [212, 210, 162];
+  const t = temperature(X, Y, v), cold = coldness(t);
+  const mix = (a: number[], b: number[], k: number): number[] => a.map((n, i) => n + (b[i] - n) * k);
+  if (v < 0) {
+    const p = Math.min(1, -v / 0.45), sea = [168 - 60 * p, 202 - 46 * p, 214 - 26 * p];
+    return mix(sea, [214 - 30 * p, 226 - 22 * p, 232 - 14 * p], cold); // frozen seas are pale
+  }
+  const hu = humidity(X, Y);
+  let c = v < 0.03 ? [228, 216, 176] : hu > 0.55 && v < 0.45 ? [170, 186, 132] : hu < 0.32 ? [230, 208, 156] : [212, 210, 162];
+  c = mix(c, [206, 204, 186], cold); // tundra: grey-green, washed out
+  if (hu < 0.55) c = mix(c, [238, 208, 142], heat(t)); // desert sand
   if (v > 0.5) { const k = Math.min(1, (v - 0.5) / 0.5); c = c.map((a, n) => a + ([186, 160, 128][n] - a) * k); }
-  if (v > 1.05) c = [236, 232, 222];
+  if (v > 1.05 - cold * 0.3) c = [236, 232, 222]; // snow, lower in the cold
   return c;
 }
 
@@ -107,18 +116,27 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
   drawHills(g, x0, y0, cleared);
 
-  // Vegetation and soils: forests, marshes, sands, strange meadows.
+  // Vegetation and soils by climate: forests, marshes, grass, sands; tundra; nothing in the desert.
   // NB: sands use whatever fillStyle the previous plant left, as in the proto.
   for (let gy = Math.floor((y0 - 12) / 10); gy * 10 < y0 + T + 12; gy++) for (let gx = Math.floor((x0 - 12) / 10); gx * 10 < x0 + T + 12; gx++) {
     const X = gx * 10 + 5 + (hash2(gx * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(gx, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
-    const hu = humidity(X, Y), et = strangeness(X, Y), r = hash2(X | 0, Y | 0);
+    const hu = humidity(X, Y), r = hash2(X | 0, Y | 0);
     if (cleared(X, Y)) continue; // fields and gardens around towns
+    const t = temperature(X, Y, v), cold = coldness(t) > 0.5, hot = heat(t) > 0.5 && hu < 0.55;
+    if (hot) continue; // the desert: dunes come later
+    if (cold) { // tundra: a few stunted conifers, lichen, frozen pools
+      if (hu > 0.55 && r < 0.3) {
+        const t2 = 2.4 + r * 3;
+        g.fillStyle = 'rgba(80,104,70,.5)'; g.beginPath(); g.moveTo(jx, jy - t2 - 1); g.lineTo(jx + t2 * 0.45, jy + 1); g.lineTo(jx - t2 * 0.45, jy + 1); g.closePath(); g.fill(); g.lineWidth = 0.5; g.stroke();
+      } else if (r < 0.25) {
+        g.fillStyle = 'rgba(120,120,100,.55)';
+        for (const [dx, dy] of [[0, 0], [1.4, 0.6], [0.5, 1.5]]) { g.beginPath(); g.arc(jx + dx, jy + dy, 0.55, 0, 6.3); g.fill(); }
+      }
+      continue;
+    }
     if (hu > 0.55 && v < 0.45 && r < 0.85) {
-      if (et > 0.62) { // giant mushrooms
-        g.lineWidth = 0.7; g.beginPath(); g.moveTo(jx, jy + 3); g.lineTo(jx, jy - 1); g.stroke();
-        g.beginPath(); g.ellipse(jx, jy - 2, 3, 1.6, 0, Math.PI, 0); g.fillStyle = 'rgba(200,170,200,.9)'; g.fill(); g.stroke();
-      } else if (v > 0.3) { // conifers
+      if (v > 0.3) { // conifers
         const t2 = 3.4 + r * 1.5;
         g.fillStyle = 'rgba(80,104,70,.55)'; g.beginPath(); g.moveTo(jx, jy - t2 - 1.5); g.lineTo(jx + t2 * 0.55, jy + 1); g.lineTo(jx - t2 * 0.55, jy + 1); g.closePath(); g.fill(); g.lineWidth = 0.55; g.stroke();
         g.beginPath(); g.moveTo(jx, jy - t2); g.lineTo(jx + t2 * 0.3, jy); g.stroke();
@@ -144,6 +162,10 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
       g.stroke();
     }
   }
+
+  // Climates: dune fields in the deserts, ice floes on the frozen seas.
+  drawDunes(g, x0, y0, cleared);
+  drawIce(g, x0, y0);
 
   // Mountains: engraved peaks, back to front.
   // no peak over a wonder: its clearing counts as an obstacle like a road
@@ -176,7 +198,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const waves: TileArt['waves'] = [], trees: TileArt['trees'] = [];
   for (let y = 8; y < T; y += 22) for (let x = 8; x < T; x += 22) {
     const X = x0 + x + (hash2(x0 + x, y0 + y * 2) - 0.5) * 12, Y = y0 + y + (hash2(x0 + x * 2, y0 + y) - 0.5) * 12, v = altitude(X, Y);
-    if (v < -0.04) waves.push([X, Y, hash2(X | 0, Y | 0) * 6.28]);
+    if (v < -0.04) { if (coldness(temperature(X, Y, v)) < 0.5) waves.push([X, Y, hash2(X | 0, Y | 0) * 6.28]); } // no waves on the ice
     else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55 && !cleared(X, Y)) trees.push([X, Y]); // no leaves off fields
   }
   return { canvas: cv, waves, trees };

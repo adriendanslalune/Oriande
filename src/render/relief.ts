@@ -3,6 +3,7 @@
 // grid, so a tile and its neighbours draw the same symbols and they meet seamlessly.
 import { hash2 } from '../world/noise';
 import { altitude, MOUNTAIN_ALTITUDE } from '../world/terrain';
+import { coldness, temperature } from '../world/climate';
 import { INK } from './palette';
 
 const T = 256;
@@ -74,7 +75,7 @@ export function drawMountains(g: CanvasRenderingContext2D, x0: number, y0: numbe
     poly(Lf, Ls, P, B);
     g.fillStyle = rgb(base.map((n) => n * 0.78)); // shaded east face
     poly(B, P, Rs, Rf);
-    if (p.v > SNOW_MIN) { // snow on the summit, ragged lower edge
+    if (p.v > SNOW_MIN - coldness(temperature(p.x, p.y, p.v)) * 0.3) { // snow on the summit (lower in the cold)
       const at = (a: number[], u: number): number[] => [P[0] + (a[0] - P[0]) * u, P[1] + (a[1] - P[1]) * u];
       g.fillStyle = 'rgb(248,246,240)';
       poly(at(Ls, 0.6), P, at(Rs, 0.6), at(Rs, 0.35).map((n, i) => n + (i ? 1.5 : -1)), at(B, 0.3), at(Ls, 0.3).map((n, i) => n + (i ? 1.5 : 1)));

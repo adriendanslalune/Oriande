@@ -35,7 +35,9 @@ export function planRoute(x0: number, y0: number, x1: number, y1: number): Route
   const alt = new Float32Array(N).fill(NaN);
   const land = (n: number): boolean => {
     if (Number.isNaN(alt[n])) alt[n] = altitude((n % W + i0) * G, (Math.floor(n / W) + j0) * G);
-    return alt[n] >= 0;
+    // a small margin from the shore, so that two neighbouring nodes are never split by a thin
+    // channel of water (the grid is coarser than the coast)
+    return alt[n] >= 0.02 && !beyondIce((Math.floor(n / W) + j0) * G);
   };
   const node = (x: number, y: number): number => (Math.round(y / G) - j0) * W + (Math.round(x / G) - i0);
   // start from the nearest walkable node the explorer can step to

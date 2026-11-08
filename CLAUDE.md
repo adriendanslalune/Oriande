@@ -42,12 +42,12 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
   mémos et le dessin). La brume est indexée par cases ramenées (`cellKey`, CELL = 50).
   Ne jamais ajouter de `hash2(gx, ...)` sur un index brut.
 - Terrain (`world/terrain.ts`) : une échelle continentale (~1 300 lieues) décide terre/mer
-  (~41 % de terres, un grand continent ≈ 1/3 des terres), le relief local décide des
-  montagnes (~13 % des terres). Climat (`world/climate.ts`) par **latitude** : tropiques
+  (~39 % de terres, une douzaine de grandes masses, la plus grande ≈ 40 % des terres,
+  intérieurs pleins sans essaim de lacs), le relief local décide des montagnes (~12 %). Climat (`world/climate.ts`) par **latitude** : tropiques
   chauds (désert/savane/jungle selon l'humidité), tempéré, toundra et banquise au-delà de ~60°.
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
-  Le continent de départ : ~6 300 × 4 800 lieues, ~1 300 h de marche pour tout voir.
+  Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
 - Échelle des sauvegardes : v3 ; les sauvegardes v1/v2 (monde plat) sont mises de côté.
 
 Règles qui restent :

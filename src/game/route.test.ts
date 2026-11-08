@@ -3,9 +3,9 @@ import { altitude } from '../world/terrain';
 import { clearWalk, pathLength, planRoute, walkable } from './route';
 import { sightRadius, FOREST_SIGHT } from './travel';
 
-/** A deterministic pair of land points with water in between, near the start of the game. */
+/** A deterministic pair of land points with water in between, on the start continent's coasts. */
 function acrossWater(): [number, number, number, number] {
-  for (let y = -2000; y <= 2000; y += 40) for (let x = -2000; x <= 2000; x += 40) {
+  for (let y = -30000; y <= 30000; y += 120) for (let x = -30000; x <= 30000; x += 120) {
     if (altitude(x, y) > -0.05) continue;
     // water here: look for land on both sides, 150 units apart
     for (const [dx, dy] of [[1, 0], [0, 1]]) {

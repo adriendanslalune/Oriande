@@ -43,6 +43,9 @@ export class Overlay {
   /** fish leaping out of the water: where, when it started, which way */
   private fish: { x: number; y: number; t0: number; dir: number; size: number }[] = [];
   private fishTimer = 0;
+  /** the current flight of birds and the world point it crosses */
+  private flightId = -1;
+  private flightAt: [number, number] = [0, 0];
   /** the explorer faces the way they last walked: 1 = east, -1 = west */
   private facing = 1;
   private leafTimer = 0;
@@ -244,13 +247,17 @@ export class Overlay {
       }
     }
 
+    // A flight of birds now and then. It crosses a fixed stretch of the world, chosen where the
+    // view was when it took off: the birds no longer follow the camera.
     const flight = Math.floor(time / 14), pv = (time % 14) / 14;
+    if (this.flightId !== flight) { this.flightId = flight; this.flightAt = [v.x, v.y]; }
     if (hash2(flight, 3) < 0.6) {
-      const a0 = hash2(flight, 1) * 6.28, cx = v.x - Math.cos(a0) * 500 + Math.cos(a0) * 1000 * pv, cy = v.y - Math.sin(a0) * 500 + Math.sin(a0) * 1000 * pv;
+      const [fx, fy] = this.flightAt, a0 = hash2(flight, 1) * 6.28;
+      const cx = fx - Math.cos(a0) * 500 + Math.cos(a0) * 1000 * pv, cy = fy - Math.sin(a0) * 500 + Math.sin(a0) * 1000 * pv, z = Math.min(v.zoom, 1.6);
       ctx.lineWidth = 0.9;
       for (let k = 0; k < 5; k++) {
-        const [x, y] = screen(cx - Math.cos(a0) * k * 10 + Math.sin(a0) * (k % 2 ? 6 : -6) * k * 0.5, cy - Math.sin(a0) * k * 10 - Math.cos(a0) * (k % 2 ? 6 : -6) * k * 0.5), b = Math.sin(time * 9 + k) * 2;
-        ctx.beginPath(); ctx.moveTo(x - 4, y - b); ctx.quadraticCurveTo(x - 2, y - 2, x, y); ctx.quadraticCurveTo(x + 2, y - 2, x + 4, y - b); ctx.stroke();
+        const [x, y] = screen(cx - Math.cos(a0) * k * 10 + Math.sin(a0) * (k % 2 ? 6 : -6) * k * 0.5, cy - Math.sin(a0) * k * 10 - Math.cos(a0) * (k % 2 ? 6 : -6) * k * 0.5), b = Math.sin(time * 9 + k) * 2 * z;
+        ctx.beginPath(); ctx.moveTo(x - 4 * z, y - b); ctx.quadraticCurveTo(x - 2 * z, y - 2 * z, x, y); ctx.quadraticCurveTo(x + 2 * z, y - 2 * z, x + 4 * z, y - b); ctx.stroke();
       }
     }
   }

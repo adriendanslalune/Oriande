@@ -8,7 +8,9 @@ import type { Road } from '../world/roads';
 import { INK } from './palette';
 
 const T = 256, M = 24;
-const WATER = 'rgb(118,164,188)', WATER_LIGHT = 'rgba(210,230,238,.8)', SAND = 'rgba(214,196,150,.9)';
+// soft colours: rivers belong to the map, they should not shout over it
+const WATER = 'rgb(152,190,204)', WATER_LIGHT = 'rgba(222,236,240,.7)', SAND = 'rgba(214,198,156,.6)';
+const BANK = 'rgba(70,100,115,.55)';
 
 type P = [number, number];
 const inView = (x: number, y: number, x0: number, y0: number, m = M): boolean => x > x0 - m && x < x0 + T + m && y > y0 - m && y < y0 + T + m;
@@ -53,7 +55,7 @@ function drawLake(g: CanvasRenderingContext2D, l: Lake, x0: number, y0: number):
     g.closePath();
   };
   outline(1.08); g.fillStyle = SAND; g.fill(); // a sandy shore
-  outline(1); g.fillStyle = WATER; g.fill(); g.strokeStyle = INK; g.lineWidth = 1; g.stroke();
+  outline(1); g.fillStyle = WATER; g.fill(); g.strokeStyle = BANK; g.lineWidth = 0.8; g.stroke();
   g.strokeStyle = 'rgba(40,70,90,.35)'; g.lineWidth = 0.5; outline(0.82); g.stroke(); // ripple lines that follow the shore
   g.strokeStyle = 'rgba(40,70,90,.2)'; outline(0.62); g.stroke();
   g.strokeStyle = 'rgba(40,60,40,.7)'; g.lineWidth = 0.4; // reeds on the shore
@@ -124,7 +126,7 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
     g.strokeStyle = WATER_LIGHT; g.lineWidth = b.w[k] * 0.22;
     g.beginPath(); g.moveTo(...b.mid[k - 1]); g.lineTo(...b.mid[k]); g.stroke();
   }
-  g.strokeStyle = 'rgba(40,70,90,.35)'; g.lineWidth = 0.35; g.setLineDash([3, 4]);
+  g.strokeStyle = 'rgba(60,95,110,.22)'; g.lineWidth = 0.3; g.setLineDash([3, 4]);
   for (const { bs } of parts) for (const b of bs) for (const side of [-1, 1]) {
     const pts: P[] = b.mid.map(([x, y], k) => {
       const [lx, ly] = b.left[k], f = 0.45 * side;
@@ -152,7 +154,7 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
     const last = bs[bs.length - 1], from = Math.max(0, last.idx.findIndex((k) => k >= r.join - 2));
     holes.set(main.r, [...(holes.get(main.r) ?? []), ribbon(last, from)]);
   }
-  g.strokeStyle = INK; g.lineWidth = 0.6;
+  g.strokeStyle = BANK; g.lineWidth = 0.5;
   for (const { r, bs } of parts) {
     const hs = holes.get(r);
     if (hs) {
@@ -189,7 +191,7 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
       g.beginPath(); g.moveTo(...b.left[k - 1]); g.lineTo(...b.left[k]); g.lineTo(...b.right[k]); g.lineTo(...b.right[k - 1]); g.closePath(); g.fill();
       g.strokeStyle = WATER; g.lineWidth = 0.8; g.stroke(); // no seam between the pieces
       if (!wet(k) && !wet(k - 1) && dry(r, b.idx[k])) {
-        g.strokeStyle = INK; g.lineWidth = 0.6;
+        g.strokeStyle = BANK; g.lineWidth = 0.5;
         g.beginPath(); g.moveTo(...b.left[k - 1]); g.lineTo(...b.left[k]); g.moveTo(...b.right[k - 1]); g.lineTo(...b.right[k]); g.stroke();
       }
     }

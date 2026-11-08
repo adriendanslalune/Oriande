@@ -13,6 +13,7 @@ import type { GameState } from '../game/state';
 import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
 import { cityRadius } from './towns';
+import { WONDER_ART, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
 
 /** Below this zoom the map turns into the atlas overview. */
@@ -60,6 +61,15 @@ export class Overlay {
     s.trace.forEach(([X, Y], k) => { const [x, y] = screen(X, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
     const [ex, ey] = screen(s.x, s.y);
     ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+
+    // Wonder illustrations, at full resolution, back to front; the fog comes over them.
+    for (const w of wondersNear(ax, ay, bx, by, 120).sort((a, b) => a.y - b.y)) {
+      const img = wonderImage(w.kind);
+      if (!img) continue;
+      const art = WONDER_ART[w.kind], width = art.width * v.zoom, height = width * img.height / img.width;
+      const [x, y] = screen(w.x, w.y);
+      ctx.drawImage(img, x - width / 2, y - height * art.ground, width, height);
+    }
 
     this.animate(s, v, screen, world, tiles, now, dt);
 
@@ -141,7 +151,8 @@ export class Overlay {
     // The tree of light and the crystal forests glow softly, breathing.
     for (const w of wondersNear(...world(0, 0), ...world(v.W, v.H), 120)) {
       if ((w.kind !== 'arbre' && w.kind !== 'cristal') || !isSeen(s, w.x, w.y)) continue;
-      const [x, y] = screen(w.x, w.y - (w.kind === 'arbre' ? 36 : 16)), r = (w.kind === 'arbre' ? 46 : 34) * v.zoom;
+      const art = !!wonderImage(w.kind); // the illustrations are taller than the engraved drawings
+      const [x, y] = screen(w.x, w.y - (w.kind === 'arbre' ? (art ? 50 : 36) : (art ? 34 : 16))), r = (w.kind === 'arbre' ? (art ? 62 : 46) : (art ? 44 : 34)) * v.zoom;
       const a = 0.22 + 0.12 * Math.sin(time * 1.4 + w.x);
       const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
       const c = w.kind === 'arbre' ? '255,225,130' : '170,210,255';

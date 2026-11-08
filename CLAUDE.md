@@ -160,8 +160,11 @@ Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand 
   d'itinéraire `game/route.ts` a un seul prédicat `walkable` à étendre), marche plus
   rapide sur les routes, terrain plus ou moins lent.
 - **Légende de la carte** : un cartouche ouvrable d'un tap.
-- **Illustrations** générées (voir `docs/illustrations.md`) : les brancher quand elles
-  arrivent, avec repli sur les dessins actuels.
+- **Illustrations** générées (voir `docs/illustrations.md`) : les 6 merveilles sont
+  branchées (`src/assets/wonders/*.webp`, `render/wonderArt.ts`, dessinées par l'overlay).
+  Restent les 8 lieux étranges, les fiches et les vignettes de ville. Traitement d'une
+  image reçue : alpha nettoyé, bord érodé de 3 px (liserés), saturation × 0,85, recadrée,
+  512 px, WebP qualité 86.
 
 ## Conventions
 

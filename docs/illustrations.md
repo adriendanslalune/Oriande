@@ -59,7 +59,7 @@ no text, no lettering, no signature, no drop shadow outside the subject.
 Square, 1024 x 1024.
 ```
 
-### Merveilles — `public/assets/map/wonder-<nom>.png`
+### Merveilles — ✅ reçues et branchées dans le jeu (`src/assets/wonders/`)
 
 **wonder-tete.png — Tête colossale**
 ```

@@ -12,6 +12,7 @@ import { drawLandmarkIcon } from './icons';
 import { drawHills, drawMountains } from './relief';
 import { clearing, drawTown, drawTownGrounds } from './towns';
 import { drawWonder } from './wonders';
+import { wonderImage } from './wonderArt';
 import { WONDER_CLEARING, wondersNear } from '../world/wonders';
 import { INK } from './palette';
 
@@ -200,7 +201,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     g.lineWidth = r.major ? 1.5 : 0.9; g.strokeStyle = 'rgb(200,165,112)'; line();
   }
   g.strokeStyle = INK;
-  for (const w of wonders) drawWonder(g, w, w.x - x0, w.y - y0); // above the roads
+  // above the roads; a wonder with an illustration is drawn by the overlay instead
+  for (const w of wonders) if (!wonderImage(w.kind)) drawWonder(g, w, w.x - x0, w.y - y0);
   for (const b of towns) drawTown(g, b, b.x - x0, b.y - y0, roads);
 
   // What moves on top: sea points for waves, forest points for leaves.

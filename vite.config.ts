@@ -40,7 +40,7 @@ export default defineConfig({
         // but waits forever, and players keep the old game.
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2,json}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2,json}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),

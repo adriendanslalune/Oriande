@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { FONT_BODY, FONT_CAPS, FONT_TITLE } from '../ui/theme';
+import { loadWonderArt } from '../render/wonderArt';
 
-/** Waits for the web fonts so the first Phaser texts are not drawn in a fallback face. */
+/** Waits for the web fonts and the wonder illustrations before showing the map. */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
@@ -16,7 +17,8 @@ export class BootScene extends Phaser.Scene {
       `700 40px ${FONT_CAPS}`,
     ];
     const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
-    Promise.race([Promise.all(faces.map((f) => document.fonts.load(f))), timeout])
+    // fonts and wonder illustrations must be ready before the first tiles are drawn
+    Promise.race([Promise.all([...faces.map((f) => document.fonts.load(f)), loadWonderArt()]), timeout])
       .catch(() => undefined)
       .then(() => this.scene.start('Map'));
   }

@@ -103,19 +103,23 @@ describe('world parity with proto/index.html', () => {
     }
   }, 60_000);
 
-  it('landmarks are identical, French names and texts included', () => {
-    let count = 0;
+  it('landmarks kept are identical to the proto ones, French names and texts included', () => {
+    let count = 0, kept = 0;
     for (let tj = -8; tj <= 8; tj++) for (let ti = -8; ti <= 8; ti++) {
       proto.tuile(ti, tj);
       const theirs = proto.lieux.get(ti + ',' + tj), ours = landmark(ti, tj);
       if (!theirs) { expect(ours).toBeNull(); continue; }
       count++;
-      expect(ours).not.toBeNull();
+      if (!ours) continue; // rarefied: about three in four of the proto's places are left out
+      kept++;
       expect([ours!.kind, ours!.x, ours!.y, ours!.water]).toEqual([theirs.k, theirs.x, theirs.y, theirs.sur === 'eau']);
       expect(t(`landmark.${ours!.kind}.name`, { n: ours!.name })).toBe(theirs.nom);
       expect(t(`landmark.${ours!.kind}.text`)).toBe(theirs.txt);
     }
     expect(count).toBeGreaterThan(60);
+    // the share kept is about KEEP
+    expect(kept / count).toBeGreaterThan(0.15);
+    expect(kept / count).toBeLessThan(0.42);
   }, 60_000);
 
   it('the explorer starts at the same place', () => {

@@ -27,6 +27,8 @@ export class Hud {
   private readonly eta: HTMLElement;
   private readonly note: HTMLElement;
   private noteTimer = 0;
+  private noteImportant = false;
+  private readonly queue: [string, string, number][] = [];
   private readonly root: HTMLElement[] = [];
 
   constructor(handlers: { zoomIn(): void; zoomOut(): void; center(): void }) {
@@ -59,7 +61,16 @@ export class Hud {
     if (this.eta.textContent !== eta) this.eta.textContent = eta;
   }
 
-  showNote(title: string, text: string): void {
+  /**
+   * Show a cartouche. An important one (a wonder) stays up for its whole time: ordinary notes
+   * that arrive meanwhile wait their turn instead of replacing it.
+   */
+  showNote(title: string, text: string, ms = 6000, important = false): void {
+    if (this.noteImportant && this.note.classList.contains('on') && !important) {
+      if (this.queue.length < 3) this.queue.push([title, text, ms]);
+      return;
+    }
+    this.noteImportant = important;
     this.note.replaceChildren();
     const b = document.createElement('b'), i = document.createElement('i');
     b.textContent = title;
@@ -67,11 +78,15 @@ export class Hud {
     this.note.append(b, i);
     this.note.classList.add('on');
     clearTimeout(this.noteTimer);
-    this.noteTimer = window.setTimeout(() => this.hideNote(), 6000);
+    this.noteTimer = window.setTimeout(() => this.hideNote(), ms);
   }
 
+  /** Close the current cartouche; the next waiting one, if any, shows. */
   hideNote(): void {
     this.note.classList.remove('on');
+    this.noteImportant = false;
+    const next = this.queue.shift();
+    if (next) this.showNote(...next);
   }
 
   destroy(): void {

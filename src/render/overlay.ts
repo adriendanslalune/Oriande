@@ -6,6 +6,7 @@ import { TILE, altitude } from '../world/terrain';
 import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
+import { wondersNear } from '../world/wonders';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
 import type { GameState } from '../game/state';
@@ -91,6 +92,12 @@ export class Overlay {
       ctx.font = (L.water ? 'italic ' : '') + Math.round(11 + v.zoom * 2) + "px 'IM Fell English" + (L.water ? '' : ' SC') + "', serif";
       this.label(t(`landmark.${L.kind}.name`, { n: L.name }), x, y + 10 + v.zoom * 12);
     }
+    for (const w of wondersNear(ax, ay, bx, by, 120)) {
+      if (!isSeen(s, w.x, w.y)) continue;
+      const [x, y] = screen(w.x, w.y);
+      ctx.font = 'italic ' + Math.round(14 + v.zoom * 3) + "px 'IM Fell English SC', serif";
+      this.label(t(`wonder.${w.kind}.name`, { n: w.name }), x, y + 10 * v.zoom + 16);
+    }
     for (let tj = tj0; tj <= tj1; tj++) for (let ti = ti0; ti <= ti1; ti++) {
       const b = settlement(ti, tj);
       if (!b || !isSeen(s, b.x, b.y)) continue;
@@ -131,6 +138,17 @@ export class Overlay {
     const { ctx } = this;
     ctx.strokeStyle = INK; ctx.fillStyle = INK;
     const time = now / 1000;
+    // The tree of light and the crystal forests glow softly, breathing.
+    for (const w of wondersNear(...world(0, 0), ...world(v.W, v.H), 120)) {
+      if ((w.kind !== 'arbre' && w.kind !== 'cristal') || !isSeen(s, w.x, w.y)) continue;
+      const [x, y] = screen(w.x, w.y - (w.kind === 'arbre' ? 36 : 16)), r = (w.kind === 'arbre' ? 46 : 34) * v.zoom;
+      const a = 0.22 + 0.12 * Math.sin(time * 1.4 + w.x);
+      const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const c = w.kind === 'arbre' ? '255,225,130' : '170,210,255';
+      gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    ctx.fillStyle = INK;
     // Waves: small crests that rise, roll a little and fade.
     ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgb(40,70,90)';
     for (const tl of tiles) for (const [X, Y, ph] of tl.waves) {
@@ -293,6 +311,16 @@ export class Overlay {
       if (!b || !b.city || !isSeen(s, b.x, b.y)) continue;
       const [x, y] = screen(b.x, b.y);
       ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillText(b.name.toUpperCase(), x, y - 6);
+    }
+    // discovered wonders: a small star with their name
+    ctx.font = "italic 11px 'IM Fell English', serif";
+    for (const w of wondersNear(ax, ay, bx, by, 0)) {
+      if (!s.named.includes('w' + w.key)) continue;
+      const [x, y] = screen(w.x, w.y);
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, r = k % 2 ? 2.2 : 5.5; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill();
+      ctx.fillText(t(`wonder.${w.kind}.name`, { n: w.name }), x, y + 15);
     }
     const [ex, ey] = screen(s.x, s.y);
     ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 6.3); ctx.lineWidth = 1.5; ctx.stroke();

@@ -9,6 +9,8 @@ import { landmark } from '../world/landmarks';
 import { drawLandmarkIcon } from './icons';
 import { drawHills, drawMountains } from './relief';
 import { clearing, drawTown, drawTownGrounds } from './towns';
+import { drawWonder } from './wonders';
+import { WONDER_CLEARING, wondersNear } from '../world/wonders';
 import { INK } from './palette';
 
 /** Pixels per world unit in a tile texture. */
@@ -98,7 +100,9 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const towns: Settlement[] = [];
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const b = settlement(ti + di, tj + dj); if (b) towns.push(b); }
   const roads = roadsAround(ti, tj, 6).filter((r) => r.maxX + 60 > x0 && r.minX - 60 < x0 + T && r.maxY + 60 > y0 && r.minY - 60 < y0 + T + 60);
-  const cleared = (X: number, Y: number): boolean => towns.some((b) => Math.hypot(X - b.x, (Y - b.y) * 1.15) < clearing(b));
+  const wonders = wondersNear(x0, y0, x0 + T, y0 + T, 80);
+  const cleared = (X: number, Y: number): boolean => towns.some((b) => Math.hypot(X - b.x, (Y - b.y) * 1.15) < clearing(b))
+    || wonders.some((w) => Math.hypot(X - w.x, Y - w.y + 15) < WONDER_CLEARING);
 
   // Hills: small mounds (mountains come after the vegetation, so they stand above it).
   drawHills(g, x0, y0, cleared);
@@ -142,7 +146,9 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
 
   // Mountains: engraved peaks, back to front.
-  drawMountains(g, x0, y0, terrainColour, roads.map((r) => r.points));
+  // no peak over a wonder: its clearing counts as an obstacle like a road
+  const wonderGround = wonders.map((w) => [{ x: w.x - 30, y: w.y - 10 }, { x: w.x + 30, y: w.y - 10 }]);
+  drawMountains(g, x0, y0, terrainColour, [...roads.map((r) => r.points), ...wonderGround]);
   g.strokeStyle = INK; g.fillStyle = INK;
 
   // The strange place of this tile, if any.
@@ -163,6 +169,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     g.lineWidth = r.major ? 1.5 : 0.9; g.strokeStyle = 'rgb(200,165,112)'; line();
   }
   g.strokeStyle = INK;
+  for (const w of wonders) drawWonder(g, w, w.x - x0, w.y - y0); // above the roads
   for (const b of towns) drawTown(g, b, b.x - x0, b.y - y0, roads);
 
   // What moves on top: sea points for waves, forest points for leaves.

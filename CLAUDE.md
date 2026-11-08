@@ -51,6 +51,11 @@ Règles :
    sur la rive si la cible est dans l'eau ; l'aventurier est à l'échelle du monde ;
    villages (maisons le long des routes, champs) et villes (remparts, tours, portes,
    rues, cathédrale, faubourgs) redessinés. Seule l'eau bloque la marche pour l'instant.
+7. Rareté voulue par Adrien : seul ~1 lieu étrange du proto sur 4 est gardé (KEEP = 0,28,
+   ~10 % des tuiles), à l'identique. S'y ajoutent les **merveilles** (`world/wonders.ts`) :
+   6 types (tête colossale, rocher suspendu, forêt de cristal, titan pétrifié, arches
+   englouties, arbre-lumière), au plus une par cellule de 8×8 tuiles (~1/3 des cellules),
+   repérées à 500 unités, fiche prioritaire. Aucun lieu étrange à moins de 120 d'une merveille.
 
 ## Architecture
 

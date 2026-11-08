@@ -3,6 +3,7 @@ import { altitude, humidity, TILE } from '../world/terrain';
 import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
+import { WONDER_SIGHT, wondersNear, type Wonder } from '../world/wonders';
 import type { GameState } from './state';
 import { alongPath, pathLength, planRoute } from './route';
 
@@ -42,7 +43,11 @@ export const isSeen = (s: GameState, x: number, y: number): boolean => s.seen.ha
 
 /** Reveal every fog cell the explorer can see from (x, y). */
 export function reveal(s: GameState, x: number, y: number): void {
-  const sight = sightRadius(x, y);
+  revealCircle(s, x, y, sightRadius(x, y));
+}
+
+/** Reveal every fog cell within `sight` of (x, y). */
+export function revealCircle(s: GameState, x: number, y: number, sight: number): void {
   const ci = Math.round(x / CELL), cj = Math.round(y / CELL), R = Math.ceil(sight / CELL);
   for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) {
     if ((di * di + dj * dj) * CELL * CELL > sight * sight) continue;
@@ -95,6 +100,7 @@ export function startJourney(s: GameState, x: number, y: number): boolean {
 }
 
 export type TravelEvent =
+  | { type: 'wonder'; wonder: Wonder }
   | { type: 'landmark'; landmark: Landmark }
   | { type: 'settlement'; settlement: Settlement }
   | { type: 'shore' };
@@ -102,6 +108,13 @@ export type TravelEvent =
 /** Places newly discovered from (x, y). */
 export function discover(s: GameState, x: number, y: number, out: TravelEvent[]): void {
   const ti = Math.floor(x / TILE), tj = Math.floor(y / TILE);
+  // Wonders tower over the land: they are noticed from afar, and the ground around them shows.
+  for (const w of wondersNear(x - WONDER_SIGHT, y - WONDER_SIGHT, x + WONDER_SIGHT, y + WONDER_SIGHT, 0)) {
+    if (s.named.includes('w' + w.key) || Math.hypot(w.x - x, w.y - y) > WONDER_SIGHT) continue;
+    s.named.push('w' + w.key);
+    revealCircle(s, w.x, w.y, 130);
+    out.push({ type: 'wonder', wonder: w });
+  }
   // A landmark is noticed within 90 units, so only this tile and its neighbours matter.
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
     const L = landmark(ti + di, tj + dj);

@@ -43,5 +43,18 @@
   "ui.zoomIn": "Zoom in",
   "ui.zoomOut": "Zoom out",
   "ui.center": "Back to the explorer",
-  "ui.map": "Topographic map of a strange world. Tap a point to walk there."
+  "ui.map": "Topographic map of a strange world. Tap a point to walk there.",
+  "wonder.heading": "Wonder",
+  "wonder.tete.name": "Colossal Head of {n}",
+  "wonder.tete.text": "A stone face as big as a hill, sunk in the earth up to its lips. Its eyes are closed. The Oriandais carved it — or put it to sleep.",
+  "wonder.rocher.name": "Hanging Rock of {n}",
+  "wonder.rocher.text": "A block of mountain floats above the valley, with no chain and no pillar. A small temple stands on its top, and a waterfall pours from its edge without ever touching the ground.",
+  "wonder.cristal.name": "Crystal Forest of {n}",
+  "wonder.cristal.text": "Prisms taller than trees rise from the earth. They sing when the wind passes — one note, always the same; the note of a bell of Oriande, the old folk say.",
+  "wonder.titan.name": "Petrified Titan of {n}",
+  "wonder.titan.text": "A giant lying on its back, turned to stone, one arm raised to the sky as if to hold back something falling. Grass has grown on its chest.",
+  "wonder.arches.name": "Drowned Arches of {n}",
+  "wonder.arches.text": "Arcades rise from the water, lined up like the streets of a town. Beneath the surface, stairs can be seen going further down. An Oriandais city sleeps below.",
+  "wonder.arbre.name": "Light-Tree of {n}",
+  "wonder.arbre.text": "An immense tree whose leaves shine by themselves, by day and by night. Beasts sleep at its foot without fighting. It is said to have been planted the day Oriande was lost."
 }

@@ -43,5 +43,18 @@
   "ui.zoomIn": "Rapprocher",
   "ui.zoomOut": "Éloigner",
   "ui.center": "Revenir à l’explorateur",
-  "ui.map": "Carte topographique d’un monde étrange. Touche un point pour y marcher."
+  "ui.map": "Carte topographique d’un monde étrange. Touche un point pour y marcher.",
+  "wonder.heading": "Merveille",
+  "wonder.tete.name": "Tête colossale de {n}",
+  "wonder.tete.text": "Un visage de pierre grand comme une colline, enfoncé dans la terre jusqu’aux lèvres. Il a les yeux clos. Les Oriandais l’ont sculpté, ou bien ils l’ont endormi.",
+  "wonder.rocher.name": "Rocher suspendu de {n}",
+  "wonder.rocher.text": "Un bloc de montagne flotte au-dessus de la vallée, sans chaîne ni pilier. Un petit temple tient sur son sommet, et une cascade tombe de son bord sans jamais toucher le sol.",
+  "wonder.cristal.name": "Forêt de cristal de {n}",
+  "wonder.cristal.text": "Des prismes plus hauts que des arbres sortent de la terre. Ils chantent quand le vent passe, une seule note, toujours la même — celle d’une cloche d’Oriande, disent les vieux.",
+  "wonder.titan.name": "Titan pétrifié de {n}",
+  "wonder.titan.text": "Un géant couché sur le dos, changé en pierre, un bras levé vers le ciel comme pour retenir quelque chose qui tombait. L’herbe a poussé sur sa poitrine.",
+  "wonder.arches.name": "Arches englouties de {n}",
+  "wonder.arches.text": "Des arcades sortent de l’eau, alignées comme les rues d’une ville. Sous la surface, on devine des escaliers qui descendent encore. Une cité oriandaise dort là-dessous.",
+  "wonder.arbre.name": "Arbre-lumière de {n}",
+  "wonder.arbre.text": "Un arbre immense dont les feuilles brillent d’elles-mêmes, de jour comme de nuit. Les bêtes dorment à son pied sans se battre. On dit qu’il a été planté le jour où Oriande fut perdue."
 }

@@ -137,6 +137,7 @@ export class MapScene extends Phaser.Scene {
 
   private onEvent(e: TravelEvent): void {
     if (e.type === 'shore') this.hud.showNote(t('shore.title'), t('shore.text'));
+    else if (e.type === 'wonder') this.hud.showNote(t('wonder.heading') + ' · ' + t(`wonder.${e.wonder.kind}.name`, { n: e.wonder.name }), t(`wonder.${e.wonder.kind}.text`), 14000, true);
     else if (e.type === 'landmark') this.hud.showNote(t(`landmark.${e.landmark.kind}.name`, { n: e.landmark.name }), t(`landmark.${e.landmark.kind}.text`));
     else {
       const b = e.settlement;

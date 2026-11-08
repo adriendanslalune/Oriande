@@ -13,7 +13,7 @@ export interface ReadyTile {
 
 interface Job { ti: number; tj: number; res: number; key: string }
 
-/** Firefox: its pictures from workers are copied into a canvas of the page at once (see below). */
+/** Firefox: workers send raw pixels, not ImageBitmaps (see the worker). */
 const FIREFOX = typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
 /** `?tiles=main` in the address draws every tile on the main thread (to tell a worker bug apart). */
 const MAIN_ONLY = typeof location !== 'undefined' && /[?&]tiles=main\b/.test(location.search);
@@ -69,7 +69,7 @@ export class TileSource {
       } else {
         for (const [key, win] of r.windows) townWindows.set(key, win);
         release(false);
-        this.ready({ ti: r.ti, tj: r.tj, res: r.res, image: FIREFOX ? toCanvas(r.bitmap) : r.bitmap, art: { waves: r.waves, trees: r.trees } });
+        this.ready({ ti: r.ti, tj: r.tj, res: r.res, image: r.pixels ? fromPixels(r.pixels, r.w!, r.h!) : r.bitmap!, art: { waves: r.waves, trees: r.trees } });
       }
       this.pump();
     };
@@ -127,19 +127,15 @@ export class TileSource {
       if (!j) return;
       this.queue = this.queue.filter((q) => q !== j);
       s.busy = j.key; s.since = performance.now(); this.pending.add(j.key);
-      s.w.postMessage({ id: this.nextId++, ti: j.ti, tj: j.tj, res: j.res });
+      s.w.postMessage({ id: this.nextId++, ti: j.ti, tj: j.tj, res: j.res, raw: FIREFOX });
     }
   }
 }
 
-/**
- * Copy a picture from a worker into a canvas of the page and let the picture go: on Firefox
- * (Android above all) an ImageBitmap kept as a texture could later show blank or another tile.
- */
-function toCanvas(b: ImageBitmap): HTMLCanvasElement {
+/** A tile's raw pixels from a worker, into a canvas of the page (the Firefox way, see the worker). */
+function fromPixels(buf: ArrayBuffer, w: number, h: number): HTMLCanvasElement {
   const c = document.createElement('canvas');
-  c.width = b.width; c.height = b.height;
-  c.getContext('2d')!.drawImage(b, 0, 0);
-  b.close();
+  c.width = w; c.height = h;
+  c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(buf), w, h), 0, 0);
   return c;
 }

@@ -17,7 +17,7 @@ import type { TileArt } from '../render/tiles';
 import { TileSource, type ReadyTile } from '../render/tileSource';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { Hud } from '../ui/hud';
-import { DPR } from '../ui/screen';
+import { DPR, DPR_FORCED, setDPR } from '../ui/screen';
 
 const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
 /** Autosave period while playing, ms. The game is also saved whenever the page is hidden. */
@@ -68,6 +68,10 @@ export class MapScene extends Phaser.Scene {
   private follow = true;
   private readonly tiles = new Map<string, CachedTile>();
   private tileSource!: TileSource;
+  /** frame times being measured, and how many measures in a row were too slow */
+  private qualityFrames: number[] = [];
+  private qualitySlow = 0;
+  private qualityFrom = 0;
   private now = 0;
   private tileLayer!: Phaser.GameObjects.Layer;
   private overlay!: Overlay;
@@ -235,6 +239,28 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Keep the game fluid on every device: when frames take too long (two measures in a row
+   * under ~33 frames a second), draw at a lower resolution (2 → 1.5 → 1), a little softer but
+   * much faster; the choice is remembered for the device. `?dpr=` in the address forces it.
+   */
+  private adaptQuality(time: number, delta: number): void {
+    if (DPR_FORCED || DPR <= 1) return;
+    if (!this.qualityFrom) this.qualityFrom = time + 4000; // let the map settle first
+    if (time < this.qualityFrom || document.visibilityState !== 'visible' || delta > 250) return;
+    this.qualityFrames.push(delta);
+    if (this.qualityFrames.reduce((a, b) => a + b, 0) < 2000) return;
+    const avg = this.qualityFrames.reduce((a, b) => a + b, 0) / this.qualityFrames.length;
+    this.qualityFrames = [];
+    this.qualitySlow = avg > 30 ? this.qualitySlow + 1 : 0;
+    if (this.qualitySlow < 2) return;
+    this.qualitySlow = 0;
+    setDPR(DPR > 1.5 ? 1.5 : 1);
+    this.game.scale.resize(window.innerWidth * DPR, window.innerHeight * DPR);
+    this.game.scale.setZoom(1 / DPR);
+    this.qualityFrom = time + 3000;
+  }
+
   /** The sharpest-needed resolution for the current zoom. */
   private level(): number {
     const need = this.view.zoom * DPR;
@@ -352,8 +378,8 @@ export class MapScene extends Phaser.Scene {
     }
     if (this.follow) { v.x += (s.x - v.x) * 0.08; v.y += (s.y - v.y) * 0.08; }
 
+    this.adaptQuality(time, delta);
     const visible = this.syncTiles();
-
     this.overlayTexture.context.setTransform(DPR, 0, 0, DPR, 0, 0);
     this.overlay.draw(s, v, visible, walking, time, dt);
     this.overlayTexture.refresh();

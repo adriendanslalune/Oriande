@@ -61,9 +61,12 @@ Règles qui restent :
    chargées (`setArtKinds`). Brume : un tampon de disque pré-dessiné par taille. **Robustesse** (tuile
    blanche vue sur Firefox Android) : une tuile qui échoue dans un worker est redemandée, puis
    dessinée sur le fil principal après 2 échecs ; un worker muet 12 s ou en erreur est relancé.
-   Le worker renvoie une **copie** (`createImageBitmap`, jamais `transferToImageBitmap` : tuiles
-   vides ou décalées sur Firefox Android) ; sur Firefox, la copie est remise dans un canvas de la
-   page. `?tiles=main` dans l'adresse force le dessin sur le fil principal (diagnostic).
+   Le worker renvoie une **copie** (`createImageBitmap`, jamais `transferToImageBitmap`) ; sur
+   **Firefox**, des pixels bruts recopiés dans un canvas de la page (les ImageBitmap y donnaient des
+   tuiles vides, décalées ou rayées sur Android). `?tiles=main` force le dessin sur le fil principal.
+   **Résolution adaptative** (`ui/screen.ts`, `Map.adaptQuality`) : si deux mesures de 2 s d'affilée
+   tombent sous ~33 images/s, le jeu passe de ×2 à ×1,5 puis ×1 (retenu par appareil,
+   `oriande.dpr`) ; `?dpr=` force une valeur. Grand écran sous Firefox : 22 → 56 images/s.
 2. Ne pas « améliorer » le monde sans qu'Adrien le demande.
 3. Dessin retravaillé à sa demande : montagnes en pics gravés, collines, aventurier à
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,

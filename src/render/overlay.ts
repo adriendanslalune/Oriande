@@ -9,6 +9,10 @@ import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
+import { CIRCUMFERENCE, nearestCopy, wrapIndex } from '../world/planet';
+
+/** Fog cells around the planet. */
+const CELLS_AROUND = CIRCUMFERENCE / CELL;
 import type { GameState } from '../game/state';
 import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
@@ -58,7 +62,7 @@ export class Overlay {
 
     // The explorer's footsteps.
     ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.setLineDash([1.5, 4]); ctx.beginPath();
-    s.trace.forEach(([X, Y], k) => { const [x, y] = screen(X, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    this.tracePath(s, screen);
     const [ex, ey] = screen(s.x, s.y);
     ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
 
@@ -86,7 +90,7 @@ export class Overlay {
     fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, fog.width, fog.height);
     fg.fillStyle = PAPER; fg.fillRect(0, 0, fog.width, fog.height); fg.globalCompositeOperation = 'destination-out';
     const ci0 = Math.floor(ax / CELL) - 1, ci1 = Math.ceil(bx / CELL) + 1, cj0 = Math.floor(ay / CELL) - 1, cj1 = Math.ceil(by / CELL) + 1, rr = CELL * v.zoom / 4 * 1.05;
-    for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) if (s.seen.has(ci + ',' + cj)) {
+    for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) if (s.seen.has(wrapIndex(ci, CELLS_AROUND) + ',' + cj)) {
       const [sx, sy] = screen(ci * CELL, cj * CELL);
       const gr = fg.createRadialGradient(sx / 4, sy / 4, 0, sx / 4, sy / 4, rr);
       gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.6, 'rgba(0,0,0,.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -223,9 +227,9 @@ export class Overlay {
     }
     ctx.globalAlpha = 1;
     for (const road of roadsAround(Math.floor(v.x / TILE), Math.floor(v.y / TILE), Math.ceil(Math.max(v.W, v.H) / v.zoom / TILE / 2) + 1)) {
-      const { p, q } = road, L = road.lengths[road.lengths.length - 1], nb = 1 + Math.floor(hash2(p.ti + q.ti, p.tj - q.tj) * 2);
+      const { p, q } = road, L = road.lengths[road.lengths.length - 1], nb = 1 + Math.floor(hash2(p.wi + q.wi, p.tj - q.tj) * 2);
       for (let k = 0; k < nb; k++) {
-        const sp = 10 / L, ph = hash2(p.ti * 3 + k, q.tj * 7 - k), w = ((time * sp + ph) % 2 + 2) % 2, u = w < 1 ? w : 2 - w, pt = pointOnRoad(road, u);
+        const sp = 10 / L, ph = hash2(p.wi * 3 + k, q.tj * 7 - k), w = ((time * sp + ph) % 2 + 2) % 2, u = w < 1 ? w : 2 - w, pt = pointOnRoad(road, u);
         if (!isSeen(s, pt.x, pt.y)) continue;
         const [x, y] = screen(pt.x, pt.y);
         if (x < -20 || y < -20 || x > v.W + 20 || y > v.H + 20) continue;
@@ -250,6 +254,20 @@ export class Overlay {
     const j = Math.sin(step) * 1.6 * s;
     ctx.beginPath(); ctx.arc(x, y - 6 * s, 1.3 * s, 0, 6.3); ctx.fill();
     ctx.beginPath(); ctx.moveTo(x, y - 5 * s); ctx.lineTo(x, y - 2 * s); ctx.lineTo(x - j, y + 1 * s); ctx.moveTo(x, y - 2 * s); ctx.lineTo(x + j, y + 1 * s); ctx.stroke();
+  }
+
+  /**
+   * The footsteps as one path. Points are stored where they were walked; after a lap around the
+   * planet they jump by its circumference, so each point is unwrapped next to the previous one,
+   * and the whole path is placed so that it ends at the explorer.
+   */
+  private tracePath(s: GameState, screen: (x: number, y: number) => [number, number]): void {
+    const { ctx } = this, t = s.trace;
+    if (!t.length) return;
+    const xs: number[] = [t[0][0]];
+    for (let k = 1; k < t.length; k++) xs.push(nearestCopy(t[k][0], xs[k - 1]));
+    const shift = nearestCopy(xs[xs.length - 1], s.x) - xs[xs.length - 1];
+    t.forEach(([, Y], k) => { const [x, y] = screen(xs[k] + shift, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
   }
 
   /** A name on the map, with a paper halo so it stays readable over forests and mountains. */
@@ -313,7 +331,7 @@ export class Overlay {
     const { ctx } = this;
     const c = Math.max(1, CELL * v.zoom);
     for (const k of s.seen) {
-      const [ci, cj] = k.split(',').map(Number), X = ci * CELL, Y = cj * CELL;
+      const [ci, cj] = k.split(',').map(Number), X = nearestCopy(ci * CELL, v.x), Y = cj * CELL;
       if (X < ax - CELL || X > bx + CELL || Y < ay - CELL || Y > by + CELL) continue;
       let h = this.atlasCache.get(k);
       if (h === undefined) { h = altitude(X, Y); this.atlasCache.set(k, h); }
@@ -322,10 +340,11 @@ export class Overlay {
       ctx.fillRect(x - c / 2, y - c / 2, c + 0.5, c + 0.5);
     }
     ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath();
-    s.trace.forEach(([X, Y], k) => { const [x, y] = screen(X, Y); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    this.tracePath(s, screen);
     ctx.stroke();
     ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.font = "700 11px 'Old Standard TT', serif";
-    for (let tj = Math.floor(ay / TILE); tj <= Math.floor(by / TILE); tj++) for (let ti = Math.floor(ax / TILE); ti <= Math.floor(bx / TILE); ti++) {
+    const tilesInView = (Math.floor(bx / TILE) - Math.floor(ax / TILE) + 1) * (Math.floor(by / TILE) - Math.floor(ay / TILE) + 1);
+    if (tilesInView < 25_000) for (let tj = Math.floor(ay / TILE); tj <= Math.floor(by / TILE); tj++) for (let ti = Math.floor(ax / TILE); ti <= Math.floor(bx / TILE); ti++) {
       const b = knownSettlement(ti, tj);
       if (!b || !b.city || !isSeen(s, b.x, b.y)) continue;
       const [x, y] = screen(b.x, b.y);

@@ -56,5 +56,10 @@
   "wonder.arches.name": "Drowned Arches of {n}",
   "wonder.arches.text": "Arcades rise from the water, lined up like the streets of a town. Beneath the surface, stairs can be seen going further down. An Oriandais city sleeps below.",
   "wonder.arbre.name": "Light-Tree of {n}",
-  "wonder.arbre.text": "An immense tree whose leaves shine by themselves, by day and by night. Beasts sleep at its foot without fighting. It is said to have been planted the day Oriande was lost."
+  "wonder.arbre.text": "An immense tree whose leaves shine by themselves, by day and by night. Beasts sleep at its foot without fighting. It is said to have been planted the day Oriande was lost.",
+  "hud.coords": "{lat} {ns} · {lon} {ew}",
+  "dir.n": "N",
+  "dir.s": "S",
+  "dir.e": "E",
+  "dir.w": "W"
 }

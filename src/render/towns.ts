@@ -25,12 +25,12 @@ function roadDirections(b: Settlement, roads: Road[]): number[] {
     while (k < pts.length - 1 && Math.hypot(pts[k].x - b.x, pts[k].y - b.y) < 15) k++;
     out.push(Math.atan2(pts[k].y - b.y, pts[k].x - b.x));
   }
-  if (!out.length) out.push(hash2(b.ti * 3, b.tj * 5) * 6.283);
+  if (!out.length) out.push(hash2(b.wi * 3, b.tj * 5) * 6.283);
   return out;
 }
 
 /** Radius of a city's walls, world units. */
-export const cityRadius = (b: Settlement): number => 25 + hash2(b.ti * 5, b.tj * 3) * 5;
+export const cityRadius = (b: Settlement): number => 25 + hash2(b.wi * 5, b.tj * 3) * 5;
 
 /**
  * Fields around a settlement, drawn before the roads: a patchwork of strips laid out along the
@@ -46,7 +46,7 @@ export function drawTownGrounds(g: CanvasRenderingContext2D, b: Settlement, x: n
     const cu = u + off, cv = v, px = x + c * cu - s * cv, py = y + s * cu + c * cv;
     const r = Math.hypot(px - x, (py - y) * 1.15);
     const k = Math.round(cu * 3 + cv * 7);
-    const h = (a: number): number => hash2(b.ti * 31 + k + a, b.tj * 37 - k * 3 + a);
+    const h = (a: number): number => hash2(b.wi * 31 + k + a, b.tj * 37 - k * 3 + a);
     if (r < R0 || r > R1 || h(1) < (r - R0) / (R1 - R0) * 0.7 || !arable(b.x + px - x, b.y + py - y)) continue;
     const corner = (du: number, dv: number): [number, number] => [x + c * (cu + du) - s * (cv + dv), y + s * (cu + du) + c * (cv + dv)];
     const pts = [corner(-FW / 2, -FD / 2), corner(FW / 2, -FD / 2), corner(FW / 2, FD / 2), corner(-FW / 2, FD / 2)];
@@ -88,12 +88,12 @@ function church(g: CanvasRenderingContext2D, x: number, y: number, s: number): v
 /** Houses and buildings: drawn after the roads. */
 export function drawTown(g: CanvasRenderingContext2D, b: Settlement, x: number, y: number, roads: Road[]): void {
   const dirs = roadDirections(b, roads);
-  const h = (k: number, a: number): number => hash2(b.ti * 17 + k * 13 + a, b.tj * 19 - k * 7 + a * 3);
+  const h = (k: number, a: number): number => hash2(b.wi * 17 + k * 13 + a, b.tj * 19 - k * 7 + a * 3);
   type Item = { x: number; y: number; draw: () => void };
   const items: Item[] = [];
   if (!b.city) {
     // a village: houses along its roads, a chapel when it is big enough
-    const n = 5 + Math.floor(hash2(b.ti, b.tj) * 4);
+    const n = 5 + Math.floor(hash2(b.wi, b.tj) * 4);
     for (let k = 0; k < n; k++) {
       const a = dirs[k % dirs.length], along = 2 + h(k, 1) * 11, side = (h(k, 2) < 0.5 ? -1 : 1) * (2.5 + h(k, 3) * 2);
       const hx = x + Math.cos(a) * along - Math.sin(a) * side, hy = y + Math.sin(a) * along + Math.cos(a) * side;

@@ -4,13 +4,14 @@ import { hash2 } from './noise';
 import { properName } from './names';
 import { TILE, altitude, humidity } from './terrain';
 import { settlement } from './settlements';
+import { CIRCUMFERENCE, wrapIndex } from './planet';
 
 export type WonderKind = 'tete' | 'rocher' | 'cristal' | 'titan' | 'arches' | 'arbre';
 
 /** Size of the grid cells that hold at most one wonder, world units (8 tiles, ~51 leagues). */
 export const WONDER_CELL = 8 * TILE;
 /** Chance that a cell holds a wonder (if a suitable spot is found). */
-const CHANCE = 0.7;
+const CHANCE = 0.45;
 /** A wonder is noticed from this far: it towers over the land. */
 export const WONDER_SIGHT = 500;
 /** Ground cleared around a wonder (no forest, no peaks drawn over it). */
@@ -40,16 +41,16 @@ const memo = new Map<string, Wonder | null>();
 
 /** The wonder of cell (mi, mj), if any. */
 export function wonder(mi: number, mj: number): Wonder | null {
-  const key = mi + ',' + mj;
-  const known = memo.get(key);
+  const rkey = mi + ',' + mj, wm = wrapIndex(mi, CIRCUMFERENCE / WONDER_CELL), key = wm + ',' + mj;
+  const known = memo.get(rkey);
   if (known !== undefined) return known;
   let out: Wonder | null = null;
-  if (hash2(mi * 97 + 13, mj * 89 - 7) < CHANCE) {
-    const K = KINDS[Math.floor(hash2(mi * 41 + 3, mj * 43 + 1) * KINDS.length)];
+  if (hash2(wm * 97 + 13, mj * 89 - 7) < CHANCE) {
+    const K = KINDS[Math.floor(hash2(wm * 41 + 3, mj * 43 + 1) * KINDS.length)];
     // a few tries to find a suitable spot in the middle of the cell
     for (let t = 0; t < 6 && !out; t++) {
-      const x = (mi + 0.15 + hash2(mi * 7 + t, mj * 11) * 0.7) * WONDER_CELL;
-      const y = (mj + 0.15 + hash2(mi * 13, mj * 5 + t) * 0.7) * WONDER_CELL;
+      const x = (mi + 0.15 + hash2(wm * 7 + t, mj * 11) * 0.7) * WONDER_CELL;
+      const y = (mj + 0.15 + hash2(wm * 13, mj * 5 + t) * 0.7) * WONDER_CELL;
       const v = altitude(x, y);
       if (v < K.min || v > K.max || (K.wet && humidity(x, y) < 0.45)) continue;
       // keep clear of towns
@@ -59,10 +60,10 @@ export function wonder(mi: number, mj: number): Wonder | null {
         const b = settlement(ti + di, tj + dj);
         if (b && Math.hypot(b.x - x, b.y - y) < 160) { town = true; break; }
       }
-      if (!town) out = { kind: K.kind, x, y, name: properName(mi + 1200, mj - 1200), key };
+      if (!town) out = { kind: K.kind, x, y, name: properName(wm + 1200, mj - 1200), key };
     }
   }
-  memo.set(key, out);
+  memo.set(rkey, out);
   return out;
 }
 

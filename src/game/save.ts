@@ -6,7 +6,7 @@ import type { GameState, Journey } from './state';
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -129,6 +129,9 @@ function validJourney(j: unknown): j is Journey {
 export function migrate(raw: Record<string, unknown>): Record<string, unknown> | null {
   const save = { ...raw };
   if (!isNum(save.v) || save.v > SAVE_VERSION || save.v < 1) return null;
+  // v1 and v2 were saved in the proto's flat world, which is gone: they cannot be carried over
+  // to the planet (v3), so they are left aside and a new game starts.
+  if ((save.v as number) < 3) return null;
   if (save.v === 1) {
     // v1 walked in straight lines: the journey becomes a two-point route
     const j = save.journey as Record<string, number> | null;
@@ -157,7 +160,7 @@ export function fromSaveFile(json: string): GameState {
   if ([...seen].some((k) => !/^-?\d+,-?\d+$/.test(k))) throw new Error('bad cells');
   const trace = decodeTrace(f.trace as number[]);
   return {
-    version: 2,
+    version: 3,
     x: f.x as number, y: f.y as number, leagues: f.leagues as number, zoom: f.zoom as number,
     named: f.named as string[],
     journey: f.journey as Journey | null,

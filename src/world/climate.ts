@@ -1,18 +1,22 @@
-// Climate: a temperature field laid over the proto's world (asked by Adrien) to make room for
-// tundra and pack ice in the cold, deserts, savannas and jungles in the heat. Large climate
-// zones, a little colder up high.
+// Climate of the planet: temperature follows latitude (hot at the equator, frozen at the poles),
+// with irregular boundaries and colder air up high.
 import { fbm } from './noise';
+import { CIRCUMFERENCE, latitude } from './planet';
 
-/** Below this the land is tundra and the sea is frozen. About 15% of the land. */
+/** Below this the land is tundra and the sea is frozen (from about 60° of latitude). */
 export const COLD = 0.333;
-/** Above this the land is hot: desert, savanna or jungle by humidity. About 15% of the land. */
+/** Above this the land is hot: desert, savanna or jungle by humidity (the tropics, below ~23°). */
 export const HOT = 0.635;
 /** Width of the transition between climates, in temperature units. */
 const BAND = 0.03;
 
-/** Temperature at (x, y) with altitude v: climate zones ~50 leagues wide, colder up high. */
-export const temperature = (x: number, y: number, v: number): number =>
-  fbm(x / 9000 + 517, y / 9000 - 311, 3) - Math.max(0, v - 0.4) * 0.15;
+/** Temperature at (x, y) with altitude v. */
+export function temperature(x: number, y: number, v: number): number {
+  const lat = latitude(y) * Math.PI / 180;
+  const base = 0.719 * Math.cos(lat) - 0.0265; // 0.635 at 23°, 0.333 at 60°
+  const wobble = (fbm(x / 8_192 + 517, y / 8_192 - 311, 3, CIRCUMFERENCE / 8_192) - 0.5) * 0.22;
+  return base + wobble - Math.max(0, v - 0.4) * 0.15;
+}
 
 const clamp01 = (n: number): number => Math.max(0, Math.min(1, n));
 /** 0 in temperate lands, 1 in full cold, smoothly in between. */

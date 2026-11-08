@@ -1,25 +1,41 @@
+// Terrain of the planet: altitude and humidity, periodic east-west (see planet.ts). Inspired by
+// the proto's formulas, rebuilt for a round world: every scale divides the circumference, and
+// continents are separated from relief.
 import { fbm } from './noise';
+import { CIRCUMFERENCE } from './planet';
 
 /** Size of a map tile in world units. Settlements and landmarks are laid out per tile. */
 export const TILE = 256;
+/** Tiles around the planet. */
+export const TILES_AROUND = CIRCUMFERENCE / TILE;
 
 /** From this altitude up the land is mountains, drawn as peaks. */
 export const MOUNTAIN_ALTITUDE = 0.6;
 /** Roads cross a low ridge through a pass (the peaks along it are not drawn), never higher. */
 export const ROAD_MAX_ALTITUDE = 0.7;
 
-/** Continental-scale bias: pushes whole regions under or above the sea. */
-export const ocean = (x: number, y: number): number => (fbm(x / 5200 + 91, y / 5200 - 37, 4) - 0.5) * 3.2;
+/** Periodic fractal noise at a scale that divides the circumference. */
+const field = (x: number, y: number, scale: number, octaves: number, ox: number, oy: number): number =>
+  fbm(x / scale + ox, y / scale + oy, octaves, CIRCUMFERENCE / scale);
 
-/** Altitude: continents, ridges, hollows. 0 is sea level. */
+/**
+ * Continentality: above 0 the land, below the sea. A continental scale (~1,300 leagues) makes
+ * continents and oceans, a regional one (~130 leagues) seas, gulfs and great islands.
+ * About 41% of the planet is land; the largest continent holds about a third of it.
+ */
+export const continent = (x: number, y: number): number =>
+  (field(x, y, 51_200, 3, 11, -5) * 0.7 + field(x, y, 5_120, 4, 91, -37) * 0.3 - 0.5) * 3.5 - 0.28;
+
+/**
+ * Altitude, 0 at sea level. The continent decides where the land is; local relief and ridges
+ * decide where the hills and mountains are (about 13% of the land), so the interior of a big
+ * continent is not one endless plateau.
+ */
 export function altitude(x: number, y: number): number {
-  const c = fbm(x / 1100, y / 1100, 4) + ocean(x, y) * 0.5;
-  const d = fbm(x / 260, y / 260, 5);
-  const r = 1 - Math.abs(fbm(x / 600 + 40, y / 600, 4) * 2 - 1);
-  return (c - 0.48) * 2.2 + (d - 0.5) * 0.9 + Math.pow(r, 6) * 0.9 * Math.max(0, c - 0.4) * 2.5;
+  const s = continent(x, y);
+  const c = field(x, y, 1_024, 4, 0, 0), d = field(x, y, 256, 5, 0, 0);
+  const r = 1 - Math.abs(field(x, y, 640, 4, 40, 0) * 2 - 1);
+  return 0.45 * s + 0.7 * (c - 0.5) + 0.4 * (d - 0.5) + Math.pow(r, 5) * 4.5 * Math.max(0, Math.min(1, s + 0.2)) * Math.max(0, c - 0.42) * 2;
 }
 
-export const humidity = (x: number, y: number): number => fbm(x / 380 + 300, y / 380 - 200, 4) * 0.9 + 0.12;
-
-/** "Strangeness": where giant mushrooms and violet meadows grow. */
-export const strangeness = (x: number, y: number): number => fbm(x / 700 - 700, y / 700 + 900, 3);
+export const humidity = (x: number, y: number): number => field(x, y, 400, 4, 300, -200) * 0.9 + 0.12;

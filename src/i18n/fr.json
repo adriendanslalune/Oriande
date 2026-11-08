@@ -56,5 +56,10 @@
   "wonder.arches.name": "Arches englouties de {n}",
   "wonder.arches.text": "Des arcades sortent de l’eau, alignées comme les rues d’une ville. Sous la surface, on devine des escaliers qui descendent encore. Une cité oriandaise dort là-dessous.",
   "wonder.arbre.name": "Arbre-lumière de {n}",
-  "wonder.arbre.text": "Un arbre immense dont les feuilles brillent d’elles-mêmes, de jour comme de nuit. Les bêtes dorment à son pied sans se battre. On dit qu’il a été planté le jour où Oriande fut perdue."
+  "wonder.arbre.text": "Un arbre immense dont les feuilles brillent d’elles-mêmes, de jour comme de nuit. Les bêtes dorment à son pied sans se battre. On dit qu’il a été planté le jour où Oriande fut perdue.",
+  "hud.coords": "{lat} {ns} · {lon} {ew}",
+  "dir.n": "N",
+  "dir.s": "S",
+  "dir.e": "E",
+  "dir.w": "O"
 }

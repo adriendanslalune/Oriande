@@ -2,6 +2,7 @@
 // strange places, roads and houses. Verbatim port of the proto's tuile(); a tile is drawn once
 // on a canvas and then cached as a Phaser texture by the Map scene.
 import { hash2 } from '../world/noise';
+import { CIRCUMFERENCE, wrapIndex, wrapX } from '../world/planet';
 import { TILE, altitude, humidity } from '../world/terrain';
 import { DESERT_HUMIDITY, JUNGLE_HUMIDITY, coldness, heat, temperature } from '../world/climate';
 import { drawDunes, drawIce, drawJungle, drawSavanna } from './climate';
@@ -124,9 +125,10 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   // nothing in the desert.
   // NB: sands use whatever fillStyle the previous plant left, as in the proto.
   for (let gy = Math.floor((y0 - 12) / 10); gy * 10 < y0 + T + 12; gy++) for (let gx = Math.floor((x0 - 12) / 10); gx * 10 < x0 + T + 12; gx++) {
-    const X = gx * 10 + 5 + (hash2(gx * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(gx, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
+    const wg = wrapIndex(gx, CIRCUMFERENCE / 10); // the planet wraps: draw lots with the wrapped index
+    const X = gx * 10 + 5 + (hash2(wg * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(wg, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
-    const hu = humidity(X, Y), r = hash2(X | 0, Y | 0);
+    const hu = humidity(X, Y), r = hash2(wg * 7 + 1, gy * 13 + 2);
     if (cleared(X, Y)) continue; // fields and gardens around towns
     const t = temperature(X, Y, v), cold = coldness(t) > 0.5;
     if (heat(t) > 0.5) { // hot lands
@@ -208,8 +210,9 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   // What moves on top: sea points for waves, forest points for leaves.
   const waves: TileArt['waves'] = [], trees: TileArt['trees'] = [];
   for (let y = 8; y < T; y += 22) for (let x = 8; x < T; x += 22) {
-    const X = x0 + x + (hash2(x0 + x, y0 + y * 2) - 0.5) * 12, Y = y0 + y + (hash2(x0 + x * 2, y0 + y) - 0.5) * 12, v = altitude(X, Y);
-    if (v < -0.04) { if (coldness(temperature(X, Y, v)) < 0.5) waves.push([X, Y, hash2(X | 0, Y | 0) * 6.28]); } // no waves on the ice
+    const wx = wrapX(x0 + x);
+    const X = x0 + x + (hash2(wx, y0 + y * 2) - 0.5) * 12, Y = y0 + y + (hash2(wx + x, y0 + y) - 0.5) * 12, v = altitude(X, Y);
+    if (v < -0.04) { if (coldness(temperature(X, Y, v)) < 0.5) waves.push([X, Y, hash2(wx + 3, Y | 0) * 6.28]); } // no waves on the ice
     else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55 && !cleared(X, Y)) trees.push([X, Y]); // no leaves off fields
   }
   return { canvas: cv, waves, trees };

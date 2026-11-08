@@ -23,53 +23,54 @@ Public français ET anglais : tout texte passe par i18n dès le premier jour.
 - Pas de framework UI. Les menus sont faits en Phaser ou en DOM minimal stylé
   « papier ancien ».
 
-## Point de départ : le prototype
+## Le monde : une planète (choix d'Adrien)
 
-`proto/index.html` est le prototype existant (canvas vanilla, 295 lignes).
-Il contient TOUTE la génération du monde : bruit, altitude, humidité, étrangeté,
-bourgs, routes, lieux étranges, noms, rendu aquarelle/hachures, animations, brume,
-trace de pas, cache de tuiles, vue atlas.
+Au départ, `proto/index.html` (canvas vanilla, gardé en lecture seule comme référence
+historique) générait un monde plat et infini, porté à l'identique en phase 1, étapes 2-3.
+Adrien a ensuite décidé d'en faire **une vraie planète ronde, immense, une épopée** :
+le monde a été régénéré, il n'est **plus** identique au proto (plus de test de parité).
 
-Règles :
-1. Porter cette génération dans `src/world/` **à l'identique** : même graine (1873),
-   mêmes formules, mêmes hash. Une case donnée doit donner exactement le même
-   terrain qu'avant. Écrire un test qui compare quelques valeurs d'altitude et de
-   noms de bourgs avec le proto.
-2. Garder le rendu par tuiles (textures Phaser générées à la volée, cache limité à
-   ~90 tuiles) et la brume de guerre.
-3. Ne pas « améliorer » le monde sans qu'on le demande. D'abord un jeu dedans.
-4. Le **dessin** de la carte a été retravaillé à la demande d'Adrien pour la lisibilité
-   (montagnes en pics gravés, collines, aventurier, routes, icônes des lieux, noms
-   détourés) : il n'est plus identique au proto. Le **terrain** (altitudes, bourgs, routes,
-   lieux, noms) reste strictement identique, et les tests de parité le vérifient.
-5. Exception voulue par Adrien : les **routes** ne traversent plus les montagnes. Une route
-   garde la courbe du proto si elle reste sur un terrain praticable ; sinon elle contourne
-   (A*), ou franchit une crête basse (< 0,7) par un col où les pics ne sont pas dessinés.
-   Une liaison sans route raisonnable (> 1,8 × la ligne droite) est abandonnée.
-6. Demandés par Adrien (hors liste phase 1) : la vision dépend du terrain (forêt 100,
-   plaine 200, jusqu'à 600 en altitude) ; l'explorateur contourne l'eau (A*) et s'arrête
-   sur la rive si la cible est dans l'eau ; l'aventurier est à l'échelle du monde ;
-   villages (maisons le long des routes, champs) et villes (remparts, tours, portes,
-   rues, cathédrale, faubourgs) redessinés. Seule l'eau bloque la marche pour l'instant.
-7. Rareté voulue par Adrien : seul ~1 lieu étrange du proto sur 4 est gardé (KEEP = 0,28,
-   ~10 % des tuiles), à l'identique. S'y ajoutent les **merveilles** (`world/wonders.ts`) :
-   6 types (tête colossale, rocher suspendu, forêt de cristal, titan pétrifié, arches
-   englouties, arbre-lumière), au plus une par cellule de 8×8 tuiles (~1/3 des cellules),
-   repérées à 500 unités, fiche prioritaire. Aucun lieu étrange à moins de 120 d'une merveille.
-8. Climats (demandé par Adrien) : `world/climate.ts` ajoute une température (zones de
-   ~50 lieues, plus froid en altitude). Froid (< 0,333, ~15 % des terres) : toundra et
-   banquise (pas de vagues) ; chaud (> 0,635) : désert de dunes (humidité < 0,5),
-   savane à acacias (0,5–0,6), jungle dense à palmiers (≥ 0,6).
-   Les régions violettes de champignons géants du proto sont supprimées (le lieu
-   « Forêt-Champignon » reste). L'altitude, les bourgs et les lieux ne changent pas.
+- `world/planet.ts` : circonférence **10 240 lieues** (409 600 unités, la Terre de Verne),
+  méridien = moitié. La carte boucle d'est en ouest ; projection cylindrique d'atlas ancien.
+  Pôles nord et sud : banquise, **infranchissable au-delà de 84°** (`beyondIce`).
+  y = 0 vers 45° N ; l'équateur est à `EQUATOR_Y`. La couture est à **180°** (antiméridien),
+  loin du départ : `wrapPosition` y ramène l'explorateur, la vue suit.
+- **Tout doit boucler** : le bruit est périodique en x (`fbm(..., px)`), chaque échelle et chaque
+  grille de décor a un pas qui **divise la circonférence**, et tout tirage au sort (`hash2`)
+  utilise l'index **ramené sur la planète** (`wrapIndex`). Bourgs/lieux/merveilles ont une
+  identité `key` (ramenée, pour les découvertes) et une position brute (`rkey`, pour les
+  mémos et le dessin). La brume est indexée par cases ramenées (`cellKey`, CELL = 50).
+  Ne jamais ajouter de `hash2(gx, ...)` sur un index brut.
+- Terrain (`world/terrain.ts`) : une échelle continentale (~1 300 lieues) décide terre/mer
+  (~41 % de terres, un grand continent ≈ 1/3 des terres), le relief local décide des
+  montagnes (~13 % des terres). Climat (`world/climate.ts`) par **latitude** : tropiques
+  chauds (désert/savane/jungle selon l'humidité), tempéré, toundra et banquise au-delà de ~60°.
+- Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
+  continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
+  Le continent de départ : ~6 300 × 4 800 lieues, ~1 300 h de marche pour tout voir.
+- Échelle des sauvegardes : v3 ; les sauvegardes v1/v2 (monde plat) sont mises de côté.
+
+Règles qui restent :
+1. Rendu par tuiles (textures Phaser générées à la volée, cache ≥ 90 tuiles) et brume.
+2. Ne pas « améliorer » le monde sans qu'Adrien le demande.
+3. Dessin retravaillé à sa demande : montagnes en pics gravés, collines, aventurier à
+   l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,
+   liaison abandonnée au-delà de 1,8 × la ligne droite), villages et villes réalistes,
+   noms détourés, vision selon le terrain (forêt 100, plaine 200, jusqu'à 600 en altitude),
+   contournement de l'eau par l'explorateur.
+4. Rareté : lieux étranges ~10 % des tuiles (KEEP = 0,28), pictogrammes gravés ;
+   **merveilles** illustrées (`world/wonders.ts`, 6 types), au plus une par cellule de
+   8×8 tuiles (CHANCE = 0,45), repérées à 500 unités, fiche prioritaire.
+5. Pas de traversée d'eau en phase 1 : le **tour du monde** viendra avec bateau/montgolfière.
 
 ## Architecture
 
 ```
 src/
   main.ts               config Phaser, enregistrement des scènes
-  world/                génération déterministe (portée du proto), AUCUNE dépendance Phaser
-    noise.ts  terrain.ts  settlements.ts  roads.ts  landmarks.ts  names.ts
+  world/                génération déterministe de la planète, AUCUNE dépendance Phaser
+    planet.ts  noise.ts  terrain.ts  climate.ts  settlements.ts  roads.ts  landmarks.ts
+    wonders.ts  names.ts
   render/               dessin des tuiles (aquarelle, hachures, forêts, côtes, animations)
   scenes/
     Boot.ts  Map.ts  Town.ts  Dungeon.ts  Battle.ts  Discovery.ts  Menu.ts
@@ -82,7 +83,7 @@ src/
   ui/                   composants papier : boîte de dialogue, inventaire, boutons
 public/
   assets/               illustrations (découvertes, monstres), icônes, polices
-proto/index.html        le prototype, lecture seule, référence
+proto/index.html        le prototype (monde plat), lecture seule, référence historique
 ```
 
 Principes :
@@ -122,7 +123,8 @@ sur le téléphone de Doudou via GitLab Pages.
 1. **Squelette** : Vite + Phaser + TS + PWA + déploiement. Une scène Map vide
    qui affiche « Oriande ». Déployé.
 2. **Portage du monde** : la carte du proto dans Phaser, déplacement tactile,
-   zoom, brume, trace, atlas. Test de parité avec le proto. Déployé.
+   zoom, brume, trace, atlas. Test de parité avec le proto. Déployé. (Fait ; le monde a
+   depuis été remplacé par la planète, voir plus haut.)
 3. **GameState + sauvegarde** : on quitte, on revient, on est au même endroit.
 4. **Combat** : une scène Battle au tour par tour, simple et lisible
    (attaquer / objet / fuir), 2 monstres dans `monsters.json`. Rencontres

@@ -3,7 +3,7 @@ import { wonder, wondersNear, WONDER_CELL, WONDER_SIGHT } from './wonders';
 import { altitude, TILE } from './terrain';
 import { settlement } from './settlements';
 import { landmark } from './landmarks';
-import { newGame, discover, type TravelEvent } from '../game/travel';
+import { newGame, discover, cellKey, type TravelEvent } from '../game/travel';
 import { setLang, t } from '../i18n';
 
 const all = () => { const out = []; for (let mj = -10; mj < 10; mj++) for (let mi = -10; mi < 10; mi++) { const w = wonder(mi, mj); if (w) out.push(w); } return out; };
@@ -40,7 +40,7 @@ describe('wonders', () => {
     const s = newGame(), out: TravelEvent[] = [];
     discover(s, w.x + WONDER_SIGHT * 0.9, w.y, out);
     expect(out.filter((e) => e.type === 'wonder')).toHaveLength(1);
-    expect(s.seen.has(Math.round(w.x / 48) + ',' + Math.round(w.y / 48))).toBe(true);
+    expect(s.seen.has(cellKey(w.x, w.y))).toBe(true);
     discover(s, w.x + WONDER_SIGHT * 0.8, w.y, out);
     expect(out.filter((e) => e.type === 'wonder')).toHaveLength(1);
   });

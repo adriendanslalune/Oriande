@@ -47,7 +47,7 @@ describe('fog cell encoding', () => {
   it('is much smaller than the raw list for explored land', () => {
     const s = playedGame();
     const raw = JSON.stringify([...s.seen]).length, packed = encodeCells(s.seen).length;
-    expect(s.seen.size).toBeGreaterThan(300);
+    expect(s.seen.size).toBeGreaterThan(200);
     expect(packed * 4).toBeLessThan(raw);
   });
 });
@@ -122,16 +122,11 @@ describe('footsteps', () => {
 });
 
 describe('migrations', () => {
-  it('a version 1 save (straight walks) loads, walk in progress included', () => {
-    const v1 = {
-      v: 1, at: '2026-11-07T20:00:00.000Z', x: 10, y: 20, leagues: 1.5, zoom: 1.3, named: ['b0,0'],
-      journey: { x0: 0, y0: 0, x1: 40, y1: 30, elapsed: 1000, duration: 7142, revealed: 10, shore: false },
-      seen: encodeCells(['0,0', '1,0']), trace: encodeTrace([[0, 0], [8, 6]]),
-    };
-    const s = fromSaveFile(JSON.stringify(v1));
-    expect(s.version).toBe(2);
-    expect(s.journey!.path).toEqual([[0, 0], [40, 30]]);
-    expect(s.journey!.elapsed).toBe(1000);
-    expect([s.x, s.y, s.leagues]).toEqual([10, 20, 1.5]);
+  it('saves of the old flat world (v1, v2) are left aside: a new game starts on the planet', () => {
+    const store = new MemoryStore();
+    const v2 = { ...toSaveFile(newGame()), v: 2 };
+    store.setItem(SAVE_KEY, JSON.stringify(v2));
+    expect(loadGame(store)).toBeNull();
+    expect(store.getItem(BROKEN_KEY)).toBe(JSON.stringify(v2)); // kept, not destroyed
   });
 });

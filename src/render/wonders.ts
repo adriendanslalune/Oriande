@@ -1,6 +1,7 @@
 // The wonders, drawn large in the engraved style: they must catch the eye from afar.
 // Drawn around (x, y) in tile units; each one roughly 50-70 units across.
 import { hash2 } from '../world/noise';
+import { wrapX } from '../world/planet';
 import type { Wonder } from '../world/wonders';
 import { INK } from './palette';
 
@@ -135,7 +136,7 @@ function tree(g: G, seed: number): void {
 }
 
 export function drawWonder(g: G, w: Wonder, x: number, y: number): void {
-  const seed = hash2(Math.round(w.x), Math.round(w.y));
+  const seed = hash2(Math.round(wrapX(w.x)), Math.round(w.y));
   g.save();
   g.translate(x, y);
   g.strokeStyle = INK; g.lineJoin = 'round'; g.lineCap = 'round';

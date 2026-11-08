@@ -1,9 +1,10 @@
 // The explorer's route to where the player tapped: straight when nothing is in the way,
 // otherwise around the obstacles (A* on a grid, then straightened). Pure, no Phaser.
 import { altitude } from '../world/terrain';
+import { beyondIce } from '../world/planet';
 
-/** Ground the explorer can walk on. Only water stops them for now. */
-export const walkable = (x: number, y: number): boolean => altitude(x, y) >= 0;
+/** Ground the explorer can walk on: not water, not the polar ice barrier. */
+export const walkable = (x: number, y: number): boolean => !beyondIce(y) && altitude(x, y) >= 0;
 
 /** Whether the straight walk a-b stays on walkable ground (sampled every 4 units). */
 export function clearWalk(ax: number, ay: number, bx: number, by: number): boolean {

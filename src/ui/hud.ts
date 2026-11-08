@@ -6,7 +6,8 @@ const CSS = `
 .hud-header { position: fixed; left: 0; right: 0; top: 0; padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 6px;
   background: #ece3cb; color: #2a241d; border-bottom: 3px double #2a241d; display: flex; justify-content: space-between;
   align-items: baseline; gap: 10px; pointer-events: none; z-index: 2; }
-.hud-header .t { font: 19px "IM Fell English SC", serif; letter-spacing: .04em; }
+.hud-header .t { font: 19px/1.15 "IM Fell English SC", serif; letter-spacing: .04em; }
+.hud-header .t .coords { font: italic 13px "IM Fell English", serif; letter-spacing: 0; }
 .hud-header .c { font: 700 11px/1.3 "Old Standard TT", serif; text-align: right; letter-spacing: .06em; text-transform: uppercase; }
 .hud-header .c i { font: italic 400 12px "IM Fell English", serif; text-transform: none; letter-spacing: 0; }
 .hud-buttons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; z-index: 2; }
@@ -25,6 +26,7 @@ export class Hud {
   private readonly leagues: HTMLElement;
   private readonly places: HTMLElement;
   private readonly eta: HTMLElement;
+  private readonly coords: HTMLElement;
   private readonly note: HTMLElement;
   private noteTimer = 0;
   private noteImportant = false;
@@ -36,8 +38,9 @@ export class Hud {
     style.textContent = CSS;
     const header = document.createElement('header');
     header.className = 'hud-header';
-    header.innerHTML = '<div class="t"></div><div class="c"><span></span><br><i></i><br><i></i></div>';
-    header.querySelector('.t')!.textContent = t('title');
+    header.innerHTML = '<div class="t"><span></span><br><i class="coords"></i></div><div class="c"><span></span><br><i></i><br><i></i></div>';
+    header.querySelector('.t > span')!.textContent = t('title');
+    this.coords = header.querySelector('.coords')!;
     [this.leagues, this.places, this.eta] = Array.from(header.querySelectorAll<HTMLElement>('.c > *:not(br)'));
     this.note = document.createElement('div');
     this.note.className = 'hud-note';
@@ -53,6 +56,11 @@ export class Hud {
     }
     this.root.push(style, header, this.note, buttons);
     document.body.append(...this.root);
+  }
+
+  /** Latitude and longitude of the explorer, under the title. */
+  setCoords(text: string): void {
+    if (this.coords.textContent !== text) this.coords.textContent = text;
   }
 
   setCounters(leagues: string, places: string, eta: string): void {

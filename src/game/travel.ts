@@ -1,5 +1,6 @@
 // Walking and the fog of war. Pure rules, ported from the proto, no Phaser.
-import { altitude, humidity, TILE } from '../world/terrain';
+import { altitude, continent, humidity, TILE } from '../world/terrain';
+import { CIRCUMFERENCE, wrapIndex } from '../world/planet';
 import { biome } from '../world/climate';
 import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
@@ -28,7 +29,7 @@ export function sightRadius(x: number, y: number): number {
   return Math.min(MAX_SIGHT, base + Math.max(0, v - 0.3) * 1000);
 }
 /** Fog cell size, world units. */
-export const CELL = 48;
+export const CELL = 50; // divides the circumference
 /** Walking speed, world units per second (a league in a bit less than 6 s). */
 export const SPEED = 7;
 /** World units per league. */
@@ -40,7 +41,10 @@ export const STEP_LENGTH = 10;
 /** Footsteps kept in the trace. */
 export const TRACE_MAX = 6000;
 
-export const cellKey = (x: number, y: number): string => Math.round(x / CELL) + ',' + Math.round(y / CELL);
+/** Fog cells around the planet. */
+const CELLS_AROUND = CIRCUMFERENCE / CELL;
+/** The fog cell of (x, y), brought back around the planet: seen once, seen on every lap. */
+export const cellKey = (x: number, y: number): string => wrapIndex(Math.round(x / CELL), CELLS_AROUND) + ',' + Math.round(y / CELL);
 export const isSeen = (s: GameState, x: number, y: number): boolean => s.seen.has(cellKey(x, y));
 
 /** Reveal every fog cell the explorer can see from (x, y). */
@@ -53,33 +57,54 @@ export function revealCircle(s: GameState, x: number, y: number, sight: number):
   const ci = Math.round(x / CELL), cj = Math.round(y / CELL), R = Math.ceil(sight / CELL);
   for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) {
     if ((di * di + dj * dj) * CELL * CELL > sight * sight) continue;
-    s.seen.add((ci + di) + ',' + (cj + dj));
+    s.seen.add(wrapIndex(ci + di, CELLS_AROUND) + ',' + (cj + dj));
   }
 }
 
-/** Where a new game starts: just outside a village that has a road, near the origin. */
+/**
+ * Where a new game starts: just outside a village that has a road, in temperate lands, well
+ * inside a large continent (so that there is a whole continent to explore on foot), as near
+ * as possible to longitude 0 at about 45°N. Deterministic: every player starts there.
+ */
 export function startPosition(): { x: number; y: number } {
   let start: Settlement | null = null;
-  for (let r = 0; r < 14 && !start; r++)
+  for (let r = 0; r < 260 && !start; r++)
     for (let dj = -r; dj <= r && !start; dj++)
       for (let di = -r; di <= r && !start; di++) {
         if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        const cx = (di + 0.5) * TILE, cy = (dj + 0.5) * TILE;
+        if (continent(cx, cy) < 0.45) continue; // cheap test first: deep inland only
         const b = settlement(di, dj);
-        if (b && !b.city && firstNeighbour(b)) start = b;
+        if (!b || b.city || biome(b.x, b.y, altitude(b.x, b.y), humidity(b.x, b.y)) !== 'temperate' || !firstNeighbour(b)) continue;
+        start = b;
       }
   if (start) {
     for (let a = 0; a < 6.28; a += 0.4) {
       const x = start.x + Math.cos(a) * 70, y = start.y + Math.sin(a) * 70, v = altitude(x, y);
       if (v > 0.05 && v < 0.45) return { x, y };
     }
+    return { x: start.x, y: start.y };
   }
   return { x: 0, y: 0 };
+}
+
+/**
+ * Bring the explorer back around the planet after crossing longitude 180° (the antimeridian,
+ * far from the start): x into [-C/2, C/2), the walk in progress shifted the same way. Returns
+ * the shift applied (0 most of the time) so the view can follow.
+ */
+export function wrapPosition(s: GameState): number {
+  const shift = -Math.floor((s.x + CIRCUMFERENCE / 2) / CIRCUMFERENCE) * CIRCUMFERENCE; // an exact multiple
+  if (shift === 0) return 0;
+  s.x += shift;
+  if (s.journey) s.journey.path = s.journey.path.map(([x, y]) => [x + shift, y]);
+  return shift;
 }
 
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 2, x, y, leagues: 0,
+    version: 3, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
   };

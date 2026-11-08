@@ -16,7 +16,7 @@ export interface Journey {
 }
 
 export interface GameState {
-  version: 2;
+  version: 3;
   x: number;
   y: number;
   /** leagues walked */

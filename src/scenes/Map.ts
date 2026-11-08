@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
-import { newGame, advance, startJourney, leaguesLeft, START_ZOOM, type TravelEvent } from '../game/travel';
+import { newGame, advance, startJourney, leaguesLeft, wrapPosition, START_ZOOM, type TravelEvent } from '../game/travel';
+import { latitude, longitude } from '../world/planet';
 import { loadGame, saveGame } from '../game/save';
 import type { GameState } from '../game/state';
 import { drawTile, type TileArt } from '../render/tiles';
@@ -9,7 +10,7 @@ import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { Hud } from '../ui/hud';
 import { DPR } from '../ui/screen';
 
-const ZMIN = 0.03, ZMAX = 3;
+const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
 /** Autosave period while playing, ms. The game is also saved whenever the page is hidden. */
 const SAVE_EVERY = 2500;
 /** Tile textures kept in memory (at least; more if the screen needs it). */
@@ -18,6 +19,15 @@ const CACHE_MIN = 90;
 const NEW_TILES_PER_FRAME = 2;
 
 interface CachedTile { art: TileArt; image: Phaser.GameObjects.Image; texture: string }
+
+/** "49°42′ N · 4°18′ O": degrees and minutes, with the compass letters of the language. */
+function formatCoords(lat: number, lon: number): string {
+  const dm = (a: number): string => { const m = Math.round(Math.abs(a) * 60); return `${Math.floor(m / 60)}°${String(m % 60).padStart(2, '0')}′`; };
+  return t('hud.coords', {
+    lat: dm(lat), ns: t(lat >= 0 ? 'dir.n' : 'dir.s'),
+    lon: dm(lon), ew: t(lon >= 0 ? 'dir.e' : 'dir.w'),
+  });
+}
 
 /** The world map: tiles as Phaser textures under a screen-space overlay. */
 export class MapScene extends Phaser.Scene {
@@ -189,6 +199,8 @@ export class MapScene extends Phaser.Scene {
     const dt = Math.min(0.05, delta / 1000), s = this.state, v = this.view;
     const events: TravelEvent[] = [];
     const walking = advance(s, dt, events);
+    // crossing longitude 180°: the explorer comes back around the planet, the view follows
+    v.x += wrapPosition(s);
     for (const e of events) this.onEvent(e);
     this.saveTimer -= delta;
     // Save on a timer, and right away when a walk ends or something was discovered.
@@ -208,6 +220,7 @@ export class MapScene extends Phaser.Scene {
     if (this.hudTimer <= 0) {
       this.hudTimer = 250;
       const n = s.named.length;
+      this.hud.setCoords(formatCoords(latitude(s.y), longitude(s.x)));
       this.hud.setCounters(
         tn('hud.leagues', s.leagues, { n: num(s.leagues, 2) }),
         n ? tn('hud.places', n, { n, cells: num(s.seen.size) }) : t('hud.places.none'),

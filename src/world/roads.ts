@@ -30,7 +30,7 @@ const linkMemo = new Map<string, Settlement[]>();
  * As in the proto, but a link also needs an actual road around mountains and water (roadPath).
  */
 export function neighbours(b: Settlement): Settlement[] {
-  const known = linkMemo.get(b.key);
+  const known = linkMemo.get(b.rkey);
   if (known) return known;
   const cands: [number, Settlement][] = [];
   for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) {
@@ -53,7 +53,7 @@ export function neighbours(b: Settlement): Settlement[] {
     // ...and ours: there must be an actual road, around mountains and water
     if (!sea && roadPath(b, o)) out.push(o);
   }
-  linkMemo.set(b.key, out);
+  linkMemo.set(b.rkey, out);
   return out;
 }
 
@@ -63,7 +63,7 @@ export const firstNeighbour = (b: Settlement): Settlement | null => neighbours(b
 export function roadCurve(a: Settlement, b: Settlement): [Settlement, Settlement, Point] {
   const [p, q] = a.key < b.key ? [a, b] : [b, a];
   const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2, nx = -(q.y - p.y), ny = q.x - p.x;
-  const k = (hash2(p.ti * 3 + q.ti, p.tj * 5 + q.tj) - 0.5) * 0.35;
+  const k = (hash2(p.wi * 3 + q.wi, p.tj * 5 + q.tj) - 0.5) * 0.35;
   return [p, q, { x: mx + nx * k, y: my + ny * k }];
 }
 
@@ -91,7 +91,7 @@ const pathMemo = new Map<string, Point[] | null>();
  */
 export function roadPath(a: Settlement, b: Settlement): Point[] | null {
   const [p, q, c] = roadCurve(a, b);
-  const key = p.key + '|' + q.key;
+  const key = p.rkey + '|' + q.rkey;
   const known = pathMemo.get(key);
   if (known !== undefined) return known;
   let out: Point[] | null = [];
@@ -230,7 +230,7 @@ export function roadsAround(ti: number, tj: number, R: number): Road[] {
     const b = settlement(ti + di, tj + dj);
     if (!b) continue;
     for (const v of neighbours(b)) {
-      const key = b.key < v.key ? b.key + '|' + v.key : v.key + '|' + b.key;
+      const key = b.key < v.key ? b.rkey + '|' + v.rkey : v.rkey + '|' + b.rkey;
       if (seen.has(key)) continue;
       seen.add(key);
       let r = roadMemo.get(key);

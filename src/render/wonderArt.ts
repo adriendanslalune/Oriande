@@ -5,7 +5,10 @@ import type { WonderKind } from '../world/wonders';
 import type { LandmarkKind } from '../world/landmarks';
 
 const wonderUrls = import.meta.glob('../assets/wonders/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-const landmarkUrls = import.meta.glob('../assets/landmarks/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+// The strange places stay pictograms on the map (asked by Adrien: they are frequent, a rich
+// picture each time would be too repetitive). Their illustrations in src/assets/landmarks are
+// kept for the discovery card, and not loaded here.
+const landmarkUrls: Record<string, string> = {};
 const images = new Map<WonderKind, HTMLImageElement>();
 const landmarkImages = new Map<LandmarkKind, HTMLImageElement>();
 

@@ -162,8 +162,10 @@ Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand 
 - **Légende de la carte** : un cartouche ouvrable d'un tap.
 - **Illustrations** générées (voir `docs/illustrations.md`) : les 6 merveilles sont
   branchées (`src/assets/wonders/*.webp`, `render/wonderArt.ts`, dessinées par l'overlay).
-  Les 8 lieux étranges aussi (`src/assets/landmarks/*.webp`, 384 px).
-  Restent les fiches et les vignettes de ville. Traitement d'une
+  Les 8 lieux étranges restent des **pictogrammes gravés** sur la carte (choix d'Adrien :
+  ils sont fréquents, une illustration riche serait répétitive) ; leurs illustrations
+  (`src/assets/landmarks/*.webp`, non chargées) serviront à la fiche de découverte.
+  Restent les fiches de merveilles et les vignettes de ville. Traitement d'une
   image reçue : alpha nettoyé, bord érodé de 3 px (liserés), saturation × 0,85, recadrée,
   512 px, WebP qualité 86.
 

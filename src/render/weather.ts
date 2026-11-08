@@ -4,6 +4,8 @@
 import { airShift, weatherAt, sky, worldTime, type Weather } from '../world/weather';
 import { CIRCUMFERENCE, wrapIndex } from '../world/planet';
 import { townWindows } from './towns';
+import { isGL } from './glPainter';
+import { DPR } from '../ui/screen';
 import { settlement } from '../world/settlements';
 import { TILE } from '../world/terrain';
 import { hash2 } from '../world/noise';
@@ -61,7 +63,8 @@ export class WeatherLayer {
     // precipitation: drops placed on a fixed pseudo-random lattice of the screen, kept only
     // where it rains / snows / blows; all fall along the wind. Each kind is one batched path.
     const c = this.centre, wdx = c ? c.wind.dx : 0, sg = Math.sign(wdx || 1);
-    const rain = new Path2D(), snow = new Path2D(), sand = new Path2D();
+    const P = (): Path2D => (isGL(ctx) ? ctx.newPath() : new Path2D()) as unknown as Path2D;
+    const rain = P(), snow = P(), sand = P();
     let any = false;
     const N = 20; // lattice pitch, px
     for (let gy = -1; gy < v.H / N + 1; gy++) for (let gx = -1; gx < v.W / N + 1; gx++) {
@@ -163,21 +166,52 @@ export class WeatherLayer {
 
   /** The outline of a cloud on screen (puffs and flat base), shifted by (dx, dy) world units. */
   private path(c: Cloud, v: View, screen: Screen, dx: number, dy: number): Path2D {
-    const z = v.zoom;
-    {
-      const p = new Path2D(), [sx, sy] = screen(c.x + dx, c.y + dy);
-      for (const [px, py, pr] of c.puffs) { p.moveTo(sx + (px + pr) * z, sy + py * z); p.arc(sx + px * z, sy + py * z, pr * z, 0, Math.PI * 2); }
-      const xs = c.puffs.map(([px, , pr]) => [px - pr * 0.8, px + pr * 0.8]).flat();
-      p.rect(sx + Math.min(...xs) * z, sy - c.r * 0.05 * z, (Math.max(...xs) - Math.min(...xs)) * z, c.r * 0.28 * z);
-      return p;
-    }
+    const [sx, sy] = screen(c.x + dx, c.y + dy);
+    return cloudPath(c, v.zoom, sx, sy);
   }
 
   /** The clouds' shadows on the ground, cast to the south-east: seen at every zoom. */
   private drawShadows(ctx: CanvasRenderingContext2D, v: View, screen: Screen, seen: (x: number, y: number) => boolean): void {
+    if (isGL(ctx)) { // on the GPU: each shadow is a picture, drawn once
+      for (const c of this.clouds) {
+        if (!seen(c.x + 18, c.y + 30)) continue;
+        const [sx, sy] = screen(c.x + 18, c.y + 30);
+        this.lay(ctx, this.picture(c, v.zoom, true, 0), sx, sy, v.zoom, 1);
+      }
+      return;
+    }
     ctx.save();
     ctx.fillStyle = 'rgba(40,40,60,.13)';
     for (const c of this.clouds) if (seen(c.x + 18, c.y + 30)) ctx.fill(this.path(c, v, screen, 18, 30));
+    ctx.restore();
+  }
+
+  /** Cloud and shadow pictures for the GPU, by shape, zoom step and darkness of the night. */
+  private readonly pictures = new Map<string, { canvas: HTMLCanvasElement; R: number; zb: number }>();
+  private picture(c: Cloud, z: number, shadow: boolean, night: number): { canvas: HTMLCanvasElement; R: number; zb: number } {
+    const zb = Math.max(0.05, Math.round(z * 20) / 20), nb = Math.round(night * 10) / 10, k = DPR;
+    const key = (shadow ? 's' : 'c' + nb + c.dark) + '|' + zb + '|' + c.r.toFixed(1) + c.puffs.map((p) => p.map((n) => n.toFixed(1)).join(',')).join(';');
+    let pic = this.pictures.get(key);
+    if (!pic) {
+      if (this.pictures.size > 300) this.pictures.clear();
+      const R = c.r * 2.2, canvas = document.createElement('canvas');
+      canvas.width = canvas.height = Math.max(2, Math.ceil(R * 2 * zb * k));
+      const g = canvas.getContext('2d')!;
+      g.scale(k, k);
+      const o = R * zb;
+      if (shadow) { g.fillStyle = 'rgba(40,40,60,.13)'; g.fill(cloudPath(c, zb, o, o)); }
+      else paintCloud(g, c, zb, o, o, nb);
+      pic = { canvas, R, zb };
+      this.pictures.set(key, pic);
+    }
+    return pic;
+  }
+
+  /** Lay a cloud picture down centred on (sx, sy), at zoom z. */
+  private lay(ctx: CanvasRenderingContext2D, pic: { canvas: HTMLCanvasElement; R: number }, sx: number, sy: number, z: number, alpha: number): void {
+    const size = pic.R * 2 * z;
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.drawImage(pic.canvas, sx - pic.R * z, sy - pic.R * z, size, size);
     ctx.restore();
   }
 
@@ -190,7 +224,14 @@ export class WeatherLayer {
     const fade = Math.max(0, Math.min(1, (1.2 - v.zoom) / 0.4)); // none at zoom 1.2+ (the default is 1.3), full at 0.8-
     if (fade <= 0 || !this.clouds.length) return;
     const z = v.zoom, night = sky(v.x).darkness;
-    const tint = (c: number[]): string => c.map((n, k) => Math.round(n + ([30, 48, 100][k] - n) * night * 0.7)).join(',');
+    if (isGL(ctx)) { // on the GPU: each cloud is a picture, drawn once (its own outlines never show through)
+      for (const c of this.clouds) {
+        if (!seen(c.x, c.y)) continue;
+        const [sx, sy] = screen(c.x, c.y);
+        this.lay(ctx, this.picture(c, z, false, night), sx, sy, z, fade);
+      }
+      return;
+    }
     // while fading, draw them opaque on a layer, then lay the layer down at once: otherwise the
     // inner outlines would show through
     const out = ctx;
@@ -200,20 +241,10 @@ export class WeatherLayer {
       ctx = this.lg;
     }
     ctx.save();
-    // ink outline (strokes first, then fills hide the inner ones), flat base, shading
     for (const c of this.clouds) {
       if (!seen(c.x, c.y)) continue;
-      const p = this.path(c, v, screen, 0, 0), [sx, sy] = screen(c.x, c.y), base = sy + c.r * 0.23 * z;
-      ctx.save();
-      ctx.strokeStyle = `rgba(${tint([70, 74, 92])},.75)`; ctx.lineWidth = Math.max(0.8, 1.1 * z); ctx.stroke(p);
-      const shade = 252 - c.dark * 120;
-      ctx.fillStyle = `rgba(${tint([shade, shade, shade + 2 - c.dark * 10])},.95)`; ctx.fill(p);
-      ctx.clip(p); // a pale blue-grey underside
-      ctx.fillStyle = `rgba(${tint([170 - c.dark * 60, 182 - c.dark * 60, 204 - c.dark * 60])},.55)`;
-      ctx.fillRect(sx - c.r * 2 * z, base - c.r * 0.22 * z, c.r * 4 * z, c.r * 0.5 * z);
-      ctx.strokeStyle = 'rgba(70,74,92,.35)'; ctx.lineWidth = 0.6; // a couple of curls on the puffs
-      for (const [px, py, pr] of c.puffs.slice(1, -1)) { ctx.beginPath(); ctx.arc(sx + px * z, sy + py * z + pr * 0.15 * z, pr * 0.55 * z, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke(); }
-      ctx.restore();
+      const [sx, sy] = screen(c.x, c.y);
+      paintCloud(ctx, c, z, sx, sy, night);
     }
     ctx.restore();
     if (fade < 1) {
@@ -280,4 +311,29 @@ export class WeatherLayer {
       }
     }
   }
+}
+
+/** The outline of a cloud (puffs and flat base) around (sx, sy), at zoom z. */
+function cloudPath(c: Cloud, z: number, sx: number, sy: number): Path2D {
+  const p = new Path2D();
+  for (const [px, py, pr] of c.puffs) { p.moveTo(sx + (px + pr) * z, sy + py * z); p.arc(sx + px * z, sy + py * z, pr * z, 0, Math.PI * 2); }
+  const xs = c.puffs.map(([px, , pr]) => [px - pr * 0.8, px + pr * 0.8]).flat();
+  p.rect(sx + Math.min(...xs) * z, sy - c.r * 0.05 * z, (Math.max(...xs) - Math.min(...xs)) * z, c.r * 0.28 * z);
+  return p;
+}
+
+/** One cloud in clean lines: ink outline (strokes first, then fills hide the inner ones), flat base, shading. */
+function paintCloud(ctx: CanvasRenderingContext2D, c: Cloud, z: number, sx: number, sy: number, night: number): void {
+  const tint = (col: number[]): string => col.map((n, k) => Math.round(n + ([30, 48, 100][k] - n) * night * 0.7)).join(',');
+  const p = cloudPath(c, z, sx, sy), base = sy + c.r * 0.23 * z;
+  ctx.save();
+  ctx.strokeStyle = `rgba(${tint([70, 74, 92])},.75)`; ctx.lineWidth = Math.max(0.8, 1.1 * z); ctx.stroke(p);
+  const shade = 252 - c.dark * 120;
+  ctx.fillStyle = `rgba(${tint([shade, shade, shade + 2 - c.dark * 10])},.95)`; ctx.fill(p);
+  ctx.clip(p); // a pale blue-grey underside
+  ctx.fillStyle = `rgba(${tint([170 - c.dark * 60, 182 - c.dark * 60, 204 - c.dark * 60])},.55)`;
+  ctx.fillRect(sx - c.r * 2 * z, base - c.r * 0.22 * z, c.r * 4 * z, c.r * 0.5 * z);
+  ctx.strokeStyle = 'rgba(70,74,92,.35)'; ctx.lineWidth = 0.6; // a couple of curls on the puffs
+  for (const [px, py, pr] of c.puffs.slice(1, -1)) { ctx.beginPath(); ctx.arc(sx + px * z, sy + py * z + pr * 0.15 * z, pr * 0.55 * z, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke(); }
+  ctx.restore();
 }

@@ -18,9 +18,10 @@ setLang(getLang());
 // The canvas is rendered at device-pixel resolution and shown at CSS size (zoom = 1/DPR),
 // so ink lines and text stay crisp on phone screens.
 const game = new Phaser.Game({
-  // Canvas renderer: the map is canvas-drawn tiles plus a full-screen overlay redrawn every
-  // frame; with WebGL that overlay would be re-uploaded as a texture each frame.
-  type: Phaser.CANVAS,
+  // WebGL: the GPU lays down the tiles and draws the overlay (render/glPainter.ts), so big
+  // screens and slower browsers stay fluid. Without WebGL (or with ?renderer=canvas), the
+  // canvas renderer and the same drawing code on a 2D overlay.
+  type: /[?&]renderer=canvas\b/.test(location.search) ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
   transparent: true, // the page's paper grain shows through (index.html)
   width: window.innerWidth * DPR,

@@ -16,6 +16,7 @@ import type { GameState } from '../game/state';
 import type { TileArt } from '../render/tiles';
 import { TileSource, type ReadyTile } from '../render/tileSource';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
+import { GLPainter } from '../render/glPainter';
 import { Hud } from '../ui/hud';
 import { DPR, DPR_FORCED, setDPR } from '../ui/screen';
 
@@ -75,7 +76,9 @@ export class MapScene extends Phaser.Scene {
   private now = 0;
   private tileLayer!: Phaser.GameObjects.Layer;
   private overlay!: Overlay;
-  private overlayTexture!: Phaser.Textures.CanvasTexture;
+  private overlayTexture?: Phaser.Textures.CanvasTexture;
+  /** the GPU painter of the overlay (WebGL), or none (canvas renderer) */
+  private painter?: GLPainter;
   private hud!: Hud;
   private hudTimer = 0;
   private saveTimer = SAVE_EVERY;
@@ -97,8 +100,14 @@ export class MapScene extends Phaser.Scene {
 
     this.tileLayer = this.add.layer();
     this.tileSource = new TileSource((t) => this.tileReady(t));
-    this.overlayTexture = this.textures.createCanvas('overlay', this.scale.width, this.scale.height)!;
-    this.overlay = new Overlay(this.overlayTexture.context);
+    if (this.game.renderer.type === Phaser.WEBGL) {
+      // the overlay drawn by the GPU, in its own layer above the tiles
+      this.painter = new GLPainter(this, this.add.layer(), DPR);
+      this.overlay = new Overlay(this.painter as unknown as CanvasRenderingContext2D);
+    } else {
+      this.overlayTexture = this.textures.createCanvas('overlay', this.scale.width, this.scale.height)!;
+      this.overlay = new Overlay(this.overlayTexture.context);
+    }
     this.overlay.resize(W, H);
     this.add.image(0, 0, 'overlay').setOrigin(0, 0);
     // The camera never moves or zooms: tiles are placed in screen space each frame, snapped to
@@ -130,7 +139,7 @@ export class MapScene extends Phaser.Scene {
     this.view.W = w / DPR;
     this.view.H = h / DPR;
     this.cameras.main.setSize(w, h);
-    this.overlayTexture.setSize(w, h);
+    this.overlayTexture?.setSize(w, h);
     this.overlay.resize(this.view.W, this.view.H);
   }
 
@@ -380,9 +389,15 @@ export class MapScene extends Phaser.Scene {
 
     this.adaptQuality(time, delta);
     const visible = this.syncTiles();
-    this.overlayTexture.context.setTransform(DPR, 0, 0, DPR, 0, 0);
-    this.overlay.draw(s, v, visible, walking, time, dt);
-    this.overlayTexture.refresh();
+    if (this.painter) {
+      this.painter.setBase(DPR);
+      this.painter.begin();
+      this.overlay.draw(s, v, visible, walking, time, dt);
+    } else {
+      this.overlayTexture!.context.setTransform(DPR, 0, 0, DPR, 0, 0);
+      this.overlay.draw(s, v, visible, walking, time, dt);
+      this.overlayTexture!.refresh();
+    }
 
     this.hudTimer -= delta;
     if (this.hudTimer <= 0) {

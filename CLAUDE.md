@@ -51,6 +51,15 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Échelle des sauvegardes : v3 ; les sauvegardes v1/v2 (monde plat) sont mises de côté.
 
 Règles qui restent :
+0. **Rendu WebGL** (demande d'Adrien, pour tourner comme un vrai jeu) : Phaser en `AUTO` (WebGL, repli
+   Canvas si absent ; `?renderer=canvas` force l'ancien rendu). Les tuiles sont des textures GPU ;
+   l'overlay garde son code de dessin Canvas 2D mais le dessine via `render/glPainter.ts`, un faux
+   contexte 2D qui envoie traits et formes à des `Graphics` WebGL, textes et images à des textures
+   en cache, dégradés à un halo teinté. La brume et la nuit restent peintes en 2D au quart de
+   résolution (petite texture remise à jour à chaque image) ; nuages et ombres sont des images
+   dessinées une fois. Pas de `clip` ni de `globalCompositeOperation` sur le contexte de l'overlay
+   (seulement sur ses propres petits canvas). Mesure sans GPU : le dessin de l'overlay passe de
+   ~2 000 à ~36 ms sur 5 s.
 1. Rendu par tuiles et brume. Les tuiles sont dessinées **hors du fil principal** par 1 à 3 Web
    Workers (`render/tileWorker.ts`, `render/tileSource.ts`, OffscreenCanvas ; repli sur le fil
    principal sinon), la plus proche d'abord, plus un anneau d'avance autour de la vue. Trois

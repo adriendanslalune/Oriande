@@ -12,6 +12,7 @@ import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, type Animal, type Look } from '../world/fauna';
 import { drawAnimal, eyesOf } from './animals';
 import { DPR } from '../ui/screen';
+import { isGL } from './glPainter';
 import { worldTime } from '../world/weather';
 import { SEA_CELL, seaLabel } from '../world/names';
 import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
@@ -68,7 +69,10 @@ export class Overlay {
   /** altitude of each seen fog cell, for the atlas */
   private readonly atlasCache = new Map<string, number>();
 
-  constructor(private readonly ctx: CanvasRenderingContext2D) {}
+  constructor(private readonly ctx: CanvasRenderingContext2D) {
+    // on the GPU, the fog canvas is a texture uploaded again each frame (it is small)
+    if (isGL(ctx)) ctx.markDynamic(this.fog);
+  }
 
   resize(W: number, H: number): void {
     this.fog.width = Math.ceil(W / 4);

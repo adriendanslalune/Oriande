@@ -161,7 +161,7 @@ Subject: a maelstrom seen from above: the sea slowly turning on itself in a wide
 waves and foam, darker at its centre. The whole image is water, fading out at the edges.
 ```
 
-### Monuments — 🆕 à faire (`src/assets/monuments/`)
+### Monuments — ✅ reçus et branchés dans le jeu (`src/assets/monuments/`)
 
 Les grandes œuvres des Oriandais, demandées par Adrien : plus fréquentes que les merveilles,
 plus rares que les lieux étranges, vues de loin. **Même conversation et même bloc de style que

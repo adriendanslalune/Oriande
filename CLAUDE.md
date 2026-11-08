@@ -79,8 +79,8 @@ Règles qui restent :
    pictogrammes dans `render/icons.ts` et `render/icons-more.ts`. **Monuments**
    (`world/monuments.ts`, 8 types : colosse, pyramide, temple, sphinx, sanctuaire, arc,
    amphithéâtre, aqueduc), au plus un par cellule de 4×4 tuiles (CHANCE = 0,3), selon le climat,
-   vus à 350, gravés en attendant les images ChatGPT (`docs/illustrations.md`,
-   `src/assets/monuments/*.webp`, branchées automatiquement) ;
+   vus à 350, **illustrés** (images ChatGPT reçues, `src/assets/monuments/*.webp`, dessinées par
+   l'overlay ; la gravure de `render/monuments.ts` reste en repli) ;
    **merveilles** illustrées (`world/wonders.ts`, 6 types), au plus une par cellule de
    8×8 tuiles (CHANCE = 0,45), repérées à 500 unités, fiche prioritaire.
 5. Pas de traversée d'eau en phase 1 : le **tour du monde** viendra avec bateau/montgolfière.

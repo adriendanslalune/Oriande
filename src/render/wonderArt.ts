@@ -29,7 +29,7 @@ export const WONDER_ART: Record<WonderKind, { width: number; ground: number }> =
 
 /** Same for the monuments. */
 export const MONUMENT_ART: Record<MonumentKind, { width: number; ground: number }> = {
-  colosse: { width: 46, ground: 0.95 },
+  colosse: { width: 40, ground: 0.96 },
   pyramide: { width: 64, ground: 0.9 },
   temple: { width: 58, ground: 0.9 },
   sphinx: { width: 62, ground: 0.9 },

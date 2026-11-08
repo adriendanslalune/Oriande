@@ -107,7 +107,7 @@ itself, tiny luminous specks floating around it, gentle rays. Its roots grip the
 A few small animals sleep peacefully at its foot. Sacred and quiet.
 ```
 
-### Lieux étranges — `public/assets/map/landmark-<nom>.png`
+### Lieux étranges — ✅ reçus et branchés dans le jeu (`src/assets/landmarks/`)
 
 **landmark-ruines.png**
 ```

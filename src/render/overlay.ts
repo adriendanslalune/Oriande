@@ -13,7 +13,7 @@ import type { GameState } from '../game/state';
 import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
 import { cityRadius } from './towns';
-import { WONDER_ART, wonderImage } from './wonderArt';
+import { LANDMARK_ART, WONDER_ART, landmarkImage, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
 
 /** Below this zoom the map turns into the atlas overview. */
@@ -62,13 +62,21 @@ export class Overlay {
     const [ex, ey] = screen(s.x, s.y);
     ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
 
-    // Wonder illustrations, at full resolution, back to front; the fog comes over them.
-    for (const w of wondersNear(ax, ay, bx, by, 120).sort((a, b) => a.y - b.y)) {
+    // Illustrations of wonders and strange places, at full resolution, back to front; the fog
+    // comes over them.
+    const pictures: { x: number; y: number; img: HTMLImageElement; width: number; ground: number }[] = [];
+    for (const w of wondersNear(ax, ay, bx, by, 120)) {
       const img = wonderImage(w.kind);
-      if (!img) continue;
-      const art = WONDER_ART[w.kind], width = art.width * v.zoom, height = width * img.height / img.width;
-      const [x, y] = screen(w.x, w.y);
-      ctx.drawImage(img, x - width / 2, y - height * art.ground, width, height);
+      if (img) pictures.push({ x: w.x, y: w.y, img, ...WONDER_ART[w.kind] });
+    }
+    for (let tj = Math.floor(ay / TILE) - 1; tj <= Math.floor(by / TILE) + 1; tj++) for (let ti = Math.floor(ax / TILE) - 1; ti <= Math.floor(bx / TILE) + 1; ti++) {
+      const L = landmark(ti, tj), img = L && landmarkImage(L.kind);
+      if (L && img) pictures.push({ x: L.x, y: L.y, img, ...LANDMARK_ART[L.kind] });
+    }
+    pictures.sort((a, b) => a.y - b.y);
+    for (const p of pictures) {
+      const width = p.width * v.zoom, height = width * p.img.height / p.img.width, [x, y] = screen(p.x, p.y);
+      ctx.drawImage(p.img, x - width / 2, y - height * p.ground, width, height);
     }
 
     this.animate(s, v, screen, world, tiles, now, dt);

@@ -12,7 +12,7 @@ import { drawLandmarkIcon } from './icons';
 import { drawHills, drawMountains } from './relief';
 import { clearing, drawTown, drawTownGrounds } from './towns';
 import { drawWonder } from './wonders';
-import { wonderImage } from './wonderArt';
+import { landmarkImage, wonderImage } from './wonderArt';
 import { WONDER_CLEARING, wondersNear } from '../world/wonders';
 import { INK } from './palette';
 
@@ -185,7 +185,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
 
   // The strange place of this tile, if any.
   const L = landmark(ti, tj);
-  if (L) drawLandmarkIcon(g, L.kind, L.x - x0, L.y - y0);
+  if (L && !landmarkImage(L.kind)) drawLandmarkIcon(g, L.kind, L.x - x0, L.y - y0); // else drawn by the overlay
 
   // Roads, then settlements (those of neighbouring tiles may spill onto this one).
   g.strokeStyle = INK;

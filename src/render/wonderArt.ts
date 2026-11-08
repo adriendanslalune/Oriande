@@ -2,9 +2,12 @@
 // over the tiles at full resolution by the overlay; a wonder without a loaded picture keeps its
 // engraved drawing in the tiles.
 import type { WonderKind } from '../world/wonders';
+import type { LandmarkKind } from '../world/landmarks';
 
-const urls = import.meta.glob('../assets/wonders/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const wonderUrls = import.meta.glob('../assets/wonders/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const landmarkUrls = import.meta.glob('../assets/landmarks/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const images = new Map<WonderKind, HTMLImageElement>();
+const landmarkImages = new Map<LandmarkKind, HTMLImageElement>();
 
 /** Width of each picture on the map, world units, and where its ground line sits (0 = top, 1 = bottom). */
 export const WONDER_ART: Record<WonderKind, { width: number; ground: number }> = {
@@ -16,17 +19,36 @@ export const WONDER_ART: Record<WonderKind, { width: number; ground: number }> =
   arbre: { width: 84, ground: 0.93 },
 };
 
+/** Same for the strange places: width on the map (world units) and ground line. */
+export const LANDMARK_ART: Record<LandmarkKind, { width: number; ground: number }> = {
+  ruines: { width: 40, ground: 0.92 },
+  squelette: { width: 46, ground: 0.85 },
+  champignons: { width: 36, ground: 0.93 },
+  cratere: { width: 42, ground: 0.6 },
+  tour: { width: 25, ground: 0.95 },
+  geyser: { width: 40, ground: 0.85 },
+  epave: { width: 44, ground: 0.7 },
+  tourbillon: { width: 46, ground: 0.5 },
+};
+
+function loadAll<K extends string>(urls: Record<string, string>, into: Map<K, HTMLImageElement>): Promise<void>[] {
+  return Object.entries(urls).map(([path, url]) => new Promise<void>((done) => {
+    const kind = path.split('/').pop()!.replace('.webp', '') as K;
+    const img = new Image();
+    img.onload = () => { into.set(kind, img); done(); };
+    img.onerror = () => done();
+    img.src = url;
+  }));
+}
+
 /** Load every picture; resolves when all have loaded or failed (never rejects). */
 export function loadWonderArt(): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
-  return Promise.all(Object.entries(urls).map(([path, url]) => new Promise<void>((done) => {
-    const kind = path.split('/').pop()!.replace('.webp', '') as WonderKind;
-    const img = new Image();
-    img.onload = () => { images.set(kind, img); done(); };
-    img.onerror = () => done();
-    img.src = url;
-  }))).then(() => undefined);
+  return Promise.all([...loadAll(wonderUrls, images), ...loadAll(landmarkUrls, landmarkImages)]).then(() => undefined);
 }
+
+/** The loaded picture of a kind of strange place, if any. */
+export const landmarkImage = (kind: LandmarkKind): HTMLImageElement | undefined => landmarkImages.get(kind);
 
 /** The loaded picture of a kind of wonder, if any. */
 export const wonderImage = (kind: WonderKind): HTMLImageElement | undefined => images.get(kind);

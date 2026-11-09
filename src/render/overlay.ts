@@ -33,6 +33,32 @@ import { INK, PAPER } from './palette';
 /** Durations of the fight's animations, ms: the explorer's swing, the animal's lunge, a flinch. */
 const STRIKE_MS = 380, LUNGE_MS = 420, HURT_MS = 220;
 
+type Attack = 'bite' | 'swipe' | 'ram' | 'kick';
+
+/**
+ * An animal's blow at progress p in [0, 1) (p < 0: no blow): how far it moves at the explorer
+ * (dx, screen pixels at zoom 1), how it tilts (turn, radians, positive = head down towards the
+ * explorer) and whether it has turned its back (a kick).
+ *  - bite: a quick low dart, the head dipping, jaws first;
+ *  - swipe: it rears up on its hind legs and comes down with a paw (bears);
+ *  - ram: it draws back, then charges head down (boar, rhino, bison...);
+ *  - kick: it turns its back and lashes out, rump up (giraffe, moose, ostrich).
+ */
+function attackMotion(kind: Attack, p: number): { dx: number; turn: number; away: boolean } {
+  if (p < 0) return { dx: 0, turn: 0, away: false };
+  const bell = Math.sin(Math.PI * p);
+  switch (kind) {
+    case 'swipe': { const up = Math.sin(Math.PI * Math.min(1, p / 0.7)); return { dx: 3 * bell + (p > 0.5 ? 4 * bell : 0), turn: -0.55 * up, away: false }; }
+    case 'ram': {
+      if (p < 0.35) { const b = p / 0.35; return { dx: -6 * Math.sin(b * Math.PI / 2), turn: 0.05 * b, away: false }; }
+      const u = (p - 0.35) / 0.65, thrust = Math.sin(Math.PI * Math.min(1, u * 1.6)) ;
+      return { dx: -6 * (1 - Math.min(1, u * 3)) + 15 * thrust, turn: 0.16 * thrust, away: false };
+    }
+    case 'kick': { const away = p > 0.08 && p < 0.92; return { dx: 4 * bell, turn: away ? -0.3 * Math.sin(Math.PI * (p - 0.08) / 0.84) : 0, away }; }
+    default: return { dx: 11 * bell, turn: 0.14 * bell, away: false };
+  }
+}
+
 /** Below this zoom the map turns into the atlas overview. */
 export const Z_ATLAS = 0.3;
 
@@ -227,10 +253,13 @@ export class Overlay {
       const flees = sp.danger === 0 || (sp.danger === 1 && !f.hunt);
       const dir = (flees ? f.x - s.x : s.x - f.x) >= 0 ? 1 : -1;
       const moving = dist > CONTACT || flees, sc = 2 * v.zoom / START_ZOOM, toward = s.x >= f.x ? 1 : -1;
-      // its blow: a lunge at the explorer, rearing a little; and its flinch when struck
-      const lp = (now - this.blows.foe) / LUNGE_MS, lunge = lp >= 0 && lp < 1 ? Math.sin(Math.PI * lp) : 0;
+      // its blow, in its own manner (see `attackMotion`); and its flinch when struck
+      const attack = this.attackKind = sp.attack ?? 'bite';
+      const lp = (now - this.blows.foe) / LUNGE_MS, active = lp >= 0 && lp < 1, lunge = active ? Math.sin(Math.PI * lp) : 0;
       const rp = (now - this.blows.struck) / HURT_MS, recoil = rp >= 0 && rp < 1 ? Math.sin(Math.PI * rp) : 0;
-      const ox = (toward * lunge * 9 - toward * recoil * 4) * v.zoom, rear = -toward * lunge * 0.28;
+      const m = attackMotion(attack, active ? lp : -1);
+      const ox = (toward * m.dx - toward * recoil * 4) * v.zoom, rear = toward * m.turn;
+      const facing = m.away ? -dir : dir;
       // a charge raises the dust behind it
       if (!flees && dist > CONTACT * 1.2) {
         ctx.fillStyle = 'rgba(150,130,100,.35)';
@@ -242,7 +271,7 @@ export class Overlay {
         ctx.globalAlpha = 1;
       }
       ctx.save(); ctx.translate(fx + ox, fy); ctx.rotate(rear);
-      drawAnimal(ctx, sp.look, { x: f.x, y: f.y, dir, pace: moving || lunge > 0.2 ? 1 : 0, phase: 0.3 }, 0, 0, sc, now / 1000, DPR, sky(f.x).darkness > 0.5);
+      drawAnimal(ctx, sp.look, { x: f.x, y: f.y, dir: facing, pace: moving || lunge > 0.2 ? 1 : 0, phase: 0.3 }, 0, 0, sc, now / 1000, DPR, sky(f.x).darkness > 0.5);
       ctx.restore();
       // the staff's impact on it: a burst of ink strokes
       const ip = (now - this.blows.struck) / 260;
@@ -253,7 +282,7 @@ export class Overlay {
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
     // the animal's bite or claws on the explorer: red slashes, for a moment
     const cp = (now - this.blows.hurt) / 320;
-    if (cp >= 0 && cp < 1) this.claws(ex, ey - 22 * v.zoom / START_ZOOM, cp, v.zoom);
+    if (cp >= 0 && cp < 1) this.wound(this.attackKind, ex, ey - 22 * v.zoom / START_ZOOM, cp, v.zoom);
     if (f) this.lifeBar(ex, ey - 40 * v.zoom / START_ZOOM, s.hp / s.maxHp, 'you');
     this.drawFloats(screen, now);
     // the clouds pass over the explorer (they fade out as the view zooms in under them)
@@ -539,6 +568,30 @@ export class Overlay {
     ctx.beginPath();
     for (let k = 0; k < 7; k++) { const a = k * 0.9 + 0.3; ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); }
     ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  /** How the last fighting animal strikes (for the mark its blow leaves). */
+  private attackKind: Attack = 'bite';
+
+  /** The mark of a blow on the explorer: claws, teeth, or the shock of a horn or a hoof. */
+  private wound(kind: Attack, x: number, y: number, p: number, z: number): void {
+    if (kind === 'swipe') { this.claws(x, y, p, z); return; }
+    const { ctx } = this, s = Math.min(1.4, z) * 1.2;
+    ctx.globalAlpha = p < 0.5 ? 1 : (1 - p) * 2; ctx.lineCap = 'round';
+    if (kind === 'bite') { // two rows of tooth marks closing on each other
+      const gap = (5 - Math.min(1, p * 3) * 2.5) * s;
+      ctx.fillStyle = 'rgb(168,40,32)';
+      for (const side of [-1, 1]) for (let k = -2; k <= 2; k++) {
+        ctx.beginPath(); ctx.ellipse(x + k * 2.6 * s, y + side * (gap + Math.abs(k) * 0.6 * s), 1 * s, 1.6 * s, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    } else { // a horn or a hoof: a star of shock, the explorer knocked
+      const r0 = (2 + p * 5) * s, r1 = r0 + (6 - p * 3) * s;
+      ctx.strokeStyle = 'rgb(168,40,32)'; ctx.lineWidth = 1.8; ctx.beginPath();
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 + 0.2; ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); }
+      ctx.stroke();
+      if (kind === 'kick') { ctx.fillStyle = 'rgba(42,36,29,.8)'; ctx.beginPath(); ctx.ellipse(x, y, 2.2 * s, 1.6 * s, 0, 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** Claw marks: three red slashes drawn across the explorer, then fading. */

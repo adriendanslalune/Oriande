@@ -76,6 +76,11 @@ function poseOf(L: Look, a: Animal, time: number): Pose {
   } else if (L.kind === 'owl') {
     const beat = Math.sin(time * 0.9) > 0.55; // glides, beats its wings now and then
     gait = beat ? Math.floor(((time * 3) % 1) * GAIT_FRAMES) / GAIT_FRAMES : 0.25;
+  } else if (L.kind === 'croc' || L.kind === 'penguin') {
+    if (moving) gait = Math.floor(((time * (L.kind === 'croc' ? 1.6 : 3)) % 1) * GAIT_FRAMES) / GAIT_FRAMES;
+  } else if (L.kind === 'ostrich') {
+    if (moving) gait = Math.floor(((time * 2.4) % 1) * GAIT_FRAMES) / GAIT_FRAMES;
+    else graze = q(clamp01((Math.sin(time * 0.6) - 0.3) * 3), LEVELS); // pecking
   } else if (L.kind === 'hedgehog') {
     if (moving) gait = Math.floor(((time * 3) % 1) * GAIT_FRAMES) / GAIT_FRAMES;
     else up = q(clamp01(Math.sin(time * 0.8)), 2); // sniffing
@@ -107,7 +112,7 @@ export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal,
   if (!c) {
     if (cache.size > 600) cache.clear();
     const size = Math.max(look.len, look.height ?? 0) * (flying ? 2.2 : 1) + (look.tailLen ?? 0) + (look.trunk ?? 0);
-    const half = size * 0.95 + 3, above = Math.max(look.len, look.height ?? 0) * (flying ? 1.6 : 1) + (look.antlers ?? 0) * 1.2 + (look.hornLen ?? 0) + (look.ears === 'flap' ? 0 : look.earSize ?? 0) + 3 + (look.kind === 'whale' ? look.len * 0.5 : 0);
+    const half = size * 0.95 + 3, above = Math.max(look.len, look.height ?? 0) * (flying ? 1.6 : 1) + (look.antlers ?? 0) * 1.2 + (look.hornLen ?? 0) + (look.ears === 'flap' ? 0 : look.earSize ?? 0) + 3 + (look.kind === 'whale' ? look.len * 0.5 : 0) + (look.kind === 'ostrich' ? look.len * 1.1 : 0) + (look.nosehorn ?? 0) + Math.max(0, (look.neck ?? 0) - 3) * 0.9;
     const k = s * dpr, img = document.createElement('canvas');
     img.width = Math.ceil(half * 2 * k); img.height = Math.ceil((above + 2) * k);
     const g = img.getContext('2d')!;
@@ -146,6 +151,9 @@ function render(ctx: CanvasRenderingContext2D, look: Look, p: Pose, scale: numbe
     case 'bat': bat(ctx, look, p, pen); break;
     case 'owl': owl(ctx, look, p, pen); break;
     case 'hedgehog': hedgehog(ctx, look, p, pen); break;
+    case 'croc': croc(ctx, look, p, pen); break;
+    case 'ostrich': ostrich(ctx, look, p, pen); break;
+    case 'penguin': penguin(ctx, look, p, pen); break;
     default: quad(ctx, look, p, pen);
   }
 }
@@ -319,6 +327,13 @@ function quad(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
     ctx.strokeStyle = 'rgb(244,236,214)'; ctx.lineWidth = column ? 0.55 : 0.32; ctx.stroke();
     ctx.restore();
   }
+  if (L.nosehorn) { // a rhinoceros: a great horn on the nose, a smaller one behind
+    for (const [f, k] of [[0.42, 0.45], [0.14, 1]] as [number, number][]) {
+      const N = L.nosehorn * k, b0 = add(add(nose, d, -hl * f), nrm, -hd * 0.05), w = N * 0.3;
+      const tip = add(add(b0, nrm, -N), d, -N * 0.25);
+      inked(ctx, pen, 'rgb(206,190,160)', () => { ctx.moveTo(...add(b0, d, -w)); ctx.quadraticCurveTo(...add(add(b0, nrm, -N * 0.6), d, w * 0.2), ...tip); ctx.quadraticCurveTo(...add(add(b0, nrm, -N * 0.4), d, w * 0.9), ...add(b0, d, w)); ctx.closePath(); });
+    }
+  }
   // ears
   const ear0 = add(add(poll, d, hl * 0.08), nrm, -hd * 0.05), es = L.earSize ?? 1;
   if (L.ears === 'flap') {
@@ -392,11 +407,12 @@ function antlers(ctx: CanvasRenderingContext2D, at: P, A: number, pen: Pen): voi
   }
 }
 
-function horns(ctx: CanvasRenderingContext2D, kind: 'lyre' | 'curve', at: P, H: number, down: number, pen: Pen): void {
+function horns(ctx: CanvasRenderingContext2D, kind: 'lyre' | 'curve' | 'straight', at: P, H: number, down: number, pen: Pen): void {
   ctx.save(); ctx.lineCap = 'round';
   const path = (): void => {
     ctx.beginPath(); ctx.moveTo(...at);
     if (kind === 'curve') ctx.bezierCurveTo(at[0] - H * 0.1, at[1] - H * 0.6, at[0] - H * 0.7, at[1] - H * 0.8, at[0] - H * 0.85, at[1] - H * 0.2); // the ibex's great scimitar
+    else if (kind === 'straight') ctx.quadraticCurveTo(at[0] - H * 0.5, at[1] - H * 0.55, at[0] - H * 0.75, at[1] - H * 0.75); // the oryx's long rapiers, swept back
     else ctx.bezierCurveTo(at[0] - H * 0.35, at[1] - H * 0.45, at[0] + H * 0.05, at[1] - H * 0.75, at[0] - H * 0.1 + Math.cos(down) * 0, at[1] - H); // the gazelle's lyre
   };
   const w = kind === 'curve' ? H * 0.13 : H * 0.07;
@@ -499,6 +515,96 @@ function seal(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
   inked(ctx, pen, wash(c, 0.8), () => ctx.ellipse(len * 0.18, -len * 0.04, len * 0.09, len * 0.035, 0.5, 0, Math.PI * 2));
   ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(len * 0.43, -len * 0.23 - lift, len * 0.022, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = pen.fine; ctx.beginPath(); ctx.moveTo(len * 0.5, -len * 0.18 - lift); ctx.lineTo(len * 0.6, -len * 0.2 - lift); ctx.moveTo(len * 0.5, -len * 0.17 - lift); ctx.lineTo(len * 0.59, -len * 0.14 - lift); ctx.stroke();
+  if (L.tusks) { // a walrus: two long ivory tusks hanging from the muzzle
+    const t0: P = [len * 0.47, -len * 0.16 - lift], T = L.tusks;
+    for (const [w, st] of [[0.36 + pen.line * 2, INK], [0.36, 'rgb(244,236,214)']] as [number, string][]) {
+      ctx.strokeStyle = st; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(...t0); ctx.quadraticCurveTo(t0[0] + T * 0.15, t0[1] + T * 0.6, t0[0] - T * 0.12, t0[1] + T); ctx.stroke();
+    }
+  }
+}
+
+// ---- by the water, the savanna, the ice ----
+
+/** A crocodile, low on its splayed legs, armoured back, long toothy snout, tail swinging. */
+function croc(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
+  const len = L.len, c = L.color, sw = p.moving ? Math.sin(p.gait * Math.PI * 2) : p.sway * 0.3;
+  const h = len * 0.12; // height of the back
+  shadow(ctx, 0, len * 0.5);
+  // the legs, short and splayed, walking two by two
+  const ph = p.gait * Math.PI * 2;
+  for (const [x, off, far] of [[len * 0.12, Math.PI, true], [-len * 0.2, 0, true], [len * 0.16, 0, false], [-len * 0.16, Math.PI, false]] as [number, number, boolean][]) {
+    const st = p.moving ? Math.sin(ph + off) * len * 0.04 : 0;
+    inked(ctx, pen, wash(c, far ? 0.7 : 0.9), () => { ctx.moveTo(x - len * 0.035, -h * 0.6); ctx.lineTo(x + st - len * 0.04, -h * 0.05); ctx.lineTo(x + st + len * 0.05, 0); ctx.lineTo(x + len * 0.035, -h * 0.6); ctx.closePath(); });
+  }
+  const tailTip: P = [-len * 0.62, -h * 0.15 + sw * len * 0.03];
+  const pts: P[] = [
+    tailTip, [-len * 0.35, -h * 0.75], [-len * 0.1, -h * 1.15], [len * 0.15, -h * 1.1], [len * 0.28, -h * 0.95], [len * 0.33, -h * 1.15],
+    [len * 0.5, -h * 0.75], [len * 0.62, -h * 0.55], [len * 0.63, -h * 0.25], [len * 0.45, -h * 0.15], [len * 0.25, -h * 0.25], [0, -h * 0.2], [-len * 0.35, -h * 0.25],
+  ];
+  ctx.beginPath(); smooth(ctx, pts); ctx.fillStyle = wash(c); ctx.fill();
+  ctx.save(); ctx.clip();
+  hatch(ctx, -len * 0.7, -h * 0.6, len * 0.7, 0, pen.gap * 0.8, pen.fine);
+  ctx.restore();
+  ctx.beginPath(); smooth(ctx, pts); ctx.strokeStyle = INK; ctx.lineWidth = pen.line; ctx.stroke();
+  // the scutes along the back and tail
+  ctx.fillStyle = INK;
+  for (let k = 0; k < 16; k++) { const u = k / 15, x = lerp(-len * 0.55, len * 0.22, u), y = lerp(-h * 0.35, -h * 1.15, Math.min(1, u * 1.6)); ctx.beginPath(); ctx.moveTo(x - len * 0.015, y + 0.05); ctx.lineTo(x, y - h * 0.22); ctx.lineTo(x + len * 0.015, y + 0.05); ctx.fill(); }
+  // the long mouth, its teeth, the eye on top of the head
+  ctx.lineWidth = pen.fine; ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(len * 0.62, -h * 0.4); ctx.quadraticCurveTo(len * 0.45, -h * 0.45, len * 0.3, -h * 0.55); ctx.stroke();
+  ctx.fillStyle = 'rgb(244,236,214)';
+  for (let k = 0; k < 5; k++) { const x = len * (0.36 + k * 0.05); ctx.beginPath(); ctx.moveTo(x, -h * 0.47); ctx.lineTo(x + len * 0.01, -h * 0.3); ctx.lineTo(x + len * 0.02, -h * 0.47); ctx.fill(); }
+  inked(ctx, pen, wash(c, 1.1), () => ctx.arc(len * 0.33, -h * 1.1, h * 0.28, 0, Math.PI * 2));
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(len * 0.34, -h * 1.12, h * 0.12, 0, Math.PI * 2); ctx.fill();
+}
+
+/** An ostrich: a round black body on two long bare legs, a long neck that bows to peck. */
+function ostrich(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
+  const len = L.len, c = L.color, legH = len * 0.95, skin = [214, 176, 150];
+  shadow(ctx, 0, len * 0.45);
+  const ph = p.gait * Math.PI * 2, bob = p.moving ? Math.abs(Math.sin(ph)) * len * 0.05 : 0;
+  const hip: P = [-len * 0.02, -legH - bob];
+  // two legs, the knee bending backwards (it is the ankle)
+  for (const [off, far] of [[Math.PI, true], [0, false]] as [number, boolean][]) {
+    const s = p.moving ? Math.sin(ph + off) : 0, lift = p.moving ? Math.max(0, Math.cos(ph + off)) * len * 0.15 : 0;
+    const foot: P = [s * len * 0.35, -lift], knee: P = [lerp(hip[0], foot[0], 0.5) - len * 0.12, -legH * 0.48 - lift * 0.5];
+    ctx.strokeStyle = INK; ctx.lineWidth = len * 0.07 + pen.line * 2; ctx.beginPath(); ctx.moveTo(...hip); ctx.lineTo(...knee); ctx.lineTo(...foot); ctx.lineTo(foot[0] + len * 0.1, foot[1]); ctx.stroke();
+    ctx.strokeStyle = wash(skin, far ? 0.75 : 1); ctx.lineWidth = len * 0.07; ctx.stroke();
+  }
+  // the body, the white plumes of wing and tail
+  const body: P[] = [[-len * 0.5, -legH * 1.15 - bob], [-len * 0.25, -legH * 1.42 - bob], [len * 0.2, -legH * 1.45 - bob], [len * 0.42, -legH * 1.25 - bob], [len * 0.25, -legH * 0.95 - bob], [-len * 0.2, -legH * 0.92 - bob]];
+  inked(ctx, pen, wash(c), () => smooth(ctx, body));
+  inked(ctx, pen, wash([240, 234, 220]), () => { ctx.moveTo(-len * 0.45, -legH * 1.2 - bob); ctx.quadraticCurveTo(-len * 0.7, -legH * 1.35 - bob, -len * 0.62, -legH * 1.05 - bob); ctx.quadraticCurveTo(-len * 0.5, -legH * 1.05 - bob, -len * 0.4, -legH * 1.1 - bob); ctx.closePath(); });
+  ctx.save(); ctx.beginPath(); smooth(ctx, body); ctx.clip(); // the white tips of the wing feathers
+  ctx.fillStyle = wash([240, 234, 220]);
+  for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(-len * (0.38 - k * 0.11), -legH * 1.0 - bob, len * 0.08, len * 0.05, 0.4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  ctx.beginPath(); smooth(ctx, body); ctx.strokeStyle = INK; ctx.lineWidth = pen.line; ctx.stroke();
+  // the neck, upright or bowed to the ground
+  const g = p.graze, base: P = [len * 0.32, -legH * 1.3 - bob];
+  const head: P = [lerp(len * 0.45, len * 0.85, g), lerp(-legH * 2.0, -len * 0.1, g)];
+  const mid: P = [lerp(len * 0.5, len * 0.75, g), lerp(-legH * 1.7, -legH * 1.25, g)];
+  ctx.strokeStyle = INK; ctx.lineWidth = len * 0.075 + pen.line * 2; ctx.beginPath(); ctx.moveTo(...base); ctx.quadraticCurveTo(...mid, ...head); ctx.stroke();
+  ctx.strokeStyle = wash(skin, 0.95); ctx.lineWidth = len * 0.075; ctx.stroke();
+  inked(ctx, pen, wash(skin), () => ctx.ellipse(head[0], head[1], len * 0.07, len * 0.05, g * 1.2, 0, Math.PI * 2));
+  const bd = g * 1.3;
+  inked(ctx, pen, wash([200, 160, 110]), () => { ctx.moveTo(head[0] + Math.cos(bd) * len * 0.04, head[1] + Math.sin(bd) * len * 0.04 - len * 0.02); ctx.lineTo(head[0] + Math.cos(bd) * len * 0.16, head[1] + Math.sin(bd) * len * 0.16); ctx.lineTo(head[0] + Math.cos(bd) * len * 0.04, head[1] + Math.sin(bd) * len * 0.04 + len * 0.02); ctx.closePath(); });
+  ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(head[0] + len * 0.015, head[1] - len * 0.015, len * 0.018, 0, Math.PI * 2); ctx.fill();
+}
+
+/** A penguin standing up, white front, waddling on the ice. */
+function penguin(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): void {
+  const s = L.len, c = L.color, tilt = p.moving ? Math.sin(p.gait * Math.PI * 2) * 0.14 : 0;
+  shadow(ctx, 0, s * 0.3);
+  ctx.save(); ctx.rotate(tilt);
+  inked(ctx, pen, wash([214, 170, 80]), () => ctx.ellipse(s * 0.08, -s * 0.03, s * 0.14, s * 0.05, 0, 0, Math.PI * 2)); // feet
+  const body: P[] = [[0, -s * 0.02], [-s * 0.22, -s * 0.25], [-s * 0.2, -s * 0.7], [-s * 0.05, -s * 1.0], [s * 0.15, -s * 0.98], [s * 0.22, -s * 0.7], [s * 0.2, -s * 0.25]];
+  inked(ctx, pen, wash(c), () => smooth(ctx, body));
+  inked(ctx, pen, wash([246, 242, 232]), () => ctx.ellipse(s * 0.1, -s * 0.42, s * 0.11, s * 0.36, 0.05, 0, Math.PI * 2)); // the white front
+  inked(ctx, pen, wash(c, 0.8), () => { ctx.moveTo(-s * 0.08, -s * 0.72); ctx.quadraticCurveTo(-s * 0.2, -s * 0.45, -s * 0.12 - tilt * s, -s * 0.28); ctx.lineTo(-s * 0.04, -s * 0.6); ctx.closePath(); }); // flipper
+  ctx.fillStyle = wash([226, 160, 60]); ctx.beginPath(); ctx.ellipse(s * 0.13, -s * 0.8, s * 0.06, s * 0.04, 0, 0, Math.PI * 2); ctx.fill();
+  inked(ctx, pen, wash([60, 50, 44]), () => { ctx.moveTo(s * 0.17, -s * 0.92); ctx.lineTo(s * 0.33, -s * 0.88); ctx.lineTo(s * 0.17, -s * 0.86); ctx.closePath(); }); // beak
+  ctx.fillStyle = 'rgb(246,242,232)'; ctx.beginPath(); ctx.arc(s * 0.1, -s * 0.91, s * 0.03, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 
 // ---- creatures of the night ----

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { FAUNA_CELL, SPECIES, animalsOf, habitat, herd, herdsNear } from './fauna';
 import { altitude } from './terrain';
-import { CIRCUMFERENCE } from './planet';
+import { CIRCUMFERENCE, EQUATOR_Y } from './planet';
+import { nearWater } from './rivers';
 import { startPosition } from '../game/travel';
 import { worldTime } from './weather';
 import { setLang, t } from '../i18n';
@@ -34,7 +35,7 @@ describe('fauna', () => {
   it('every herd lives in one of its habitats, land animals on land', () => {
     for (const h of sample()) {
       expect(h.species.biomes).toContain(habitat(h.x, h.y));
-      const land = !h.species.biomes.includes('sea') && h.species.id !== 'seal';
+      const land = !h.species.biomes.includes('sea') && h.species.look.kind !== 'seal' && h.species.id !== 'penguin';
       const t0 = worldTime();
       for (let k = 0; k < 6; k++) for (const a of animalsOf(h, t0 + k * 997)) {
         if (land) expect(altitude(a.x, a.y)).toBeGreaterThan(-0.08);
@@ -42,6 +43,16 @@ describe('fauna', () => {
         expect(Math.hypot(a.x - h.x, a.y - h.y)).toBeLessThan(h.range * 1.3 + 60);
       }
     }
+  });
+
+  it('crocodiles and hippos live by the water', () => {
+    let n = 0;
+    for (const h of herdsNear(sx - 8000, EQUATOR_Y - 6000, sx + 8000, EQUATOR_Y + 6000, 0)) {
+      if (!h.species.water) continue;
+      n++;
+      expect(altitude(h.x, h.y) < 0.12 || nearWater(h.x, h.y, 40)).toBe(true);
+    }
+    expect(n).toBeGreaterThan(0);
   });
 
   it('they move: walking at most at their own pace', () => {

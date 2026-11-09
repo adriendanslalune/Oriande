@@ -148,7 +148,7 @@ Règles qui restent :
    l'explorateur et les **fenêtres** des maisons (`townWindows`, remplies au dessin des bourgs). HUD : météo et vent au lieu de l'explorateur ; à droite un **cadran** gravé (horizon, soleil à sa
    hauteur de 6 h à 18 h, lune et étoiles la nuit, nuages/pluie/neige/brume/sable du lieu) et
    l'**heure locale** (plus de compteurs de lieues ni de cases, demande d'Adrien).
-9. **Animaux** (`world/fauna.ts`, `data/animals.json`, 22 espèces, dessin `render/animals.ts`) :
+9. **Animaux** (`world/fauna.ts`, `data/animals.json`, 38 espèces, dessin `render/animals.ts`) :
    un troupeau possible par case de 128 (32 % sur terre, 3 % en haute mer, 12 % sur la banquise),
    espèce tirée selon l'habitat (biome, `mountain` au-dessus de 0,6, `sea` en eau profonde, `ice`) ;
    les petits sont bien plus nombreux que les gros (poids). Ils errent autour de leur gîte sur
@@ -159,6 +159,10 @@ Règles qui restent :
    pâture où le cou descend, lièvres qui sautent, marmottes qui se dressent, baleines qui soufflent
    et plongent. Chaque pose est quantifiée et mise en cache (bitmap par pose et par taille) :
    < 1 ms par image. Invisibles quand ils feraient moins de 4 px. Champs `food` (viande) et `danger` servent à la chasse et au combat (étape 4).
+   **Selon les régions** (demande d'Adrien) : girafe, rhinocéros, hippopotame, crocodile, autruche, hyène (nuit),
+   tigre, oryx, bison, élan, yack, manchot, morse. `water: true` (crocodile, hippopotame) : le gîte doit être
+   à moins de 40 d'une rivière ou d'un lac, ou sur la côte. Dessins propres : `croc`, `ostrich`, `penguin`,
+   corne nasale (`nosehorn`), cornes droites (`horns: straight`), défenses du morse.
    **Nuit** (demande d'Adrien) : chaque case a aussi un troupeau de nuit (`herd(ci, cj, true)`,
    tirage séparé, poids `night` dans le JSON) ; les animaux de jour s'effacent à la tombée de la
    nuit, ceux de la nuit (chauves-souris, chouettes, hérissons, renards, loups, sangliers...)
@@ -254,7 +258,11 @@ sur le téléphone de Doudou via GitLab Pages.
    180 d’un bourg ni pendant 20 s après un combat. Jauges de vie et dégâts flottants sur la carte.
    **Animations** (demande d’Adrien) : l’explorateur lève son bâton et l’abat (`STRIKE_MS`), éclat
    d’encre à l’impact ; l’animal bondit en se cabrant (`LUNGE_MS`), griffures rouges sur l’explorateur ;
-   recul de celui qui est touché ; poussière derrière un animal qui charge. Contact à 22 (côte à côte).
+   recul de celui qui est touché ; poussière derrière un animal qui charge. **Attaque propre à chaque espèce**
+   (`attack` dans le JSON, `attackMotion` dans l'overlay) : `bite` (bond bas, traces de dents : loup, lion,
+   tigre, hyène, crocodile, hippo), `swipe` (se dresse puis frappe de la patte, griffures : ours), `ram` (recule
+   puis charge tête basse, étoile de choc : sanglier, rhino, bison, yack, morse, éléphant), `kick` (se retourne
+   et rue : girafe, élan, autruche). Contact à 22 (côte à côte).
    Combat en cours sauvegardé (sauvegarde **v5**, v4 migrée). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge

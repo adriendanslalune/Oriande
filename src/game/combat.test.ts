@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AGGRO, CONTACT, LEASH, RESPAWN, START_HP, beastsNear, engage, hunt, roll, speciesById, stepFight, useItem, type Beast,
+  AGGRO, CONTACT, LEASH, RESPAWN, START_HP, beastsNear, nearTown, engage, hunt, roll, speciesById, stepFight, useItem, type Beast,
 } from './combat';
 import { newGame } from './travel';
 import { fromSaveFile, migrate, toSaveFile } from './save';
@@ -13,9 +13,9 @@ const game = (seed = 42): GameState => { const s = newGame(); s.seed = seed; ret
 const T = worldTime();
 
 /** A real animal of this species near the start (or anywhere around), standing at time T. */
-function findBeast(s: GameState, test: (id: string, danger: number) => boolean, R = 40000): Beast {
+function findBeast(s: GameState, test: (id: string, danger: number) => boolean, R = 40000, wild = false): Beast {
   for (let r = 2000; r <= R; r += 2000) {
-    const found = beastsNear(s, s.x, s.y, r, T).find((b) => test(b.species.id, b.species.danger));
+    const found = beastsNear(s, s.x, s.y, r, T).find((b) => test(b.species.id, b.species.danger) && !(wild && nearTown(b.x + AGGRO * 0.6, b.y)));
     if (found) return found;
   }
   throw new Error('no such animal found');
@@ -38,7 +38,7 @@ describe('the dice', () => {
 describe('fights on the map', () => {
   it('a dangerous animal charges whoever comes near, and the explorer stops', () => {
     const s = game();
-    const wolf = findBeast(s, (_, d) => d >= 2);
+    const wolf = findBeast(s, (_, d) => d >= 2, 40000, true); // away from towns, where none attacks
     s.x = wolf.x + AGGRO * 0.6; s.y = wolf.y; s.rest = [s.x + 2000, s.y];
     s.journey = { path: [[s.x, s.y], [s.x + 100, s.y]], elapsed: 0, duration: 10000, revealed: 0, shore: false };
     const ev = stepFight(s, 0.05, T);
@@ -132,7 +132,7 @@ describe('fights on the map', () => {
   });
 
   it('every animal that fights has a blow; names in both languages', () => {
-    for (const sp of SPECIES) if (sp.danger >= 1) expect(sp.damage).toBeTruthy();
+    for (const sp of SPECIES) if (sp.danger >= 1) { expect(sp.damage).toBeTruthy(); expect(['bite', 'swipe', 'ram', 'kick']).toContain(sp.attack); }
     for (const lang of ['fr', 'en'] as const) {
       setLang(lang);
       for (const k of ['hunt.go', 'hunt.attack', 'fight.charge.title', 'item.viande.name', 'pack.title']) expect(t(k)).not.toBe(k);

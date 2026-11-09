@@ -8,12 +8,13 @@ import { biome } from './climate';
 import { settlement } from './settlements';
 import { CIRCUMFERENCE, beyondIce, wrapIndex } from './planet';
 import { sky } from './weather';
+import { nearWater } from './rivers';
 
 export type Habitat = 'temperate' | 'savanna' | 'tundra' | 'jungle' | 'desert' | 'mountain' | 'sea' | 'ice';
 
 /** How an animal is drawn (side view, drawing units; see render/animals.ts). */
 export interface Look {
-  kind: 'quad' | 'hopper' | 'whale' | 'seal' | 'bat' | 'owl' | 'hedgehog';
+  kind: 'quad' | 'hopper' | 'whale' | 'seal' | 'bat' | 'owl' | 'hedgehog' | 'croc' | 'ostrich' | 'penguin';
   /** body length, rump to chest */
   len: number;
   /** height at the shoulder, legs included */
@@ -28,7 +29,7 @@ export interface Look {
   tailLen?: number;
   feet?: 'hoof' | 'paw' | 'pad' | 'column';
   hump?: number; humpAt?: 'withers' | 'back';
-  antlers?: number; horns?: 'lyre' | 'curve'; hornLen?: number; tusks?: number; trunk?: number; beard?: number;
+  antlers?: number; horns?: 'lyre' | 'curve' | 'straight'; hornLen?: number; nosehorn?: number; tusks?: number; trunk?: number; beard?: number;
   mane?: 'lion' | 'short'; stripes?: boolean; spots?: boolean; bristles?: boolean; flank?: boolean;
   color: number[];
   /** secondary colours: tail tip, bib, face, saddle, scut */
@@ -56,6 +57,10 @@ export interface Species {
   hp?: number;
   /** damage of a blow, [min, max], for those that fight */
   damage?: [number, number];
+  /** how it strikes: bites, swipes with a paw, charges head down, kicks */
+  attack?: 'bite' | 'swipe' | 'ram' | 'kick';
+  /** lives by the water: a river, a lake or the shore close by */
+  water?: boolean;
   look: Look;
 }
 
@@ -115,7 +120,7 @@ for (const s of SPECIES) for (const h of s.biomes) for (const n of [0, 1]) {
 }
 
 /** Where the herd may be: the right kind of ground, and away from towns. */
-function fits(s: Species, h: Habitat, x: number, y: number): boolean {
+function fits(s: Species, h: Habitat, x: number, y: number, home = false): boolean {
   const v = altitude(x, y);
   if (h === 'sea') return v < -0.2;
   if (h === 'ice') return v < -0.02 || (s.id === 'polarbear' && v < 0.3);
@@ -126,6 +131,8 @@ function fits(s: Species, h: Habitat, x: number, y: number): boolean {
     const b = settlement(ti + di, tj + dj);
     if (b && Math.hypot(b.x - x, b.y - y) < (b.city ? 110 : 60)) return false;
   }
+  // a crocodile, a hippo: never far from a river, a lake or the shore
+  if (s.water && home && !(v < 0.12 || nearWater(x, y, 40))) return false;
   return true;
 }
 
@@ -152,7 +159,7 @@ export function herd(ci: number, cj: number, night = false): Herd | null {
     const total = list.reduce((a, e) => a + e.w, 0);
     let r = hash2(wi * 7 - 13 + o, cj * 11 + 23) * total, s: Species | null = null;
     for (const e of list) { r -= e.w; if (r < 0) { s = e.s; break; } }
-    if (s && fits(s, h, x, y)) {
+    if (s && fits(s, h, x, y, true)) {
       // roam as far as the species likes, but no farther than the ground allows
       let range = 0;
       for (const f of [1, 0.6, 0.35, 0.15]) {

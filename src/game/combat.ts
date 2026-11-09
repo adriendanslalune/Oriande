@@ -79,7 +79,7 @@ export function beastsNear(s: GameState, x: number, y: number, r: number, t: num
   return out;
 }
 
-const nearTown = (x: number, y: number): boolean => {
+export const nearTown = (x: number, y: number): boolean => {
   const ti = Math.floor(x / TILE), tj = Math.floor(y / TILE);
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
     const b = settlement(ti + di, tj + dj);

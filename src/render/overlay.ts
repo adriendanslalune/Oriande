@@ -329,6 +329,11 @@ export class Overlay {
     if (cp >= 0 && cp < 1) this.wound(this.attackKind, ex, ey - 22 * v.zoom / START_ZOOM, cp, v.zoom);
     this.drops(screen, v, dt);
     if (f) this.lifeBar(ex, ey - 40 * v.zoom / START_ZOOM, s.hp / s.maxHp, 'you');
+    // what the work in hand brings: "Bois", "Pêche", over the ring of progress
+    if (w) {
+      ctx.font = "italic 13px 'IM Fell English', serif"; ctx.textAlign = 'center'; ctx.fillStyle = INK;
+      this.label(w.kind === 'fish' ? t('work.fishing') : t('item.' + w.res + '.name'), ex, ey - 52 * v.zoom / START_ZOOM);
+    }
     this.drawFloats(screen, now);
     // the clouds pass over the explorer (they fade out as the view zooms in under them)
     this.weather.drawClouds(ctx, v, screen, (X, Y) => isSeen(s, X, Y));

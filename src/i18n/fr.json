@@ -283,5 +283,6 @@
   "rumor.river": "« Remontez une rivière jusqu’à sa source et vous trouverez toujours une pierre gravée. Toujours. »",
   "rumor.night": "« Ne marchez pas la nuit sans torche. Les loups, passe encore. Mais il y a pire. »",
   "rumor.name": "« Oriande ? Mon père disait que ce n’est pas un nom de ville. C’est le nom de ceux qui y vivaient. »",
-  "town.smith.done": "Vous avez déjà ce qu’il forge de mieux."
+  "town.smith.done": "Vous avez déjà ce qu’il forge de mieux.",
+  "work.fishing": "Pêche…"
 }

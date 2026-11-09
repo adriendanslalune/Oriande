@@ -89,7 +89,10 @@ Règles qui restent :
    instinctif qu'un gros bouton en bas) : un tap ouvre un petit cartouche à côté de ce qui a été touché, qui suit
    la carte (`Hud.showActions`/`placeActions`, `Map.actions`) : « Chasser · Cerf » sur un animal, « Récolter ·
    Bois » puis « Marcher vers » sur la terre, « Pêcher » sur l'eau, « Entrer » sur le bourg où l'on est ;
-   l'action probable en premier, en foncé. Sac et pages des bourgs restent en panneau. **Marche** : un tap montre l'itinéraire (pointillés,
+   l'action probable en premier, en foncé. Un tap ailleurs pendant qu'un menu est ouvert le ferme seulement (le
+   suivant en ouvre un). **Butin visible** : pendant le travail, ce qu'on récolte (« Bois », « Pêche… ») au-dessus
+   de l'anneau ; chaque gain (récolte, poisson, viande) fait un billet « +3 viande » au-dessus du bouton Sac
+   (`Hud.loot`, 3 s), qui s'illumine. Sac et pages des bourgs restent en panneau. **Marche** : un tap montre l'itinéraire (pointillés,
    drapeau) et propose « Marcher vers » (distance en lieues ; le nom du lieu si on touche un bourg,
    un lieu, un monument ou une merveille déjà vus) ; rien ne part sans confirmation. Plus de trace
    des pas passés sur la carte : seuls les pointillés de l'explorateur à sa destination.

@@ -46,6 +46,14 @@ const CSS = `
 .hud-act button.main i { color: #d8ccb0; }
 .hud-act .x { position: absolute; right: 2px; top: 1px; width: 24px; height: 24px; border: 0; padding: 0; background: none !important;
   color: #6a5f4f !important; font: 16px/24px serif; text-align: center; min-height: 0; z-index: 1; }
+.hud-loot { position: fixed; right: 12px; bottom: calc(232px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column;
+  align-items: flex-end; gap: 4px; pointer-events: none; z-index: 2; }
+.hud-loot div { font: 700 14px "Old Standard TT", serif; color: #46602f; background: #ece3cb; border: 1.5px solid #2a241d; padding: 4px 9px;
+  box-shadow: 0 2px 6px rgba(42,36,29,.25); animation: loot-in .25s ease-out; transition: opacity .5s, transform .5s; }
+.hud-loot div.out { opacity: 0; transform: translateY(8px); }
+@keyframes loot-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.hud-buttons button.got { animation: got .6s ease-out; }
+@keyframes got { 0% { background: #ece3cb; } 30% { background: #cfe0b0; transform: scale(1.12); } 100% { background: #ece3cb; transform: none; } }
 .hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
   color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
 .hud-buttons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; z-index: 2; }
@@ -64,6 +72,9 @@ export class Hud {
   private readonly dial: HTMLCanvasElement;
   private readonly time: HTMLElement;
   private readonly walk: HTMLElement;
+  /** what was just gathered, hunted or fished: slips stacked over the pack button */
+  private readonly lootBox: HTMLElement;
+  private packButton: HTMLElement | null = null;
   /** the little menu of actions shown beside what was tapped on the map */
   private readonly act: HTMLElement;
   private readonly life: HTMLElement;
@@ -93,6 +104,9 @@ export class Hud {
     this.time = header.querySelector('.time')!;
     this.walk = document.createElement('div');
     this.walk.className = 'hud-walk';
+    this.lootBox = document.createElement('div');
+    this.lootBox.className = 'hud-loot';
+    this.lootBox.setAttribute('aria-live', 'polite');
     this.act = document.createElement('div');
     this.act.className = 'hud-act';
     this.act.setAttribute('role', 'menu');
@@ -107,12 +121,13 @@ export class Hud {
       if (label.length > 2) b.className = 'word';
       b.setAttribute('aria-label', t(aria));
       b.addEventListener('click', fn);
+      if (fn === handlers.pack) this.packButton = b;
       buttons.append(b);
     }
     const version = document.createElement('div');
     version.className = 'hud-version';
     version.textContent = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
-    this.root.push(style, header, this.note, this.walk, this.act, buttons, version);
+    this.root.push(style, header, this.note, this.walk, this.act, this.lootBox, buttons, version);
     document.body.append(...this.root);
   }
 
@@ -205,6 +220,18 @@ export class Hud {
     x.addEventListener('click', cancel);
     this.act.replaceChildren(x, ...rows);
     this.act.classList.add('on');
+  }
+
+  /** Show what just went into the pack ("+3 viande") over the pack button, for a few seconds. */
+  loot(text: string): void {
+    const d = document.createElement('div');
+    d.textContent = text;
+    this.lootBox.append(d);
+    while (this.lootBox.children.length > 4) this.lootBox.firstElementChild!.remove();
+    const b = this.packButton;
+    if (b) { b.classList.remove('got'); void b.offsetWidth; b.classList.add('got'); }
+    setTimeout(() => d.classList.add('out'), 3000);
+    setTimeout(() => d.remove(), 3600);
   }
 
   /** Put the menu of actions beside screen point (x, y) (CSS pixels): above it, or below near the top. */

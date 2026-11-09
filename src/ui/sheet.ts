@@ -172,9 +172,9 @@ export class Sheet {
         box.append(lbl, sl);
         return box;
       };
-      const left = document.createElement('div'); left.className = 'side'; left.append(place(1), place(2));
+      const left = document.createElement('div'); left.className = 'side'; left.append(place(1), place(3)); // left hand, feet
       const mid = document.createElement('div'); mid.innerHTML = portrait(c.gear, 128);
-      const right = document.createElement('div'); right.className = 'side'; right.append(place(0));
+      const right = document.createElement('div'); right.className = 'side'; right.append(place(0), place(2)); // right hand, clothing
       fig.append(left, mid, right);
       body.append(fig);
       const hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = c.choices.length ? c.hint : c.empty;

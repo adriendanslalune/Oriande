@@ -48,7 +48,7 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v9 (v3 à v8 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses, faim et feu, équipement) ; les sauvegardes v1/v2
+- Échelle des sauvegardes : v10 (v3 à v9 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses, faim et feu, équipement, pieds) ; les sauvegardes v1/v2
   (monde plat) sont mises de côté.
 
 Règles qui restent :
@@ -322,8 +322,9 @@ sur le téléphone de Doudou via GitLab Pages.
    remède à fabriquer (3 herbes + 1 baies). Un seul billet par récolte (« +3 bois · +1 champignons »).
    Sauvegarde **v8** (`food`, `camp`).
    **Sac et almanach** (`ui/sheet.ts`, demande d'Adrien : style Verne / Moebius, compartiments, cases) : le
-   **sac** est une page d'atlas à **onglets** : « Porté » (portrait de l'explorateur, `ui/portrait.ts`, avec trois
-   places : arme, main gauche, vêtement ; on choisit en touchant ce qu'on a fabriqué, et l'objet apparaît sur le
+   **sac** est une page d'atlas à **onglets** : « Porté » (portrait de l'explorateur, `ui/portrait.ts`, avec quatre
+   places : main droite (arme), main gauche (torche), tenue (veste), pieds (bottes de cuir : 2 peaux + 2 fibres,
+   marcher creuse 25 % moins le ventre) ; au départ tête nue, chemise de lin, pieds nus, aussi sur la carte ; on choisit en touchant ce qu'on a fabriqué, et l'objet apparaît sur le
    portrait et sur la carte), « Outils » (classés par usage : chasse, récolte, pêche), « Vivres », « Récoltes » ;
    cases avec illustration et nombre ; toucher une case ouvre sa fiche en bas (Manger, Cuire si un feu est là) ;
    près d'un feu, « Dormir au feu » en tête des vivres. **Équipement** (`GameState.equip`, sauvegarde **v9**,
@@ -334,8 +335,8 @@ sur le téléphone de Doudou via GitLab Pages.
    et lumière ; champ `use` dans `recipes.json` et `items.json`) : chaque recette avec ce qu'il faut (ce qu'on a / ce
    qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
    **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
-   une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le pictogramme provisoire
-   (`ui/itemArt.ts`). Plus de pictos dans les titres de compartiments (sac, bourgs). Les vies et coups des animaux
+   une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le « ? » qui l'attend
+   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).

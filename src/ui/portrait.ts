@@ -5,7 +5,7 @@ const INK = '#2a241d';
 const L = `stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
 
 /** What the explorer has in hand, in the other hand, and on him (item ids, or null). */
-export interface Carried { hand: string | null; off: string | null; body: string | null }
+export interface Carried { hand: string | null; off: string | null; body: string | null; feet: string | null }
 
 /** The weapon in his hand (drawn on the right of the picture, for clarity). */
 function weapon(id: string | null): string {
@@ -26,22 +26,27 @@ const torch = (on: boolean): string => on ? `<path stroke="#5a3e26" stroke-width
 
 /** The explorer, full length, as SVG markup. */
 export function portrait(c: Carried, size = 150): string {
-  const coat = c.body === 'veste' ? '#7c5230' : '#968056', coatShade = c.body === 'veste' ? '#5e3c22' : '#7a6644';
-  const jacket = c.body === 'veste'
+  // nothing on him to start with: a linen shirt, bare head, bare feet (asked by Adrien)
+  const jacket = c.body === 'veste';
+  const coat = jacket ? '#7c5230' : '#ddd0b2', coatShade = jacket ? '#5e3c22' : '#c2b392';
+  const seams = jacket
     ? `<path ${L} fill="none" stroke-dasharray="2 3" d="M50 84 L46 150 M70 84 L74 150"/><path ${L} fill="${coatShade}" d="M52 70 l8 14 l8 -14"/>` // stitches, the collar
-    : '';
+    : `<path ${L} fill="none" stroke-width="1.4" d="M60 72 v18 M57 78 h0.1 M57 86 h0.1"/>`; // the shirt's opening and buttons
+  const feet = c.feet === 'bottes'
+    ? `<path ${L} fill="#5a3e26" d="M44 172 h12 v14 h1 v6 h-17 v-6 z M76 172 h-12 v14 h-1 v6 h17 v-6 z"/>`
+    : `<path ${L} fill="#e6c8a5" d="M45 184 q-4 6 2 8 h9 v-8 z M75 184 q4 6 -2 8 h-9 v-8 z"/>`; // bare feet
   const hand = c.hand ? '' : `<circle ${L} fill="#e6c8a5" cx="92" cy="118" r="5"/>`; // a bare fist
   return `<svg viewBox="0 0 120 200" width="${size}" height="${Math.round(size * 200 / 120)}" aria-hidden="true">
   <ellipse cx="60" cy="193" rx="34" ry="6" fill="${INK}" fill-opacity=".18"/>
   <path ${L} fill="#8a6a46" d="M30 70 h60 v70 h-60 z" opacity=".95"/><ellipse ${L} fill="#c8af82" cx="60" cy="68" rx="32" ry="8"/>
-  <path ${L} fill="#4a3c2e" d="M47 150 l-2 36 h11 l2 -36 z M73 150 l2 36 h-11 l-2 -36 z"/>
-  <path ${L} fill="${INK}" d="M42 186 h15 v6 h-17 z M78 186 h-15 v6 h17 z"/>
-  <path ${L} fill="${coat}" d="M44 76 q16 -8 32 0 l6 80 h-44 z"/>${jacket}
-  <path ${L} fill="none" d="M44 112 h32"/>
+  <path ${L} fill="#6f604c" d="M47 150 l-2 36 h11 l2 -36 z M73 150 l2 36 h-11 l-2 -36 z"/>
+  ${feet}
+  <path ${L} fill="${coat}" d="M44 76 q16 -8 32 0 l${jacket ? 6 : 3} ${jacket ? 80 : 74} h${jacket ? -44 : -38} z"/>${seams}
+  <path ${L} fill="none" d="M45 112 h30"/>
   <path ${L} fill="${coat}" d="M44 80 q-12 16 -16 40 l6 2 q6 -18 12 -28"/><path ${L} fill="${coat}" d="M76 80 q12 16 16 36 l-6 3 q-6 -16 -12 -26"/>
   <circle ${L} fill="#e6c8a5" cx="31" cy="122" r="5"/>${hand}
   <circle ${L} fill="#e6c8a5" cx="60" cy="56" r="12"/>
-  <path ${L} fill="#54402c" d="M34 46 q26 -8 52 0 q-2 5 -26 5 q-24 0 -26 -5 z"/><path ${L} fill="#54402c" d="M46 45 q2 -14 14 -15 q12 1 14 15 z"/>
+  <path ${L} fill="#5b4632" d="M48 52 q0 -14 12 -14 q12 0 12 14 q-3 -7 -12 -7 q-9 0 -12 7 z"/>
   <path ${L} fill="none" d="M55 58 h0.1 M65 58 h0.1"/><path ${L} fill="none" stroke-width="1.5" d="M56 63 q4 2 8 0"/>
   ${torch(c.off === 'torche')}${weapon(c.hand)}
 </svg>`;

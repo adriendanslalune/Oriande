@@ -20,6 +20,13 @@ describe('hunger', () => {
     expect(b.food).toBeCloseTo(FOOD_MAX - 300 / HUNGER_SECONDS, 0);
   });
 
+  it('boots: walking empties the belly more slowly', () => {
+    const a = game(), b = game();
+    b.items.bottes = 1; b.equip.feet = 'bottes';
+    for (let k = 0; k < 200; k++) { stepHunger(a, 0.5, true); stepHunger(b, 0.5, true); }
+    expect(b.food).toBeGreaterThan(a.food);
+  });
+
   it('hungry: a warning, and life no longer comes back by itself', () => {
     const s = game(); s.food = HUNGRY + 0.01; s.hp = 10;
     expect(stepHunger(s, 1, true).some((e) => e.kind === 'hungry')).toBe(true);

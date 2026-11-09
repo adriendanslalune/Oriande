@@ -427,7 +427,7 @@ export class MapScene extends Phaser.Scene {
     const slot = (id: string, worn = false): Slot => ({ id, name: name(id), count: s.items[id] ?? 0, worn });
     const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0);
     const fire = campLit(s, now) && Math.hypot(s.camp!.x - s.x, s.camp!.y - s.y) < 40;
-    const equipped = (id: string): boolean => s.equip.hand === id || s.equip.off === id || s.equip.body === id;
+    const equipped = (id: string): boolean => Object.values(s.equip).includes(id);
     // the card of the thing tapped (food and materials)
     let detail: Parameters<Sheet['showSac']>[0]['detail'] = null;
     const it = sel ? ITEMS.find((i) => i.id === sel) : undefined;
@@ -445,7 +445,7 @@ export class MapScene extends Phaser.Scene {
     const MAT_ORDER = ['bois', 'pierre', 'fibre', 'herbes', 'peau', 'os'];
     const carriable = owned('tool').filter((i) => slotOf(i.id)).map((i) => slot(i.id, equipped(i.id)));
     const tools = owned('tool').filter((i) => !slotOf(i.id));
-    const USES = ['chasse', 'recolte', 'peche', 'feu'];
+    const USES = ['chasse', 'recolte', 'peche', 'feu', 'voyage'];
     this.sheet.showSac({
       title: t('sac.title'), sub: t('sac.sub', { hp: s.hp, max: s.maxHp, f: Math.round(s.food), g: s.gold }),
       tabs: [{ key: 'worn', label: t('sac.worn') }, { key: 'tools', label: t('pack.tools') }, { key: 'food', label: t('sac.foodTab') }, { key: 'mats', label: t('pack.materials') }],
@@ -453,7 +453,7 @@ export class MapScene extends Phaser.Scene {
       top: fire && tab === 'food' ? { title: t('pack.fire'), actions: [{ label: t('pack.sleep') + (canSleepByFire(s, now) ? ' · −' + SLEEP_FOOD + ' ' + t('hud.bellyLabel').toLowerCase() : ''), use: canSleepByFire(s, now) ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(sel); } : null }] } : null,
       carried: tab === 'worn' ? {
         gear: { ...s.equip },
-        places: (['hand', 'off', 'body'] as const).map((k) => ({ label: t('sac.place.' + k), id: s.equip[k], name: s.equip[k] ? name(s.equip[k]!) : '' })),
+        places: (['hand', 'off', 'body', 'feet'] as const).map((k) => ({ label: t('sac.place.' + k), id: s.equip[k], name: s.equip[k] ? name(s.equip[k]!) : '' })),
         choices: carriable,
         pick: (id) => { equip(s, id); saveGame(s); this.openPack(null, 'worn'); },
         hint: t('sac.equipHint'), empty: t('sac.noGear'),
@@ -492,7 +492,7 @@ export class MapScene extends Phaser.Scene {
       };
     });
     const rank = { ready: 0, missing: 1, done: 2 };
-    const groups = ['soin', 'combat', 'chasse', 'recolte', 'peche', 'feu'].map((u) => ({
+    const groups = ['soin', 'combat', 'chasse', 'recolte', 'peche', 'feu', 'voyage'].map((u) => ({
       title: t('use.' + u), cards: cards.filter((c) => c.use === u).sort((a, b) => rank[a.state] - rank[b.state]),
     }));
     const ready = cards.filter((c) => c.state === 'ready').length;

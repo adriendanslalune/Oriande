@@ -12,6 +12,8 @@ export const FOOD_MAX = 100;
 export const HUNGER_SECONDS = 12;
 /** Under this, the explorer is hungry: life no longer comes back by itself. */
 export const HUNGRY = 30;
+/** Good boots: walking empties the belly this much more slowly. */
+export const BOOTS = 0.75;
 /** Starving (an empty belly): a point of life lost every so often (seconds). */
 export const STARVE_SECONDS = 20;
 /** A bad belly (something eaten raw): life lost. */
@@ -25,7 +27,7 @@ export type HungerEvent = { kind: 'hungry' } | { kind: 'starving' } | { kind: 'f
 export function stepHunger(s: GameState, dt: number, walking: boolean): HungerEvent[] {
   const out: HungerEvent[] = [];
   const before = s.food;
-  if (walking) s.food = Math.max(0, s.food - dt / HUNGER_SECONDS);
+  if (walking) s.food = Math.max(0, s.food - (dt / HUNGER_SECONDS) * (s.equip.feet === 'bottes' ? BOOTS : 1));
   if (before >= HUNGRY && s.food < HUNGRY) out.push({ kind: 'hungry' });
   if (s.food <= 0 && roll(s) < dt / STARVE_SECONDS) {
     s.hp -= 1;

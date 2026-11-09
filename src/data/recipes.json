@@ -1,5 +1,5 @@
 {
-  "_comment": "What the explorer can make from what they gather (asked by Adrien: they start with nothing, everything is made along the way). needs: item id -> how many. A tool is made once and kept; food (a remedy) can be made again and again; the campfire is laid where the explorer stands. use: what it is for, to sort the almanac and the tools (soin, combat, chasse, recolte, peche, feu).",
+  "_comment": "What the explorer can make from what they gather (asked by Adrien: they start with nothing, everything is made along the way). needs: item id -> how many. A tool is made once and kept; food (a remedy) can be made again and again; the campfire is laid where the explorer stands. use: what it is for, to sort the almanac and the tools (soin, combat, chasse, recolte, peche, feu, voyage).",
   "recipes": [
     {
       "id": "baton",
@@ -90,6 +90,14 @@
         "fibre": 3
       },
       "use": "combat"
+    },
+    {
+      "id": "bottes",
+      "needs": {
+        "peau": 2,
+        "fibre": 2
+      },
+      "use": "voyage"
     }
   ]
 }

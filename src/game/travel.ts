@@ -112,13 +112,13 @@ export function wrapPosition(s: GameState): number {
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 9, x, y, leagues: 0,
+    version: 10, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
     hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },
     // the dice of a new game: different for each player (the world itself is the same for all)
     seed: (Math.random() * 4294967296) >>> 0,
-    calmUntil: 0, rest: [x, y], fight: null, gone: {}, work: null, carcasses: [], food: 100, camp: null, equip: { hand: null, off: null, body: null },
+    calmUntil: 0, rest: [x, y], fight: null, gone: {}, work: null, carcasses: [], food: 100, camp: null, equip: { hand: null, off: null, body: null, feet: null },
   };
   reveal(s, x, y);
   return s;

@@ -170,6 +170,13 @@
       "use": "combat"
     },
     {
+      "id": "bottes",
+      "kind": "tool",
+      "heal": 0,
+      "price": 12,
+      "use": "voyage"
+    },
+    {
       "id": "coutelas",
       "kind": "tool",
       "heal": 0,

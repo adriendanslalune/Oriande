@@ -1,7 +1,7 @@
 # Objets d'Oriande — illustrations à faire avec ChatGPT
 
 Chaque objet du sac et de l'almanach a une **case** qui attend son illustration. Tant qu'une image
-manque, le jeu affiche un petit pictogramme provisoire à l'encre. Dès qu'un fichier est déposé dans
+manque, le jeu affiche un « ? ». Dès qu'un fichier est déposé dans
 `src/assets/items/<id>.webp`, il remplace le pictogramme, sans autre changement.
 
 Même méthode que pour les merveilles (voir `illustrations.md`) : une seule conversation pour tous les
@@ -52,6 +52,7 @@ Nom du fichier = `id.webp` (je convertis les PNG reçus : fond nettoyé, recadr�
 | `pioche` | Pioche | a stone pick lashed to a wooden handle |
 | `lance` | Lance de silex | a long wooden spear with a flint point bound with fibre |
 | `veste` | Veste de cuir | a rugged leather explorer's jacket, folded |
+| `bottes` | Bottes de cuir | a pair of rough leather boots laced with fibre |
 | `coutelas` | Coutelas | a short heavy cutlass with a brass guard |
 | `sabre` | Sabre | an officer's curved sabre in its scabbard |
 | `feu` | Feu de camp | a small campfire in a ring of stones, with flames |

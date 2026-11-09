@@ -349,8 +349,8 @@
   "almanac.missing": "Materials are missing.",
   "item.remede.text": "Pounded herbs and berries: restores 8 life.",
   "sac.foodTab": "Food",
-  "sac.place.hand": "Weapon",
-  "sac.place.off": "Other hand",
+  "sac.place.hand": "Right hand",
+  "sac.place.off": "Left hand",
   "sac.place.body": "Clothing",
   "sac.equipHint": "Tap a thing to take it up or put it away.",
   "sac.noGear": "Nothing to carry: make a staff, a torch, a jacket…",
@@ -359,5 +359,9 @@
   "use.chasse": "Hunting",
   "use.recolte": "Gathering",
   "use.peche": "Fishing",
-  "use.feu": "Fire and light"
+  "use.feu": "Fire and light",
+  "item.bottes.name": "Leather boots",
+  "item.bottes.text": "Walking empties the belly less (−25%).",
+  "sac.place.feet": "Feet",
+  "use.voyage": "Travel"
 }

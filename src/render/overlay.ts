@@ -48,8 +48,10 @@ interface Gear {
   weapon: 'poings' | 'baton' | 'lance' | 'coutelas' | 'sabre';
   /** the torch burns (at night) rather than being carried unlit */
   lit?: boolean;
-  /** a leather jacket instead of the travelling coat */
+  /** a leather jacket instead of the linen shirt */
   jacket?: boolean;
+  /** leather boots instead of bare feet */
+  boots?: boolean;
   /** work in hand: its kind, what is gathered, where on screen (the float), how far along (0..1) */
   work: { kind: 'harvest' | 'fish'; res: string | null; at: [number, number]; done: number } | null;
 }
@@ -329,7 +331,7 @@ export class Overlay {
     if (w && Math.abs(w.x - s.x) > 1) this.facing = w.x > s.x ? 1 : -1;
     const [wx, wy] = w ? screen(w.x, w.y) : [0, 0];
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, s.equip.off === 'torche', {
-      weapon: weaponOf(s).id, lit: sky(v.x).darkness > 0.12, jacket: s.equip.body === 'veste',
+      weapon: weaponOf(s).id, lit: sky(v.x).darkness > 0.12, jacket: s.equip.body === 'veste', boots: s.equip.feet === 'bottes',
       work: w ? { kind: w.kind, res: w.res, at: [wx, wy], done: 1 - (w.left ?? 0) / (w.kind === 'fish' ? FISH_SECONDS : workSeconds(s, w.res)) } : null,
     });
     // the animal's bite or claws on the explorer: red slashes, for a moment
@@ -788,7 +790,7 @@ export class Overlay {
     ctx.fillText(text, x, y);
   }
 
-  /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
+  /** The explorer: bare head, a linen shirt (or the leather jacket), pack with a bedroll, what he carries, bare feet (or boots). */
   private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false, gear: Gear = { weapon: 'baton', work: null, lit: true }): void {
     const { ctx } = this;
     const work = gear.work, armed = gear.weapon !== 'poings', blade = gear.weapon === 'coutelas' || gear.weapon === 'sabre';
@@ -811,8 +813,8 @@ export class Overlay {
     // legs and boots
     ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.moveTo(X(-0.5), Y(-6)); ctx.lineTo(x - j, y - 1); ctx.moveTo(X(0.5), Y(-6)); ctx.lineTo(x + j, y - 1); ctx.stroke();
-    ctx.fillStyle = INK;
-    for (const fx of [x - j, x + j]) { ctx.beginPath(); ctx.ellipse(fx + f * 0.9, y - 0.6, 1.8, 1, 0, 0, 6.3); ctx.fill(); }
+    ctx.fillStyle = gear.boots ? 'rgb(70,48,30)' : 'rgb(230,200,165)'; // boots, or bare feet
+    for (const fx of [x - j, x + j]) { ctx.beginPath(); ctx.ellipse(fx + f * 0.9, y - 0.6, 1.8, 1, 0, 0, 6.3); ctx.fill(); if (!gear.boots) { ctx.lineWidth = 0.6; ctx.stroke(); } }
     // pack on the back, bedroll on top
     ctx.lineWidth = 1;
     ctx.fillStyle = 'rgb(120,88,58)';
@@ -820,7 +822,7 @@ export class Overlay {
     ctx.fillStyle = 'rgb(200,175,130)';
     ctx.beginPath(); ctx.ellipse(X(-2.6), Y(-13.9), 2.3 * u, 1 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
     // coat
-    ctx.fillStyle = gear.jacket ? 'rgb(124,82,48)' : 'rgb(150,128,86)'; // the leather jacket, or the travelling coat
+    ctx.fillStyle = gear.jacket ? 'rgb(124,82,48)' : 'rgb(221,208,178)'; // the leather jacket, or a linen shirt
     ctx.beginPath(); ctx.moveTo(X(-1.7), Y(-13)); ctx.lineTo(X(1.7), Y(-13)); ctx.lineTo(X(2.4), Y(-5.6)); ctx.lineTo(X(-2.4), Y(-5.6)); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(X(-2), Y(-8.6)); ctx.lineTo(X(2.1), Y(-8.6)); ctx.stroke(); // belt
     // what the hands do: work, a blow, or carrying the staff (or nothing) along
@@ -929,10 +931,9 @@ export class Overlay {
     // head
     ctx.strokeStyle = INK; ctx.lineWidth = 0.9; ctx.fillStyle = 'rgb(230,200,165)';
     ctx.beginPath(); ctx.arc(X(0.2), Y(-15), 1.7 * u, 0, 6.3); ctx.fill(); ctx.stroke();
-    // wide-brimmed hat
+    // bare head: dark hair (no hat to start with)
     ctx.fillStyle = 'rgb(84,62,42)';
-    ctx.beginPath(); ctx.ellipse(X(0.2), Y(-16.4), 3.6 * u, 0.75 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(X(-1.5), Y(-16.5)); ctx.lineTo(X(-1.3), Y(-19)); ctx.quadraticCurveTo(X(0.2), Y(-19.8), X(1.7), Y(-19)); ctx.lineTo(X(1.9), Y(-16.5)); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(-1.6), Y(-15.2)); ctx.quadraticCurveTo(X(-1.7), Y(-18.4), X(0.2), Y(-18.5)); ctx.quadraticCurveTo(X(2.2), Y(-18.4), X(2), Y(-15.6)); ctx.quadraticCurveTo(X(0.6), Y(-17), X(-1.6), Y(-15.2)); ctx.closePath(); ctx.fill(); ctx.stroke();
     if (torch) { // a torch held high in the other hand, its flame flickering
       const tx = X(-2.6), ty = Y(-20.5), fl = Math.sin(now / 70) * 0.4 + Math.sin(now / 43) * 0.3;
       ctx.strokeStyle = INK; ctx.lineWidth = 1.2;

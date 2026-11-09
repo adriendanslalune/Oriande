@@ -349,9 +349,9 @@
   "almanac.missing": "Il manque des matériaux.",
   "item.remede.text": "Herbes pilées et baies : rend 8 de vie.",
   "sac.foodTab": "Vivres",
-  "sac.place.hand": "Arme",
+  "sac.place.hand": "Main droite",
   "sac.place.off": "Main gauche",
-  "sac.place.body": "Vêtement",
+  "sac.place.body": "Tenue",
   "sac.equipHint": "Touchez un objet pour le prendre ou le ranger.",
   "sac.noGear": "Rien à porter : fabriquez un bâton, une torche, une veste…",
   "use.soin": "Soins",
@@ -359,5 +359,9 @@
   "use.chasse": "Chasse",
   "use.recolte": "Récolte",
   "use.peche": "Pêche",
-  "use.feu": "Feu et lumière"
+  "use.feu": "Feu et lumière",
+  "item.bottes.name": "Bottes de cuir",
+  "item.bottes.text": "Marcher creuse moins le ventre (−25 %).",
+  "sac.place.feet": "Pieds",
+  "use.voyage": "Voyage"
 }

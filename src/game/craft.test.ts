@@ -128,7 +128,7 @@ describe('equipment', () => {
   });
 
   it('an older save carries the best of its pack', () => {
-    expect(bestEquip({ baton: 1, lance: 1, torche: 1 })).toEqual({ hand: 'lance', off: 'torche', body: null });
+    expect(bestEquip({ baton: 1, lance: 1, torche: 1 })).toEqual({ hand: 'lance', off: 'torche', body: null, feet: null });
   });
 });
 

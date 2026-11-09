@@ -100,14 +100,14 @@ const looks = new Map<Look, number>();
  * Draw one animal at screen (x, y) (its feet), `scale` CSS pixels per drawing unit, `time` in
  * seconds (with the animal's own phase already added), `dpr` the device pixel ratio.
  */
-export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal, x: number, y: number, scale: number, time: number, dpr = 1, night = false): void {
-  const pose = poseOf(look, a, time);
+export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal, x: number, y: number, scale: number, time: number, dpr = 1, night = false, dead = false): void {
+  const pose = dead ? { moving: false, gait: 0, graze: 0, look: 0, sway: 0, cycle: 0.3, up: 0 } : poseOf(look, a, time);
   const flying = look.kind === 'bat' || look.kind === 'owl';
   if (look.kind === 'whale' && pose.cycle > 0.75) return; // under water
   // sizes snap to steps of ~8 %, so a zoom does not fill the cache with near-copies
   const s = Math.pow(1.08, Math.round(Math.log(scale) / Math.log(1.08)));
   if (!looks.has(look)) looks.set(look, looks.size);
-  const key = looks.get(look) + (night ? 'n|' : '|') + s.toFixed(3) + '|' + dpr + '|' + (pose.moving ? 1 : 0) + pose.gait + ',' + pose.graze + ',' + pose.look + ',' + pose.sway + ',' + pose.cycle + ',' + pose.up;
+  const key = looks.get(look) + (night ? 'n|' : '|') + (dead ? 'd|' : '') + s.toFixed(3) + '|' + dpr + '|' + (pose.moving ? 1 : 0) + pose.gait + ',' + pose.graze + ',' + pose.look + ',' + pose.sway + ',' + pose.cycle + ',' + pose.up;
   let c = cache.get(key);
   if (!c) {
     if (cache.size > 600) cache.clear();
@@ -117,9 +117,9 @@ export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal,
     img.width = Math.ceil(half * 2 * k); img.height = Math.ceil((above + 2) * k);
     const g = img.getContext('2d')!;
     g.setTransform(k, 0, 0, k, half * k, above * k);
-    dim = night ? 0.55 : 0;
+    dim = night ? 0.55 : 0; noShadow = dead;
     render(g, look, pose, s);
-    dim = 0;
+    dim = 0; noShadow = false;
     c = { img, ox: half, oy: above, k };
     cache.set(key, c);
   }
@@ -132,6 +132,10 @@ export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal,
     ctx.translate(0, -a.alt * scale);
   }
   if (a.dir < 0) ctx.scale(-1, 1);
+  if (dead) { // on its back, legs in the air: the back on the ground
+    const H = look.kind === 'quad' ? (look.height ?? look.len * 0.7) : look.len * 0.4;
+    ctx.translate(0, -H * scale * 0.95); ctx.scale(1, -1);
+  }
   const r = c.k / dpr;
   ctx.drawImage(c.img, -c.ox * r, -c.oy * r, c.img.width / dpr, c.img.height / dpr);
   ctx.restore();
@@ -160,7 +164,11 @@ function render(ctx: CanvasRenderingContext2D, look: Look, p: Pose, scale: numbe
 
 interface Pen { line: number; fine: number; gap: number; shade: number }
 
+/** a carcass is drawn upside down: no shadow under its feet */
+let noShadow = false;
+
 function shadow(ctx: CanvasRenderingContext2D, x: number, w: number): void {
+  if (noShadow) return;
   ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = INK;
   ctx.beginPath(); ctx.ellipse(x, 0.3, w, w * 0.16, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();

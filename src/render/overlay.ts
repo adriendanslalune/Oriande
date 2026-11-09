@@ -156,7 +156,7 @@ export class Overlay {
     }
 
     this.animate(s, v, screen, world, tiles, now, dt);
-    if (v.zoom >= 0.45) this.animals(s, v, screen, ax, ay, bx, by, now, false);
+    if (v.zoom >= 0.45) { this.stainsAndCarcasses(s, v, screen, now); this.animals(s, v, screen, ax, ay, bx, by, now, false); }
 
     // The sky: clouds, rain, snow, sand, fog, lightning, dawn, dusk and night.
     this.weather.draw(ctx, v, screen, world, now, dt, (X, Y) => isSeen(s, X, Y));
@@ -289,6 +289,13 @@ export class Overlay {
       // the staff's impact on it: a burst of ink strokes
       const ip = (now - this.blows.struck) / 260;
       if (ip >= 0 && ip < 1 && this.blows.landed) this.burst(fx + ox, fy - (sp.look.height ?? sp.look.len * 0.7) * sc * 0.6, ip, v.zoom);
+      // blood spurts where a blow lands: on the animal, on the explorer
+      if (this.blows.landed && ip >= 0 && this.bled.foe !== this.blows.struck) {
+        this.bled.foe = this.blows.struck;
+        this.spurt(f.x, f.y, (sp.look.height ?? sp.look.len * 0.7) * 2 / START_ZOOM * 0.55, f.x >= s.x ? 1 : -1, 5 + Math.min(6, Math.round(sp.look.len / 2)));
+      }
+      const hp0 = (now - this.blows.hurt);
+      if (hp0 >= 0 && this.bled.you !== this.blows.hurt) { this.bled.you = this.blows.hurt; this.spurt(s.x, s.y, 13, s.x >= f.x ? 1 : -1, 5); }
       if (dist < CONTACT * 3) this.facing = f.x >= s.x ? 1 : -1;
       this.lifeBar(fx, fy - (sp.look.height ?? sp.look.len) * 2.2 * v.zoom / START_ZOOM - 8, f.hp / lifeOf(sp), 'foe');
     }
@@ -303,6 +310,7 @@ export class Overlay {
     // the animal's bite or claws on the explorer: red slashes, for a moment
     const cp = (now - this.blows.hurt) / 320;
     if (cp >= 0 && cp < 1) this.wound(this.attackKind, ex, ey - 22 * v.zoom / START_ZOOM, cp, v.zoom);
+    this.drops(screen, v, dt);
     if (f) this.lifeBar(ex, ey - 40 * v.zoom / START_ZOOM, s.hp / s.maxHp, 'you');
     this.drawFloats(screen, now);
     // the clouds pass over the explorer (they fade out as the view zooms in under them)
@@ -589,6 +597,63 @@ export class Overlay {
     ctx.beginPath();
     for (let k = 0; k < 7; k++) { const a = k * 0.9 + 0.3; ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); }
     ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  // ---- blood and carcasses ----
+
+  /** the blows already bled for (their times), so each spurts once */
+  private readonly bled = { foe: -1e9, you: -1e9 };
+  /** drops of blood in the air: world position, height above the ground, speeds (world units) */
+  private blood: { x: number; y: number; z: number; vx: number; vy: number; vz: number; r: number }[] = [];
+  /** where drops fell: small stains on the ground that dry out and fade */
+  private stains: { x: number; y: number; r: number; t0: number }[] = [];
+
+  /** A spurt of blood from (x, y) at height h, thrown away from the blow (dir), n drops. */
+  spurt(x: number, y: number, h: number, dir: number, n: number): void {
+    for (let k = 0; k < n; k++) {
+      const a = (Math.random() - 0.5) * 1.4, sp = 6 + Math.random() * 16;
+      this.blood.push({ x, y, z: h * (0.7 + Math.random() * 0.4), vx: dir * Math.cos(a) * sp, vy: (Math.random() - 0.5) * 8, vz: 8 + Math.random() * 22, r: 0.35 + Math.random() * 0.45 });
+    }
+    if (this.blood.length > 160) this.blood.splice(0, this.blood.length - 160);
+  }
+
+  /** The drops fly, fall, and leave a stain where they land. */
+  private drops(screen: (x: number, y: number) => [number, number], v: View, dt: number): void {
+    const { ctx } = this, now = performance.now();
+    ctx.fillStyle = 'rgb(150,22,18)';
+    this.blood = this.blood.filter((d) => {
+      d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; d.vz -= 140 * dt;
+      if (d.z <= 0) { this.stains.push({ x: d.x, y: d.y, r: d.r * (0.6 + Math.random() * 0.6), t0: now }); return false; }
+      const [x, y] = screen(d.x, d.y);
+      ctx.beginPath(); ctx.ellipse(x, y - d.z * v.zoom, d.r * v.zoom, d.r * v.zoom * 1.3, 0, 0, Math.PI * 2); ctx.fill();
+      return true;
+    });
+    if (this.stains.length > 240) this.stains.splice(0, this.stains.length - 240);
+  }
+
+  /** Stains on the ground, and the last animals killed lying where they fell, in their blood. */
+  private stainsAndCarcasses(s: GameState, v: View, screen: (x: number, y: number) => [number, number], now: number): void {
+    const { ctx } = this, STAIN_MS = 40000;
+    this.stains = this.stains.filter((st) => now - st.t0 < STAIN_MS);
+    ctx.fillStyle = 'rgb(120,24,20)';
+    for (const st of this.stains) {
+      const [x, y] = screen(st.x, st.y);
+      ctx.globalAlpha = 0.6 * (1 - (now - st.t0) / STAIN_MS);
+      ctx.beginPath(); ctx.ellipse(x, y, st.r * v.zoom * 1.2, st.r * v.zoom * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const scale = 2 * v.zoom / START_ZOOM, t = worldTime();
+    for (const c of s.carcasses) {
+      const sp = speciesById(c.species);
+      if (!sp || !isSeen(s, c.x, c.y)) continue;
+      const [x, y] = screen(c.x, c.y), L = sp.look.len * scale;
+      if (L < 4 || x < -L * 2 || y < -L * 2 || x > v.W + L * 2 || y > v.H + L * 2) continue;
+      // a pool of blood under it, spreading in the first minute
+      const spread = Math.min(1, (t - c.t) / 60);
+      ctx.fillStyle = 'rgba(120,24,20,.7)';
+      ctx.beginPath(); ctx.ellipse(x + c.dir * L * 0.05, y + L * 0.04, L * (0.35 + spread * 0.3), L * (0.09 + spread * 0.08), 0, 0, Math.PI * 2); ctx.fill();
+      drawAnimal(ctx, sp.look, { x: c.x, y: c.y, dir: c.dir, pace: 0, phase: 0 }, x, y, scale, 0, DPR, sky(c.x).darkness > 0.5, true);
+    }
   }
 
   /** How the last fighting animal strikes (for the mark its blow leaves). */

@@ -188,10 +188,20 @@ export class MapScene extends Phaser.Scene {
       this.fingers.delete(p.id);
       if (this.fingers.size < 2) this.pinchStart = 0;
       if (tap && this.view.zoom >= Z_ATLAS) {
-        const [sx, sy] = css(p), v = this.view;
-        this.propose(v.x + (sx - v.W / 2) / v.zoom, v.y + (sy - v.H / 2) / v.zoom);
+        const [sx, sy] = css(p), v = this.view, X = v.x + (sx - v.W / 2) / v.zoom, Y = v.y + (sy - v.H / 2) / v.zoom;
+        // a right click walks (or hunts) at once; a tap or a left click asks first
+        if (p.button === 2) this.actNow(X, Y); else this.propose(X, Y);
       }
     };
+    this.input.mouse?.disableContextMenu();
+    // the keyboard, on a computer: Escape closes, I or S opens the pack, + and - zoom, Space centres
+    this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this.cancelPlan();
+      else if (e.key === 'i' || e.key === 'I' || e.key === 's' || e.key === 'S') this.openPack();
+      else if (e.key === '+' || e.key === '=') this.setZoom(this.view.zoom * 1.25);
+      else if (e.key === '-' || e.key === '_') this.setZoom(this.view.zoom / 1.25);
+      else if (e.key === ' ') { this.follow = true; if (this.view.zoom < Z_ATLAS) this.setZoom(START_ZOOM); }
+    });
     this.input.on('pointerup', up);
     this.input.on('pointerupoutside', up);
     this.input.on('wheel', (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => this.setZoom(this.view.zoom * (dy > 0 ? 0.88 : 1.13)));
@@ -208,13 +218,7 @@ export class MapScene extends Phaser.Scene {
       const d = Math.hypot(beast.x - this.state.x, beast.y - this.state.y);
       this.overlay.plan = [[this.state.x, this.state.y], [beast.x, beast.y]];
       const verb = beast.species.danger >= 1 ? 'hunt.attack' : 'hunt.go';
-      this.hud.showWalk(tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), null, () => {
-        this.cancelPlan();
-        this.follow = true;
-        if (this.state.fight?.hunt) end(this.state, worldTime(), REGROUP);
-        if (!this.state.fight) hunt(this.state, beast);
-        this.chaseTimer = 0;
-      }, () => this.cancelPlan(), t(verb, { a: t('animal.' + beast.species.id) }));
+      this.hud.showWalk(tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), null, () => this.goHunt(beast), () => this.cancelPlan(), t(verb, { a: t('animal.' + beast.species.id) }));
       return;
     }
     // a tap on (or near) a place already seen goes to that place, by its name
@@ -262,6 +266,32 @@ export class MapScene extends Phaser.Scene {
     }
     if (L < 1 && alt) { this.overlay.plan = null; this.hud.showWalk('', null, alt.go, () => this.cancelPlan(), alt.label); return; }
     this.hud.showWalk(detail, place?.name ?? null, walk, () => this.cancelPlan(), undefined, alt);
+  }
+
+  /** Go after this animal (hunt it, or attack it). */
+  private goHunt(beast: Beast): void {
+    this.cancelPlan();
+    this.follow = true;
+    this.state.work = null;
+    if (this.state.fight?.hunt) end(this.state, worldTime(), REGROUP);
+    if (!this.state.fight) hunt(this.state, beast);
+    this.chaseTimer = 0;
+  }
+
+  /**
+   * A right click (on a computer): no question asked. On an animal, go after it; anywhere else,
+   * walk there at once (to a place by its name when one is clicked).
+   */
+  private actNow(tx: number, ty: number): void {
+    const beast = this.beastAt(tx, ty, Math.max(10, 22 / this.view.zoom));
+    if (beast) { this.goHunt(beast); return; }
+    const place = this.placeAt(tx, ty, Math.max(18, 26 / this.view.zoom));
+    const x = place ? place.x : tx, y = place ? place.y : ty, s = this.state;
+    this.cancelPlan();
+    this.follow = true;
+    if (s.fight?.hunt) end(s, worldTime(), REGROUP);
+    s.work = null;
+    if (!startJourney(s, x, y)) this.onEvent({ type: 'shore' });
   }
 
   /** Work in hand this frame: gathering, fishing; what it gives. */
@@ -333,7 +363,7 @@ export class MapScene extends Phaser.Scene {
       const name = (sp: string): string => t('animal.' + sp);
       if (e.kind === 'hit' || e.kind === 'miss') { this.overlay.blow(e.who, e.kind === 'hit'); this.overlay.float(e.x, e.y, e.kind === 'hit' ? '−' + e.damage : t('fight.miss'), e.who === 'foe' ? 'foe' : 'you'); }
       else if (e.kind === 'charge') { this.cancelPlan(); this.follow = true; this.hud.showNote(t('fight.charge.title', { a: name(e.species) }), t('fight.charge.text'), 5000); }
-      else if (e.kind === 'killed') { this.overlay.float(e.x, e.y - 12, t('fight.meat', { n: e.meat }), 'loot'); this.hud.showNote(t('fight.killed', { a: name(e.species) }), t('fight.killed.text', { n: e.meat }), 4000); }
+      else if (e.kind === 'killed') { this.overlay.spurt(e.x, e.y, 6, e.x >= s.x ? 1 : -1, 14); this.overlay.float(e.x, e.y - 12, t('fight.meat', { n: e.meat }), 'loot'); this.hud.showNote(t('fight.killed', { a: name(e.species) }), t('fight.killed.text', { n: e.meat }), 4000); }
       else if (e.kind === 'escaped') this.hud.showNote(t('fight.escaped', { a: name(e.species) }), '', 3000);
       else if (e.kind === 'gaveUp') this.hud.showNote(t('fight.gaveUp', { a: name(e.species) }), '', 3000);
       else if (e.kind === 'lost') { this.view.x = s.x; this.view.y = s.y; this.follow = true; this.hud.showNote(t('fight.wake.title'), t('fight.wake.text', { n: e.goldLost }), 8000); }
@@ -405,10 +435,32 @@ export class MapScene extends Phaser.Scene {
     return LEVELS.find((l) => l >= need * 0.85) ?? LEVELS[LEVELS.length - 1];
   }
 
+  /**
+   * Tiles are 128, 256 or 512 pixels wide: powers of two, which Phaser's WebGL renderer sets to
+   * REPEAT. Smoothed at its edges, a tile then blends in a little of its opposite edge: the faint
+   * lines seen between tiles. Their edges are clamped instead.
+   */
+  private clampEdges(texture: string): void {
+    const r = this.game.renderer;
+    if (r.type !== Phaser.WEBGL) return;
+    const gl = (r as Phaser.Renderer.WebGL.WebGLRenderer).gl;
+    const w = this.textures.get(texture).source[0].glTexture as unknown as { webGLTexture: WebGLTexture | null; wrapS: number; wrapT: number } | null;
+    if (!w?.webGLTexture) return;
+    w.wrapS = w.wrapT = gl.CLAMP_TO_EDGE; // kept if the context is lost and rebuilt
+    // as Phaser's own setTextureFilter does: on unit 0, then the texture bound there put back
+    gl.activeTexture(gl.TEXTURE0);
+    const current = gl.getParameter(gl.TEXTURE_BINDING_2D) as WebGLTexture | null;
+    gl.bindTexture(gl.TEXTURE_2D, w.webGLTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    if (current) gl.bindTexture(gl.TEXTURE_2D, current);
+  }
+
   /** Show a tile picture (new, sharper, or shrunk), as a Phaser texture without a pixel copy. */
   private putTile(key: string, source: HTMLCanvasElement | ImageBitmap, res: number, art: Omit<TileArt, 'canvas'>): void {
     const texture = 'tile:' + key + '#' + textureSerial++;
     this.textures.addImage(texture, source as unknown as HTMLImageElement);
+    this.clampEdges(texture);
     const c = this.tiles.get(key);
     if (c) {
       const old = c.texture, oldSource = c.source;

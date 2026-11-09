@@ -33,6 +33,8 @@ export const ESCAPE = 260;
 /** No animal attacks within this distance of a town, nor during the calm after a fight (s). */
 export const TOWN_SAFE = 180;
 export const CALM_SECONDS = 20;
+/** How many carcasses are left lying on the map (the oldest goes when a new one falls). */
+export const CARCASSES = 5;
 /** How long a killed animal stays gone, and one that got away (world seconds). */
 export const RESPAWN = 30 * 60;
 export const REGROUP = 3 * 60;
@@ -175,6 +177,9 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
       if (f.hp <= 0) {
         const meat = Math.max(1, Math.min(6, Math.round(sp.food / 2)));
         s.items.viande = (s.items.viande ?? 0) + meat;
+        // it lies where it fell, facing away from the explorer
+        s.carcasses.push({ species: f.species, x: f.x, y: f.y, dir: f.x >= s.x ? 1 : -1, t });
+        if (s.carcasses.length > CARCASSES) s.carcasses.splice(0, s.carcasses.length - CARCASSES);
         out.push({ kind: 'killed', species: f.species, meat, x: f.x, y: f.y });
         end(s, t, RESPAWN);
         return out;

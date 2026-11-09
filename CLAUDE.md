@@ -48,7 +48,7 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v6 (v3, v4, v5 migrées : vie, écus, sac, dés, combat sur la carte, travail) ; les sauvegardes v1/v2
+- Échelle des sauvegardes : v7 (v3 à v6 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses) ; les sauvegardes v1/v2
   (monde plat) sont mises de côté.
 
 Règles qui restent :
@@ -71,7 +71,9 @@ Règles qui restent :
    chargées (`setArtKinds`). Brume : un tampon de disque pré-dessiné par taille. **Robustesse** (tuile
    blanche vue sur Firefox Android) : une tuile qui échoue dans un worker est redemandée, puis
    dessinée sur le fil principal après 2 échecs ; un worker muet 12 s ou en erreur est relancé.
-   Le worker renvoie une **copie** (`createImageBitmap`, jamais `transferToImageBitmap`) ; sur
+   **Bords bloqués** : les tuiles font 128/256/512 px (puissances de 2), que Phaser met en `REPEAT` en WebGL ;
+   lissées, elles mêlaient leur bord opposé (fins traits entre les cases) : `Map.clampEdges` les passe en
+   `CLAMP_TO_EDGE`. Le worker renvoie une **copie** (`createImageBitmap`, jamais `transferToImageBitmap`) ; sur
    **Firefox**, des pixels bruts recopiés dans un canvas de la page (les ImageBitmap y donnaient des
    tuiles vides, décalées ou rayées sur Android). `?tiles=main` force le dessin sur le fil principal.
    **Résolution adaptative** (`ui/screen.ts`, `Map.adaptQuality`) : si deux mesures de 2 s d'affilée
@@ -82,7 +84,8 @@ Règles qui restent :
    l'échelle, routes d'un seul style qui contournent les montagnes (A*, cols sous 0,7,
    liaison abandonnée au-delà de 1,8 × la ligne droite), villages et villes réalistes,
    noms détourés, vision selon le terrain (forêt 100, plaine 200, jusqu'à 600 en altitude),
-   contournement de l'eau par l'explorateur. **Marche** : un tap montre l'itinéraire (pointillés,
+   contournement de l'eau par l'explorateur. **Ordinateur** : clic droit = marcher (ou chasser) tout de suite,
+   sans confirmation ; clavier : Échap ferme, I ou S ouvre le sac, + et − zooment, Espace recentre. **Marche** : un tap montre l'itinéraire (pointillés,
    drapeau) et propose « Marcher vers » (distance en lieues ; le nom du lieu si on touche un bourg,
    un lieu, un monument ou une merveille déjà vus) ; rien ne part sans confirmation. Plus de trace
    des pas passés sur la carte : seuls les pointillés de l'explorateur à sa destination.
@@ -258,7 +261,10 @@ sur le téléphone de Doudou via GitLab Pages.
    180 d’un bourg ni pendant 20 s après un combat. Jauges de vie et dégâts flottants sur la carte.
    **Animations** (demande d’Adrien) : l’explorateur lève son bâton et l’abat (`STRIKE_MS`), éclat
    d’encre à l’impact ; l’animal bondit en se cabrant (`LUNGE_MS`), griffures rouges sur l’explorateur ;
-   recul de celui qui est touché ; poussière derrière un animal qui charge. **Attaque propre à chaque espèce**
+   recul de celui qui est touché ; poussière derrière un animal qui charge. **Sang** (demande d'Adrien) : gouttes
+   qui giclent à chaque coup porté (animal ou explorateur), retombent en taches qui sèchent en 40 s.
+   **Carcasses** : l'animal tué reste couché sur le dos, pattes en l'air, dans une flaque ; seules les
+   `CARCASSES` = 5 dernières restent (`GameState.carcasses`, sauvegarde **v7**). **Attaque propre à chaque espèce**
    (`attack` dans le JSON, `attackMotion` dans l'overlay) : `bite` (bond bas, traces de dents : loup, lion,
    tigre, hyène, crocodile, hippo), `swipe` (se dresse puis frappe de la patte, griffures : ours), `ram` (recule
    puis charge tête basse, étoile de choc : sanglier, rhino, bison, yack, morse, éléphant), `kick` (se retourne

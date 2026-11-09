@@ -49,7 +49,7 @@ export interface Work {
 }
 
 export interface GameState {
-  version: 6;
+  version: 7;
   x: number;
   y: number;
   /** leagues walked */
@@ -82,4 +82,9 @@ export interface GameState {
   gone: Record<string, number>;
   /** the work in hand, if any */
   work: Work | null;
+  /** the last animals killed, lying where they fell (the most recent last; only a few are kept) */
+  carcasses: Carcass[];
 }
+
+/** A killed animal left on the map. */
+export interface Carcass { species: string; x: number; y: number; dir: number; t: number }

@@ -326,7 +326,8 @@ sur le téléphone de Doudou via GitLab Pages.
    cadre gravé à fleurons, papier taché ; en tête un petit paysage en aplats doux (ciel, dunes, montagnes,
    soleil) sous une banderole de titre ; portrait dans un médaillon ovale hachuré (« Fig. 1 — L'explorateur en
    tenue de route ») ; cases comme des boîtes à spécimens à clous de laiton, teintées par place ; titres ❦ ;
-   almanach : bande de couleur par usage, recettes numérotées en chiffres romains, ingrédients en pointillés
+   almanach : **onglets sur la tranche** comme un livre (un par usage, à la couleur de l'usage, pastille verte du
+   nombre de recettes prêtes ; s'ouvre sur le premier qui a quelque chose de prêt), bande de couleur par usage, recettes numérotées en chiffres romains, ingrédients en pointillés
    (« Bois ………… 2 / 2 »), bouton « Fabriquer » vert en relief. Le
    **sac** est une page d'atlas à **onglets** : « Porté » (portrait de l'explorateur, `ui/portrait.ts`, avec quatre
    places : main droite (arme), main gauche (torche), tenue (veste), pieds (bottes de cuir : 2 peaux + 2 fibres,

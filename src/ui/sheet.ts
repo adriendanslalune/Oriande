@@ -65,7 +65,7 @@ const CSS = `
 .sheet .figcap { font: italic 13px "IM Fell English", serif; text-align: center; margin: 10px 0 2px; }
 .sheet-detail { flex: none; margin: 8px 4px 4px; border: 1.5px solid ${INK}; outline: 1px solid ${INK}; outline-offset: -5px; padding: 12px 14px; display: none; gap: 12px; align-items: flex-start; background: #f6eed8; }
 .sheet-detail.on { display: flex; }
-.sheet-detail .box { width: 64px; flex: none; }
+.sheet-detail .box { width: 64px; height: 64px; flex: none; }
 .sheet-detail .what { flex: 1; min-width: 0; }
 .sheet-detail .what b { display: block; font: 17px "IM Fell English SC", serif; letter-spacing: .05em; }
 .sheet-detail .what i { display: block; font: italic 14px/1.3 "IM Fell English", serif; color: #4f4232; }
@@ -82,8 +82,9 @@ const CSS = `
 .sheet .rec .in { flex: 1; display: flex; gap: 10px; padding: 9px 10px 10px; min-width: 0; }
 .sheet .rec.ready { background: #eef0d2; }
 .sheet .rec.done { opacity: .72; }
-.sheet .rec .num { flex: none; width: 30px; font: 24px/1 "IM Fell English", serif; text-align: center; padding-top: 2px; }
-.sheet .rec .box { width: 56px; flex: none; }
+.sheet .rec .num { flex: none; min-width: 30px; font: 21px/1 "IM Fell English", serif; text-align: center; padding-top: 2px; white-space: nowrap; }
+body.sheet-open .hud-buttons { display: none; }
+.sheet .rec .box { width: 56px; height: 56px; flex: none; align-self: flex-start; }
 .sheet .rec .what { flex: 1; min-width: 0; }
 .sheet .rec b { display: block; font: 16px "IM Fell English SC", serif; letter-spacing: .05em; }
 .sheet .rec .what > i { display: block; font: italic 13px/1.3 "IM Fell English", serif; color: #5a4a36; margin-bottom: 3px; }
@@ -92,6 +93,14 @@ const CSS = `
 .sheet .ing.short { color: #9c2e20; }
 .sheet .rec .state { font: italic 13px "IM Fell English", serif; color: #7a6a52; margin-top: 3px; }
 .sheet .make { margin-top: 8px; }
+.sheet.book .sheet-page { width: min(calc(94vw - 30px), 510px); margin-left: -15px; }
+.sheet .thumbs { position: absolute; right: -31px; top: 120px; display: flex; flex-direction: column; gap: 4px; z-index: 1; }
+.sheet .thumbs button { position: relative; width: 30px; min-height: 64px; padding: 8px 0; border: 1.5px solid ${INK}; border-left: 0; border-radius: 0 7px 7px 0;
+  writing-mode: vertical-rl; font: 13px "IM Fell English SC", serif; letter-spacing: .06em; color: ${INK}; cursor: pointer; touch-action: manipulation;
+  box-shadow: 2px 1px 0 rgba(43,33,23,.35); filter: saturate(.7) brightness(.95); }
+.sheet .thumbs button.on { width: 34px; margin-left: -4px; filter: none; box-shadow: 3px 1px 0 rgba(43,33,23,.45); }
+.sheet .thumbs button .ready { position: absolute; right: -9px; top: -6px; writing-mode: horizontal-tb; min-width: 16px; height: 16px; border-radius: 8px;
+  background: #5f7d3c; color: #f6eed8; border: 1px solid ${INK}; font: 700 11px/14px "Old Standard TT", serif; text-align: center; }
 `;
 
 /** Colours of the uses of things: the band on a recipe, the swatch by its heading. */
@@ -145,9 +154,9 @@ export class Sheet {
     document.body.append(this.style, this.root);
   }
 
-  destroy(): void { this.root.remove(); this.style.remove(); }
+  destroy(): void { this.root.remove(); this.style.remove(); document.body.classList.remove('sheet-open'); }
 
-  hide(): void { if (!this.shown) return; this.root.classList.remove('on'); this.shown = null; this.onClose(); }
+  hide(): void { if (!this.shown) return; this.root.classList.remove('on'); document.body.classList.remove('sheet-open'); this.shown = null; this.onClose(); }
 
   /** A new page: the engraved frame, the landscape with the title in its banner, the body. */
   private page(title: string, sub: string): { page: HTMLElement; body: HTMLElement } {
@@ -169,6 +178,7 @@ export class Sheet {
     page.append(head, body);
     this.root.replaceChildren(page);
     this.root.classList.add('on');
+    document.body.classList.add('sheet-open'); // the map's buttons step aside
     return { page, body };
   }
 
@@ -213,7 +223,7 @@ export class Sheet {
     const scroll = this.shown === 'sac' ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     const sameTab = this.shown === 'sac' && this.root.dataset.tab === m.tab;
     this.shown = 'sac'; this.root.dataset.tab = m.tab;
-    this.root.classList.add('tabbed');
+    this.root.classList.add('tabbed'); this.root.classList.remove('book');
     const { page, body } = this.page(m.title, m.sub);
     const tabs = document.createElement('div'); tabs.className = 'sheet-tabs'; tabs.setAttribute('role', 'tablist');
     for (const tb of m.tabs) {
@@ -268,14 +278,29 @@ export class Sheet {
   }
 
   /** The almanac: every recipe by use, numbered, what it needs and what the pack holds; those ready can be made. */
-  showAlmanac(title: string, sub: string, groups: { key: string; title: string; cards: RecipeCard[] }[]): void {
-    const scroll = this.shown === 'almanac' ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
-    this.shown = 'almanac';
-    this.root.classList.remove('tabbed');
-    const { body } = this.page(title, sub);
+  showAlmanac(title: string, sub: string, groups: { key: string; title: string; cards: RecipeCard[] }[], open: string, setOpen: (key: string) => void): void {
+    const same = this.shown === 'almanac' && this.root.dataset.tab === open;
+    const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
+    this.shown = 'almanac'; this.root.dataset.tab = open;
+    this.root.classList.remove('tabbed'); this.root.classList.add('book');
+    const { page, body } = this.page(title, sub);
+    // thumb tabs on the edge of the book, one by use, with how many recipes are ready there
+    const thumbs = document.createElement('div'); thumbs.className = 'thumbs'; thumbs.setAttribute('role', 'tablist');
+    for (const g of groups) {
+      if (!g.cards.length) continue;
+      const b = document.createElement('button'); b.setAttribute('role', 'tab'); b.textContent = g.title;
+      b.style.background = USE_COLOUR[g.key] ?? '#c9b48a';
+      if (g.key === open) { b.className = 'on'; b.setAttribute('aria-selected', 'true'); }
+      const ready = g.cards.filter((c) => c.state === 'ready').length;
+      if (ready) { const r = document.createElement('span'); r.className = 'ready'; r.textContent = String(ready); b.append(r); }
+      b.addEventListener('click', () => setOpen(g.key));
+      thumbs.append(b);
+    }
+    page.append(thumbs);
     let n = 0;
     for (const g of groups) {
       if (!g.cards.length) continue;
+      if (g.key !== open) { n += g.cards.length; continue; } // the numbering runs through the whole book
       const colour = USE_COLOUR[g.key] ?? '#c9b48a';
       const cat = document.createElement('div'); cat.className = 'cat';
       const sw = document.createElement('i'); sw.style.background = colour;
@@ -310,6 +335,6 @@ export class Sheet {
         body.append(rec);
       }
     }
-    body.scrollTop = scroll;
+    if (same) body.scrollTop = scroll;
   }
 }

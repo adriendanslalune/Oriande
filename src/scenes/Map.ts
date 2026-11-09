@@ -413,6 +413,8 @@ export class MapScene extends Phaser.Scene {
   /** the thing tapped in the pack, whose card is shown, and the tab open */
   private sacSel: string | null = null;
   private sacTab = 'worn';
+  /** the page of the almanac open (a use), '' for the first with something ready */
+  private almTab = '';
 
   /**
    * The pack (asked by Adrien): tabs. "Carried": the explorer drawn with what he holds and wears,
@@ -473,7 +475,7 @@ export class MapScene extends Phaser.Scene {
    * fishing, fire), what each needs and what the pack holds; what can be made now stands out and
    * is made with a tap.
    */
-  private openAlmanac(): void {
+  private openAlmanac(open = this.almTab): void {
     this.actAt = null; this.cancelPlan();
     const s = this.state, now = worldTime(), name = (id: string): string => t('item.' + id + '.name');
     const cards: (RecipeCard & { use: string })[] = RECIPES.map((r) => {
@@ -496,7 +498,11 @@ export class MapScene extends Phaser.Scene {
       key: u, title: t('use.' + u), cards: cards.filter((c) => c.use === u).sort((a, b) => rank[a.state] - rank[b.state]),
     }));
     const ready = cards.filter((c) => c.state === 'ready').length;
-    this.sheet.showAlmanac(t('almanac.title'), ready ? tn('almanac.ready', ready, { n: ready }) : t('almanac.sub'), groups);
+    // the page open: the one asked for, else the first with something ready to make, else the first
+    const shown = groups.filter((g) => g.cards.length);
+    const page = shown.find((g) => g.key === open) ?? shown.find((g) => g.cards.some((c) => c.state === 'ready')) ?? shown[0];
+    this.almTab = page.key;
+    this.sheet.showAlmanac(t('almanac.title'), ready ? tn('almanac.ready', ready, { n: ready }) : t('almanac.sub'), groups, page.key, (k) => this.openAlmanac(k));
   }
 
   /** The animal under a tap, if any (only where the explorer has seen). */

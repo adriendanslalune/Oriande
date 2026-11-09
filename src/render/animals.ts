@@ -100,14 +100,14 @@ const looks = new Map<Look, number>();
  * Draw one animal at screen (x, y) (its feet), `scale` CSS pixels per drawing unit, `time` in
  * seconds (with the animal's own phase already added), `dpr` the device pixel ratio.
  */
-export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal, x: number, y: number, scale: number, time: number, dpr = 1, night = false, dead = false): void {
-  const pose = dead ? { moving: false, gait: 0, graze: 0, look: 0, sway: 0, cycle: 0.3, up: 0 } : poseOf(look, a, time);
+export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal, x: number, y: number, scale: number, time: number, dpr = 1, night = false): void {
+  const pose = poseOf(look, a, time);
   const flying = look.kind === 'bat' || look.kind === 'owl';
   if (look.kind === 'whale' && pose.cycle > 0.75) return; // under water
   // sizes snap to steps of ~8 %, so a zoom does not fill the cache with near-copies
   const s = Math.pow(1.08, Math.round(Math.log(scale) / Math.log(1.08)));
   if (!looks.has(look)) looks.set(look, looks.size);
-  const key = looks.get(look) + (night ? 'n|' : '|') + (dead ? 'd|' : '') + s.toFixed(3) + '|' + dpr + '|' + (pose.moving ? 1 : 0) + pose.gait + ',' + pose.graze + ',' + pose.look + ',' + pose.sway + ',' + pose.cycle + ',' + pose.up;
+  const key = looks.get(look) + (night ? 'n|' : '|') + s.toFixed(3) + '|' + dpr + '|' + (pose.moving ? 1 : 0) + pose.gait + ',' + pose.graze + ',' + pose.look + ',' + pose.sway + ',' + pose.cycle + ',' + pose.up;
   let c = cache.get(key);
   if (!c) {
     if (cache.size > 600) cache.clear();
@@ -117,9 +117,9 @@ export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal,
     img.width = Math.ceil(half * 2 * k); img.height = Math.ceil((above + 2) * k);
     const g = img.getContext('2d')!;
     g.setTransform(k, 0, 0, k, half * k, above * k);
-    dim = night ? 0.55 : 0; noShadow = dead;
+    dim = night ? 0.55 : 0;
     render(g, look, pose, s);
-    dim = 0; noShadow = false;
+    dim = 0;
     c = { img, ox: half, oy: above, k };
     cache.set(key, c);
   }
@@ -132,10 +132,6 @@ export function drawAnimal(ctx: CanvasRenderingContext2D, look: Look, a: Animal,
     ctx.translate(0, -a.alt * scale);
   }
   if (a.dir < 0) ctx.scale(-1, 1);
-  if (dead) { // on its back, legs in the air: the back on the ground
-    const H = look.kind === 'quad' ? (look.height ?? look.len * 0.7) : look.len * 0.4;
-    ctx.translate(0, -H * scale * 0.95); ctx.scale(1, -1);
-  }
   const r = c.k / dpr;
   ctx.drawImage(c.img, -c.ox * r, -c.oy * r, c.img.width / dpr, c.img.height / dpr);
   ctx.restore();
@@ -164,11 +160,7 @@ function render(ctx: CanvasRenderingContext2D, look: Look, p: Pose, scale: numbe
 
 interface Pen { line: number; fine: number; gap: number; shade: number }
 
-/** a carcass is drawn upside down: no shadow under its feet */
-let noShadow = false;
-
 function shadow(ctx: CanvasRenderingContext2D, x: number, w: number): void {
-  if (noShadow) return;
   ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = INK;
   ctx.beginPath(); ctx.ellipse(x, 0.3, w, w * 0.16, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -679,4 +671,79 @@ function hedgehog(ctx: CanvasRenderingContext2D, L: Look, p: Pose, pen: Pen): vo
   ctx.fillStyle = INK;
   ctx.beginPath(); ctx.arc(s * 0.62, -s * 0.22 - lift, s * 0.04, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(s * 0.42, -s * 0.28 - lift * 0.5, s * 0.03, 0, Math.PI * 2); ctx.fill();
+}
+
+// ---- what is left of a killed animal ----
+
+/**
+ * The skeleton of a killed animal, lying on its side where it fell, in the engraver's line:
+ * skull, spine, the ribs arching over, the pelvis, scattered leg bones, the tail's vertebrae.
+ * Drawn at screen (x, y) (where it lay), `scale` CSS pixels per drawing unit, `dir` the way its
+ * head points. Few and cheap: drawn directly, not cached.
+ */
+export function drawSkeleton(ctx: CanvasRenderingContext2D, look: Look, x: number, y: number, scale: number, dir: number, night = false): void {
+  const len = look.len, quadLike = look.kind === 'quad';
+  const H = quadLike ? (look.height ?? len * 0.7) : look.kind === 'ostrich' ? len * 1.4 : len * 0.5;
+  const depth = quadLike ? H * (1 - (look.legs ?? 0.55)) : H * 0.55;
+  const bone = night ? 'rgb(150,156,170)' : 'rgb(234,226,204)', ink = INK;
+  const lw = Math.max(0.5, Math.min(1.2, len * scale / 30));
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(scale * dir, scale);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const pen = lw / scale;
+  // a bone: a thick pale stroke inked on both sides, with knobs at the ends
+  const bonePath = (pts: P[], w: number): void => {
+    for (const [col, ww] of [[ink, w + pen * 2], [bone, w]] as [string, number][]) {
+      ctx.strokeStyle = col; ctx.lineWidth = ww; ctx.beginPath(); ctx.moveTo(...pts[0]);
+      if (pts.length === 3) ctx.quadraticCurveTo(...pts[1], ...pts[2]); else for (const p of pts.slice(1)) ctx.lineTo(...p);
+      ctx.stroke();
+    }
+  };
+  const knob = (p: P, r: number): void => { ctx.fillStyle = bone; ctx.strokeStyle = ink; ctx.lineWidth = pen; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); };
+  const sy = -depth * 0.18; // the spine, lying just above the ground
+  const tail = look.tailLen ?? (look.kind === 'croc' ? len * 0.4 : 0);
+  const head = look.kind === 'croc' ? len * 0.22 : quadLike ? (look.head ?? 2) : len * 0.16;
+  const back = -len * 0.42, front = len * 0.38, bw = Math.max(0.18, depth * 0.07);
+  // leg bones, flung out on the ground, behind the body
+  for (const [bx, a, l] of [[-len * 0.3, -0.5, 0.9], [-len * 0.18, 0.35, 0.8], [len * 0.22, -0.3, 0.85], [len * 0.32, 0.45, 0.75]] as [number, number, number][]) {
+    const L = (quadLike ? H * (look.legs ?? 0.55) : H * 0.5) * l, p0: P = [bx, depth * 0.05 + 0.2], p1: P = [bx + Math.cos(a) * L, p0[1] + Math.sin(a) * L * 0.25];
+    bonePath([p0, p1], bw * 0.9); knob(p0, bw * 0.7); knob(p1, bw * 0.6);
+  }
+  // the tail's vertebrae, trailing off
+  for (let k = 0; k < Math.min(9, Math.round(tail * 2)); k++) knob([back - k * 0.45 - 0.3, sy + Math.sin(k * 0.7) * 0.25], Math.max(0.12, bw * (0.8 - k * 0.06)));
+  // the pelvis
+  ctx.fillStyle = bone; ctx.strokeStyle = ink; ctx.lineWidth = pen;
+  ctx.beginPath(); ctx.ellipse(back + depth * 0.12, sy - depth * 0.12, depth * 0.28, depth * 0.18, -0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(back + depth * 0.12, sy - depth * 0.12, depth * 0.07, 0, Math.PI * 2); ctx.fillStyle = 'rgba(42,36,29,.55)'; ctx.fill();
+  // the ribs, arching up from the spine, the biggest over the chest
+  const r0 = back + (front - back) * 0.32, r1 = back + (front - back) * 0.82, n = Math.max(4, Math.min(7, Math.round(len / 1.6)));
+  for (let k = 0; k < n; k++) {
+    const rx = r0 + (r1 - r0) * k / (n - 1), h = depth * (0.5 + 0.45 * Math.sin(Math.PI * (0.2 + 0.75 * k / (n - 1))));
+    bonePath([[rx, sy], [rx + depth * 0.3, sy - h * 1.15], [rx + depth * 0.5, sy - h * 0.3]], bw * 0.6);
+  }
+  // the spine over them
+  bonePath([[back, sy], [(back + front) / 2, sy - depth * 0.12], [front, sy - depth * 0.05]], bw * 1.3);
+  for (let k = 0; k <= 7; k++) { const u = k / 7, px = back + (front - back) * u; knob([px, sy - depth * 0.12 * Math.sin(Math.PI * u) - bw * 0.6], bw * 0.5); }
+  // the skull: a round cranium, the muzzle tapering, the jaw a little apart, the eye socket dark
+  const hl = Math.min(head * (look.kind === 'croc' ? 1.5 : 1), depth * (look.kind === 'croc' ? 2.4 : 1.3) + 0.6), hh = Math.max(depth * 0.32, hl * 0.36);
+  const hx = front - hh * 0.2, hy = sy - depth * 0.15;
+  ctx.fillStyle = bone; ctx.strokeStyle = ink; ctx.lineWidth = pen;
+  ctx.beginPath(); ctx.moveTo(hx + hl * 0.2, hy + hh * 0.35);
+  ctx.bezierCurveTo(hx - hh * 0.7, hy + hh * 0.3, hx - hh * 0.6, hy - hh * 0.95, hx + hl * 0.25, hy - hh * 0.75); // the cranium
+  ctx.quadraticCurveTo(hx + hl * 0.7, hy - hh * 0.5, hx + hl, hy - hh * 0.05); // the muzzle
+  ctx.lineTo(hx + hl * 0.95, hy + hh * 0.12); ctx.quadraticCurveTo(hx + hl * 0.55, hy + hh * 0.15, hx + hl * 0.2, hy + hh * 0.35);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(hx + hl * 0.15, hy + hh * 0.5); ctx.quadraticCurveTo(hx + hl * 0.55, hy + hh * 0.5, hx + hl * 0.88, hy + hh * 0.3); ctx.lineTo(hx + hl * 0.84, hy + hh * 0.45); ctx.quadraticCurveTo(hx + hl * 0.5, hy + hh * 0.75, hx + hl * 0.1, hy + hh * 0.68); ctx.closePath(); ctx.fill(); ctx.stroke(); // the jaw
+  ctx.fillStyle = 'rgba(42,36,29,.8)';
+  ctx.beginPath(); ctx.ellipse(hx + hl * 0.2, hy - hh * 0.3, hh * 0.2, hh * 0.16, 0, 0, Math.PI * 2); ctx.fill(); // the eye socket
+  ctx.beginPath(); ctx.ellipse(hx + hl * 0.9, hy - hh * 0.05, hh * 0.07, hh * 0.05, 0, 0, Math.PI * 2); ctx.fill(); // the nostril
+  if (look.antlers) { // the antlers stay with the skull
+    const A = look.antlers * 0.8, b0: P = [hx, hy - hh * 0.7], b2: P = [b0[0] - A * 0.6, b0[1] - A * 0.9];
+    bonePath([b0, [b0[0] - A * 0.55, b0[1] - A * 0.3], b2], bw * 0.6);
+    for (const f of [0.35, 0.7]) { const p: P = [lerp(b0[0], b2[0], f), lerp(b0[1], b2[1], f)]; bonePath([p, [p[0] + A * 0.35, p[1] - A * 0.35]], bw * 0.45); }
+  } else if (look.horns || look.nosehorn) {
+    const hn: P = look.nosehorn ? [hx + hl * 0.75, hy - hh * 0.35] : [hx + hl * 0.05, hy - hh * 0.75], H2 = (look.hornLen ?? look.nosehorn ?? 2) * 0.7;
+    bonePath([hn, [hn[0] - H2 * 0.2, hn[1] - H2 * 0.7], [hn[0] - H2 * 0.55, hn[1] - H2]], bw * 0.7);
+  }
+  ctx.restore();
 }

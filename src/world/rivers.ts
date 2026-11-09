@@ -200,6 +200,28 @@ function smooth(pts: [number, number][], rounds: number): [number, number][] {
   return out;
 }
 
+/**
+ * A river ends where it first reaches the sea. Its course is traced on a 64-unit grid, and
+ * smoothing and meanders can carry it out over the water: along a low coast it may even cross a
+ * bay. It is cut at its first real contact with the sea (two points in a row below sea level),
+ * the last point put on the shoreline, a little past it so the water covers the coast's ink.
+ */
+function toCoast(pts: [number, number][]): [number, number][] {
+  const sea = (k: number): boolean => altitude(pts[k][0], pts[k][1]) < 0;
+  let c = -1;
+  for (let k = 1; k < pts.length; k++) if (sea(k) && (k === pts.length - 1 || sea(k + 1))) { c = k; break; }
+  if (c < 0) return pts; // ends in a lake, or on land
+  const out = pts.slice(0, c + 1);
+  const [ax, ay] = out[c - 1], [bx, by] = out[c];
+  if (altitude(ax, ay) < 0) return out;
+  // the shoreline between the last point on land and the first at sea
+  let lo = 0, hi = 1;
+  for (let k = 0; k < 14; k++) { const m = (lo + hi) / 2; if (altitude(ax + (bx - ax) * m, ay + (by - ay) * m) >= 0) lo = m; else hi = m; }
+  const L = Math.hypot(bx - ax, by - ay) || 1, u = Math.min(1, hi + 1.5 / L);
+  out[c] = [ax + (bx - ax) * u, ay + (by - ay) * u];
+  return out;
+}
+
 /** The rivers springing in cell (ci, cj). */
 export function riversOfCell(ci: number, cj: number): River[] {
   const rkey = ci + ',' + cj;
@@ -214,20 +236,29 @@ export function riversOfCell(ci: number, cj: number): River[] {
     const x = (gi + 0.2 + hash2(wg * 13, gj * 17) * 0.6) * SOURCE_STEP, y = (gj + 0.2 + hash2(wg * 19, gj * 23) * 0.6) * SOURCE_STEP;
     const i = Math.round(x / G), j = Math.round(y / G), v = altitude(i * G, j * G);
     if (v < 0.22 || v > 1.1 || used.has(nk(i, j))) continue;
-    const { nodes, lakes, lake } = trace(i, j, used);
-    if (nodes.length < MIN_STEPS) continue;
-    for (const [a, b] of nodes) used.add(nk(a, b));
-    const points = meander(smooth(nodes.map(([a, b]) => [a * G, b * G] as [number, number]), 3));
+    const traced = trace(i, j, used), lake = traced.lake;
+    if (traced.nodes.length < MIN_STEPS) continue;
+    for (const [a, b] of traced.nodes) used.add(nk(a, b));
+    const full = meander(smooth(traced.nodes.map(([a, b]) => [a * G, b * G] as [number, number]), 3));
+    const points = toCoast(full);
     const n = points.length;
+    // cut at the sea: the nodes (and the lakes, the falls) beyond the mouth go too
+    const atFull = traced.nodes.map((_, k) => Math.round(k / Math.max(1, traced.nodes.length - 1) * (full.length - 1)));
+    const last = atFull.findIndex((a) => a >= n - 1);
+    const nodes = last < 0 ? traced.nodes : traced.nodes.slice(0, last + 1);
+    if (nodes.length < 3) continue;
+    const kept = new Set(nodes.map(([a, b]) => nk(a, b)));
+    const lakes = traced.lakes.filter(([a, b]) => kept.has(nk(a, b)));
     const join = -1; // set by the network (see riversNear) when this river joins a bigger one
     // slope between nodes: a torrent where the river drops fast, a waterfall where it plunges
     const alts = nodes.map(([a, b]) => altitude(a * G, b * G));
     const nodeSteep = nodes.map((_, k) => k + 1 < nodes.length ? Math.max(0, alts[k] - alts[k + 1]) : 0);
-    const steep = points.map((_, k) => Math.min(1, nodeSteep[Math.min(nodes.length - 1, Math.floor(k / (n - 1) * (nodes.length - 1)))] / 0.08));
+    const steep = points.map((_, k) => Math.min(1, nodeSteep[Math.min(nodes.length - 1, Math.floor(k / Math.max(1, full.length - 1) * (traced.nodes.length - 1)))] / 0.08));
     const falls: [number, number, number, number][] = [];
     for (let k = 0, last = -99; k + 1 < nodes.length; k++) {
       if (nodeSteep[k] < 0.22 || alts[k + 1] < 0.05 || k - last < 12) continue;
-      const pk = Math.min(n - 2, Math.round((k + 0.5) / (nodes.length - 1) * (n - 1)));
+      const pk = Math.round((k + 0.5) / (traced.nodes.length - 1) * (full.length - 1));
+      if (pk > n - 2) break;
       const [x, y] = points[pk], [x2, y2] = points[pk + 1], L = Math.hypot(x2 - x, y2 - y) || 1;
       falls.push([x, y, (x2 - x) / L, (y2 - y) / L]);
       last = k;
@@ -238,7 +269,7 @@ export function riversOfCell(ci: number, cj: number): River[] {
     const widths = points.map((_, k) => 1.2 + Math.min(9, lengths[k] / 380));
     const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
     const keys = nodes.map(([a, b]) => nk(wrapIndex(a, CIRCUMFERENCE / G), b));
-    const at = nodes.map((_, k) => Math.round(k / Math.max(1, nodes.length - 1) * (n - 1))); // node -> point
+    const at = nodes.map((_, k) => Math.min(n - 1, atFull[k])); // node -> point
     out.push({ points, widths, lengths, steep, falls, join, nodes: keys, at, spring: wrapIndex(gi, around) * 1e6 + gj, lake, lakes: lakes.map(([a, b, n]) => makeLake(a * G, b * G, n)).filter((l): l is Lake => !!l), minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) });
   }
   memo.set(rkey, out);

@@ -12,7 +12,7 @@ import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, lifeOf, presence, type Animal, type Look } from '../world/fauna';
 import { CONTACT, speciesById } from '../game/combat';
 import { FISH_SECONDS, HARVEST_SECONDS, has, weaponOf } from '../game/craft';
-import { drawAnimal } from './animals';
+import { drawAnimal, drawSkeleton } from './animals';
 import { DPR } from '../ui/screen';
 import { isGL } from './glPainter';
 import { worldTime } from '../world/weather';
@@ -631,7 +631,7 @@ export class Overlay {
     if (this.stains.length > 240) this.stains.splice(0, this.stains.length - 240);
   }
 
-  /** Stains on the ground, and the last animals killed lying where they fell, in their blood. */
+  /** Stains on the ground, and the skeletons of the last animals killed, where they fell, in their blood. */
   private stainsAndCarcasses(s: GameState, v: View, screen: (x: number, y: number) => [number, number], now: number): void {
     const { ctx } = this, STAIN_MS = 40000;
     this.stains = this.stains.filter((st) => now - st.t0 < STAIN_MS);
@@ -652,7 +652,7 @@ export class Overlay {
       const spread = Math.min(1, (t - c.t) / 60);
       ctx.fillStyle = 'rgba(120,24,20,.7)';
       ctx.beginPath(); ctx.ellipse(x + c.dir * L * 0.05, y + L * 0.04, L * (0.35 + spread * 0.3), L * (0.09 + spread * 0.08), 0, 0, Math.PI * 2); ctx.fill();
-      drawAnimal(ctx, sp.look, { x: c.x, y: c.y, dir: c.dir, pace: 0, phase: 0 }, x, y, scale, 0, DPR, sky(c.x).darkness > 0.5, true);
+      drawSkeleton(ctx, sp.look, x, y, scale, c.dir, sky(c.x).darkness > 0.5);
     }
   }
 

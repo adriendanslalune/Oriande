@@ -25,6 +25,17 @@ describe('rivers', () => {
     expect(sea).toBeGreaterThan(5);
   });
 
+  it('never run out over the sea: they end on the shore', () => {
+    const { x, y } = startPosition();
+    let mouths = 0;
+    for (const r of riversNear(x - 6000, y - 6000, x + 6000, y + 6000)) {
+      for (let k = 1; k < r.points.length - 1; k++) expect(altitude(r.points[k][0], r.points[k][1]) < 0 && altitude(r.points[k + 1][0], r.points[k + 1][1]) < 0).toBe(false);
+      const [ex, ey] = r.points[r.points.length - 1], [px, py] = r.points[r.points.length - 2];
+      if (altitude(ex, ey) < 0) { mouths++; expect(altitude(px, py)).toBeGreaterThanOrEqual(0); expect(altitude(ex, ey)).toBeGreaterThan(-0.05); }
+    }
+    expect(mouths).toBeGreaterThan(5);
+  });
+
   it('are smooth: no long straight stretch', () => {
     for (const r of riversOfCell(ci, cj)) for (let k = 1; k < r.points.length; k++) {
       expect(Math.hypot(r.points[k][0] - r.points[k - 1][0], r.points[k][1] - r.points[k - 1][1])).toBeLessThan(30);

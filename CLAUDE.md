@@ -123,7 +123,10 @@ Règles qui restent :
    sont dessinés par-dessus (une rivière qui traverse un lac y disparaît), évitent les
    bourgs (rétrécissent ou disparaissent), et les **routes contournent les lacs**
    (`roads.ts` charge les lacs du coin : les routes dépendent des rivières, jamais l'inverse).
-   **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
+   **Embouchures** (`toCoast`) : une rivière s'arrête à son premier vrai contact avec la mer (deux points de
+   suite sous 0 ; lissage et méandres l'emmenaient au large, parfois en travers d'une baie), dernier point posé
+   sur le rivage, bout droit au dessin (pas de bout arrondi sablé dans la mer) ; nœuds, lacs et chutes au-delà
+   retirés. **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
    deux rivières qui se rencontrent partagent leurs nœuds ; la plus petite (moins d'eau écoulée
    au nœud) devient affluent et s'arrête au milieu de la plus grande (`cut`, `join`), même entre
    cellules : jamais deux rivières dans le même lit. Au dessin, les berges de chacune sont
@@ -263,7 +266,8 @@ sur le téléphone de Doudou via GitLab Pages.
    d’encre à l’impact ; l’animal bondit en se cabrant (`LUNGE_MS`), griffures rouges sur l’explorateur ;
    recul de celui qui est touché ; poussière derrière un animal qui charge. **Sang** (demande d'Adrien) : gouttes
    qui giclent à chaque coup porté (animal ou explorateur), retombent en taches qui sèchent en 40 s.
-   **Carcasses** : l'animal tué reste couché sur le dos, pattes en l'air, dans une flaque ; seules les
+   **Carcasses** : à la place de l'animal tué, son **squelette** couché sur le flanc (`drawSkeleton` : crâne,
+   côtes, colonne, bassin, os des pattes épars, vertèbres de la queue, bois ou cornes), dans une flaque ; seules les
    `CARCASSES` = 5 dernières restent (`GameState.carcasses`, sauvegarde **v7**). **Attaque propre à chaque espèce**
    (`attack` dans le JSON, `attackMotion` dans l'overlay) : `bite` (bond bas, traces de dents : loup, lion,
    tigre, hyène, crocodile, hippo), `swipe` (se dresse puis frappe de la patte, griffures : ours), `ram` (recule

@@ -113,19 +113,23 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
   const parts = near.map((r) => ({ r, bs: runs(r, x0, y0).map(([a, b]) => banks(r, a, b, x0, y0)) }));
   // 1. sandy edges, wider than the water
   const dry = (r: River, k: number): boolean => r.join < 0 || k < r.join; // a tributary has no banks inside the river it joins
-  for (const { bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
-    g.strokeStyle = SAND; g.lineWidth = b.w[k] + 2.6;
+  // a river that reaches the sea ends square on the shoreline (no rounded sandy tip out at sea)
+  const mouth = (r: River, b: ReturnType<typeof banks>, k: number): boolean => !r.lake && r.join < 0 && b.idx[k] === r.points.length - 1;
+  for (const { r, bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
+    g.strokeStyle = SAND; g.lineWidth = b.w[k] + 2.6; g.lineCap = mouth(r, b, k) ? 'butt' : 'round';
     g.beginPath(); g.moveTo(...b.mid[k - 1]); g.lineTo(...b.mid[k]); g.stroke();
   }
+  g.lineCap = 'round';
   // 2. the water, as a ribbon between the banks
   g.fillStyle = WATER;
   for (const { bs } of parts) for (const b of bs) { line(g, [...b.left, ...[...b.right].reverse()]); g.closePath(); g.fill(); }
   // 3. the current: a paler thread and broken flow lines on wide rivers
-  for (const { bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
+  for (const { r, bs } of parts) for (const b of bs) for (let k = 1; k < b.mid.length; k++) {
     if (b.w[k] < 3) continue;
-    g.strokeStyle = WATER_LIGHT; g.lineWidth = b.w[k] * 0.22;
+    g.strokeStyle = WATER_LIGHT; g.lineWidth = b.w[k] * 0.22; g.lineCap = mouth(r, b, k) ? 'butt' : 'round';
     g.beginPath(); g.moveTo(...b.mid[k - 1]); g.lineTo(...b.mid[k]); g.stroke();
   }
+  g.lineCap = 'round';
   g.strokeStyle = 'rgba(60,95,110,.22)'; g.lineWidth = 0.3; g.setLineDash([3, 4]);
   for (const { bs } of parts) for (const b of bs) for (const side of [-1, 1]) {
     const pts: P[] = b.mid.map(([x, y], k) => {

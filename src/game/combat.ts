@@ -6,7 +6,7 @@
 import { animalsOf, herdsNear, lifeOf, presence, SPECIES, type Herd, type Species } from '../world/fauna';
 import { settlement } from '../world/settlements';
 import { TILE } from '../world/terrain';
-import { walkable } from './route';
+import { obstacle, walkable } from './route';
 import type { Fight, GameState } from './state';
 
 import { ITEMS, has, itemById, weaponOf } from './craft';
@@ -61,9 +61,12 @@ export function beastsNear(s: GameState, x: number, y: number, r: number, t: num
     if (presence(h, night, t) < 0.5) continue;
     const look = h.species.look;
     if (look.kind === 'whale' || look.kind === 'bat' || look.kind === 'owl') continue; // out of reach
+    const swims = h.species.biomes.includes('sea') || h.species.biomes.includes('ice');
     animalsOf(h, t).forEach((a, k) => {
       const key = h.key + ':' + k;
       if ((s.gone[key] ?? 0) > t || s.fight?.key === key) return;
+      // a land animal wandering over a lake is not drawn (see the overlay): it is not there to hunt or to charge either
+      if (!swims && obstacle(a.x, a.y) === 'water') return;
       if (Math.hypot(a.x - x, a.y - y) <= r) out.push({ herd: h, key, species: h.species, x: a.x, y: a.y });
     });
   }

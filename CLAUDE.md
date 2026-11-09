@@ -143,7 +143,10 @@ Règles qui restent :
    de l'eau des lacs n'était ni pêchable ni contournée). **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
    deux rivières qui se rencontrent partagent leurs nœuds ; la plus petite (moins d'eau écoulée
    au nœud) devient affluent et s'arrête au milieu de la plus grande (`cut`, `join`), même entre
-   cellules : jamais deux rivières dans le même lit. Au dessin, les berges de chacune sont
+   cellules : jamais deux rivières dans le même lit. **Croisements sans nœud commun** (`uncross`, vu par Adrien : un pas en diagonale
+   par-dessus une autre rivière, ou des méandres qui la chevauchent) : là où l'eau d'une rivière touche celle d'une autre
+   (nœuds voisins seulement, rivières nouvelles du lot seulement), celle qui finit là la rejoint, sinon la plus petite
+   s'arrête ; la coupe s'arrête au milieu de l'autre, même si elle le franchit entre deux points. Au dessin, les berges de chacune sont
    découpées dans l'eau de l'autre (clip), l'embouchure s'ouvre. La rive d'un lac s'ouvre où une rivière
    entre. Rivières et lacs sont dessinés **avant** la végétation, qui les évite (`waterMask`)
    et déborde sur les berges. Animation du courant : reflets fins et lents qui scintillent. Les bourgs évitent les abords
@@ -173,7 +176,7 @@ Règles qui restent :
    espèce tirée selon l'habitat (biome, `mountain` au-dessus de 0,6, `sea` en eau profonde, `ice`) ;
    les petits sont bien plus nombreux que les gros (poids). Ils errent autour de leur gîte sur
    l'**heure réelle partagée** (marche puis broutent), restent sur leur terrain, loin des bourgs
-   et hors des lacs ; rayon raccourci près de l'eau. Dessin « planche de naturaliste » (refait à la demande
+   et hors des lacs (une bête terrestre au-dessus d'un lac n'est ni dessinée ni chassable : `beastsNear`) ; rayon raccourci près de l'eau. Dessin « planche de naturaliste » (refait à la demande
    d'Adrien) : un contour anatomique lisse par espèce (paramètres `look` dans le JSON), trait fin,
    lavis, hachures d'ombre qui s'effacent sur les petites figures, pattes articulées qui marchent,
    pâture où le cou descend, lièvres qui sautent, marmottes qui se dressent, baleines qui soufflent

@@ -330,38 +330,110 @@ function network(all: River[]): River[] {
     stop.set(a, at);
   }
   // 2. cut it on the river that actually flows on at that node (the one not stopped there)
-  return all.map((a) => {
+  const fresh: River[] = [];
+  const res = all.map((a) => {
     const known = joined.get(a);
     if (known) return known;
     const k = stop.get(a)!;
-    let res = a;
+    let r = a;
     if (k < a.nodes.length) {
       const flows = (owners.get(a.nodes[k]) ?? []).filter(([b, kb]) => b !== a && kb < (stop.get(b) ?? b.nodes.length));
-      const b = flows.sort((p, q) => q[0].lengths[q[0].at[q[1]]] - p[0].lengths[p[0].at[p[1]]])[0]?.[0];
-      if (b) res = cut(a, k, b);
+      const top = flows.sort((p, q) => q[0].lengths[q[0].at[q[1]]] - p[0].lengths[p[0].at[p[1]]])[0];
+      if (top) r = cut(a, a.at[k], top[0], top[0].at[top[1]]);
     }
-    joined.set(a, res);
-    return res;
+    joined.set(a, r);
+    fresh.push(a);
+    return r;
   });
+  // 3. two rivers whose beds cross without sharing a node (a diagonal step across another one, or
+  // meanders pushing one over the other): the smaller one ends there, on the bigger one
+  if (fresh.length) uncross(all, res, new Set(fresh));
+  return all.map((a) => joined.get(a)!);
 }
 
-/** River a, cut where it reaches river b at its node k: it ends on b's middle, banks end at b's bank. */
-function cut(a: River, k: number, b: River): River {
-  const near = (x: number, y: number): [number, number, number, number] => {
-    let best: [number, number, number, number] = [Infinity, 0, 0, 1];
-    for (let m = 0; m < b.points.length; m++) {
+/** The part of a river drawn with its own banks (a tributary's last points run inside the other). */
+const own = (r: River): number => (r.join >= 0 ? r.join : r.points.length - 1);
+
+/**
+ * Rivers drawn over one another without sharing a node (a diagonal step across another one, or
+ * meanders pushing one onto the other): where the water of a river first touches the water of a
+ * river carrying more (longer from its spring), it ends there, on it. Meanders move a river less
+ * than half a grid step, so only rivers passing through neighbouring nodes can touch; and only
+ * pairs with a river new in this batch are looked at (the others were settled before).
+ */
+function uncross(all: River[], current: River[], fresh: Set<River>): void {
+  const at = new Map<number, number[]>(); // node -> [river index, node index, ...]
+  all.forEach((r, ri) => r.nodes.forEach((key, k) => { const c = at.get(key); if (c) c.push(ri, k); else at.set(key, [ri, k]); }));
+  let fx0 = Infinity, fy0 = Infinity, fx1 = -Infinity, fy1 = -Infinity; // where the new rivers lie
+  for (const r of fresh) { fx0 = Math.min(fx0, r.minX); fy0 = Math.min(fy0, r.minY); fx1 = Math.max(fx1, r.maxX); fy1 = Math.max(fy1, r.maxY); }
+  const NEXT = [-2_097_152 - 1, -2_097_152, -2_097_152 + 1, -1, 1, 2_097_152 - 1, 2_097_152, 2_097_152 + 1]; // the 8 neighbours (see nk)
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false;
+    current.forEach((a, ai) => {
+      const A = all[ai], aNew = fresh.has(A);
+      if (!aNew && (a.maxX < fx0 - 80 || a.minX > fx1 + 80 || a.maxY < fy0 - 80 || a.minY > fy1 + 80)) return; // far from all the new ones
+      const last = a.join >= 0 ? own(a) - 8 : own(a); // a tributary's mouth, on the river it joins, is fine
+      let best = -1, bestN = -1, onto: River | null = null;
+      for (let k = 0; k < A.nodes.length && best < 0; k++) {
+        const m0 = Math.max(1, A.at[Math.max(0, k - 1)]), m1 = Math.min(last - 1, A.at[Math.min(A.nodes.length - 1, k + 1)]);
+        if (m0 > m1) { if (A.at[k] > last) break; continue; }
+        for (const d of NEXT) {
+          const c = at.get(A.nodes[k] + d);
+          if (!c) continue;
+          for (let e = 0; e < c.length; e += 2) {
+            const bi = c[e], kb = c[e + 1], B = all[bi], b = current[bi];
+            if (bi === ai || (!aNew && !fresh.has(B))) continue;
+            // the mouth of a tributary, where it already flows into a, is not a crossing either
+            const n0 = B.at[Math.max(0, kb - 1)], n1 = Math.min(b.join >= 0 ? own(b) - 10 : own(b), B.at[Math.min(B.nodes.length - 1, kb + 1)]);
+            for (let m = m0; m <= m1 && (best < 0 || m < best); m++) {
+              const [x, y] = a.points[m];
+              for (let n = n0; n <= n1; n++) {
+                const [bx, by] = b.points[n];
+                if (Math.hypot(bx - x, by - y) > (a.widths[m] + b.widths[n]) / 2) continue;
+                if (n > own(b) - 10) continue; // b ends here, flowing into a: b is the one to stop
+                // a ends here, flowing into b: it joins it, whatever their size; elsewhere the smaller one stops
+                const upA = a.lengths[m], upB = b.lengths[n], aEnds = a.join < 0 && m > own(a) - 10;
+                if (!aEnds && !(upA < upB || (upA === upB && a.spring > b.spring))) continue;
+                if ([...a.lakes, ...b.lakes].some((l) => inLake(l, x, y))) continue; // they meet in a lake: nothing shows
+                best = m; bestN = n; onto = b; break;
+              }
+            }
+          }
+        }
+      }
+      if (onto) { const r = cut(a, best, onto, bestN); current[ai] = r; joined.set(A, r); changed = true; }
+    });
+    if (!changed) return;
+  }
+}
+
+/**
+ * River a, cut where it reaches river b near its point pk (and b's point nb, if known): it ends on
+ * b's middle, banks end at b's bank.
+ */
+function cut(a: River, pk: number, b: River, nb = -1): River {
+  const n0 = nb < 0 ? 0 : Math.max(0, nb - 90), n1 = nb < 0 ? b.points.length : Math.min(b.points.length, nb + 90);
+  // the nearest point of b: distance, position, width, and which side of b's course (x, y) lies on
+  const near = (x: number, y: number): [number, number, number, number, number] => {
+    let best: [number, number, number, number, number] = [Infinity, 0, 0, 1, 0], bm = n0;
+    for (let m = n0; m < n1; m++) {
       const d = Math.hypot(b.points[m][0] - x, b.points[m][1] - y);
-      if (d < best[0]) best = [d, b.points[m][0], b.points[m][1], b.widths[m]];
+      if (d < best[0]) { best = [d, b.points[m][0], b.points[m][1], b.widths[m], 0]; bm = m; }
     }
+    const P = b.points, p = P[Math.max(0, bm - 1)], q = P[Math.min(P.length - 1, bm + 1)];
+    best[4] = Math.sign((q[0] - p[0]) * (y - best[2]) - (q[1] - p[1]) * (x - best[1]));
     return best;
   };
-  const pk = a.at[k];
-  let join = -1, end = -1, bestD = Infinity, bestI = pk;
+  let join = -1, end = -1, bestD = Infinity, bestI = pk, side = 0, lastD = Infinity;
   for (let i = Math.max(1, pk - 60); i < a.points.length && i <= pk + 60; i++) {
-    const [d, , , w] = near(a.points[i][0], a.points[i][1]);
+    const [d, , , w, sd] = near(a.points[i][0], a.points[i][1]);
+    // it went over b's middle between two points (a slanting crossing): stop at the nearer one
+    if (side && sd && sd !== side && Math.min(d, lastD) < w) { end = d < lastD ? i : i - 1; if (join < 0 || join > end) join = end; break; }
+    side = sd || side; lastD = d;
+    if (join < 0 && d < w / 2) { join = i; bestD = Infinity; } // from the bank on, look for the middle
     if (d < bestD) { bestD = d; bestI = i; }
-    if (join < 0 && d < w / 2) join = i;
     if (join >= 0 && d < w * 0.2) { end = i; break; }
+    if (join >= 0 && i > join + 12) { end = bestI; break; } // it crossed between two points: the nearest one
   }
   if (end < 0) end = bestI;
   if (join < 0 || join > end) join = end;

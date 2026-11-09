@@ -239,7 +239,9 @@ Carte ancienne, papier ivoire, encre brune, aquarelle. Polices : IM Fell English
 Old Standard TT (déjà dans le proto). Les menus sont des pages d'atlas, les
 boîtes de dialogue des cartouches. Pas de UI « jeu mobile » brillante.
 Les illustrations (découvertes, monstres, lieux) seront fournies par Doudou
-(images générées, style fixe). Prévoir des emplacements et des placeholders
+(images générées, style fixe). **Style des illustrations** (choix d'Adrien) : **surtout Moebius** (ligne claire,
+aplats lumineux, grands ciels, espaces calmes), une touche de Jules Verne ; bloc de style dans `docs/towns.md`
+et `docs/items.md`. Prévoir des emplacements et des placeholders
 dessinés à l'encre en attendant.
 
 ## Boucle de jeu visée

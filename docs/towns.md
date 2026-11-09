@@ -10,17 +10,25 @@ sujets un par un.
 ## Bloc de style (à coller en premier)
 
 ```
-I am making illustrations for the town pages of an adventure game set in an 1870s world of
-exploration, in the spirit of Jules Verne's illustrated Hetzel editions, with a clean, calm
-"ligne claire" line and soft flat colours.
+I am making illustrations for an adventure game: a world of 19th-century explorers, mostly in the
+spirit of 1970s-80s French "ligne claire" science-fiction comics, with a touch of Jules Verne's
+illustrated editions.
 Style for EVERY picture:
-- fine brown-black ink line of even weight, light engraved cross-hatching in the shadows;
-- soft, slightly faded watercolour washes: ivory, ochre, sepia, pale sky blue, muted greens and reds;
-- calm, wide, airy composition, no crowds, no text, no frame, no signature;
-- a warm, slightly melancholic mood, a world of explorers and old maps;
-- no 3D render, no glossy "mobile game" look.
-Keep the same line, palette and light from one picture to the next.
+- clean, precise ink outlines of even weight, no sketchy lines; very little hatching, only a few fine
+  engraved strokes in the deepest shadows;
+- large flat areas of luminous, slightly faded colour with soft gradients in the skies: sand, ochre,
+  pale turquoise, dusty rose, lilac and violet shadows, warm ivory light;
+- vast, open, silent spaces: low horizons, huge skies, a sense of calm wonder and solitude;
+- strange, elegant, slightly dreamlike details in the architecture and the land, but believable
+  1870s objects (lanterns, brass, canvas, wood, stone);
+- calm composition, no crowds, no text, no frame, no signature;
+- no 3D render, no photorealism, no glossy "mobile game" look.
+Keep exactly the same line, palette and light from one picture to the next.
+Reply "ready" and wait for the subjects.
 ```
+
+Style choisi par Adrien : **surtout Moebius**, une touche de Jules Verne. Pas assez Moebius ? ajouter « in the spirit of Moebius » à la fin du bloc. Trop BD ? répondre « a little more like an old engraving, keep the flat colours ».
+
 
 ## Les illustrations
 

@@ -10,17 +10,25 @@ objets, le bloc de style d'abord, une planche d'essai de 4 objets, puis « same 
 ## Bloc de style (à coller en premier)
 
 ```
-I am making small item icons for an adventure game set in an 1870s world of exploration, in the
-spirit of Jules Verne's illustrated editions, with a clean, calm "ligne claire" line.
-Style for EVERY icon:
+I am making small item icons for an adventure game: a world of 19th-century explorers, mostly in the
+spirit of 1970s-80s French "ligne claire" science-fiction comics, with a touch of Jules Verne's
+illustrated editions.
+Style for EVERY picture:
+- clean, precise ink outlines of even weight, no sketchy lines; very little hatching, only a few fine
+  engraved strokes in the deepest shadows;
+- large flat areas of luminous, slightly faded colour with soft gradients in the skies: sand, ochre,
+  pale turquoise, dusty rose, lilac and violet shadows, warm ivory light;
+- believable 1870s objects (wood, stone, leather, brass, canvas), with a slightly dreamlike elegance;
 - a single object, centred, seen slightly from above at a three-quarter angle, filling ~80% of the frame;
-- fine brown-black ink outline of even weight, a little engraved cross-hatching in the shadows;
-- soft, slightly faded watercolour washes (ivory, ochre, sepia, muted greens, muted reds, slate blue);
-- no background at all: TRUE transparent background (not a grey and white checkerboard);
-- no text, no frame, no drop shadow, no glow, no 3D render, no glossy "mobile game" look;
-- square image, 1024 x 1024.
-Keep exactly the same line weight, palette and angle from one icon to the next.
+- TRUE transparent background (not a grey and white checkerboard), no text, no frame, no shadow;
+- square image, 1024 x 1024;
+- no 3D render, no photorealism, no glossy "mobile game" look.
+Keep exactly the same line, palette and light from one picture to the next.
+Reply "ready" and wait for the subjects.
 ```
+
+Style choisi par Adrien : **surtout Moebius**, une touche de Jules Verne. Pas assez Moebius ? ajouter « in the spirit of Moebius » à la fin du bloc. Trop BD ? répondre « a little more like an old engraving, keep the flat colours ».
+
 
 ## Les objets
 

@@ -327,8 +327,8 @@ sur le téléphone de Doudou via GitLab Pages.
    soleil) sous une banderole de titre ; portrait dans un médaillon ovale hachuré (« Fig. 1 — L'explorateur en
    tenue de route ») ; cases comme des boîtes à spécimens à clous de laiton, teintées par place ; titres ❦ ;
    almanach : **onglets sur la tranche** comme un livre (un par usage, à la couleur de l'usage, pastille verte du
-   nombre de recettes prêtes ; s'ouvre sur le premier qui a quelque chose de prêt), bande de couleur par usage, recettes numérotées en chiffres romains, ingrédients en pointillés
-   (« Bois ………… 2 / 2 »), bouton « Fabriquer » vert en relief. Le
+   nombre de recettes prêtes ; s'ouvre sur le premier qui a quelque chose de prêt), bande de couleur par usage, ingrédients en pointillés
+   (« Bois ………… 2 / 2 »), bouton « Fabriquer » vert en relief ; pas de numéros (l'almanach grossira). Le
    **sac** est une page d'atlas à **onglets** : « Porté » (portrait de l'explorateur, `ui/portrait.ts`, avec quatre
    places : main droite (arme), main gauche (torche), tenue (veste), pieds (bottes de cuir : 2 peaux + 2 fibres,
    marcher creuse 25 % moins le ventre) ; au départ tête nue, chemise de lin, pieds nus, aussi sur la carte ; on choisit en touchant ce qu'on a fabriqué, et l'objet apparaît sur le
@@ -338,8 +338,8 @@ sur le téléphone de Doudou via GitLab Pages.
    v8 migrée avec le meilleur du sac) : c'est l'arme **en main** qui frappe, la torche n'éclaire que **tenue**, la
    veste ne protège que **portée** ; ce qu'on fabrique ou achète est pris en main si la place est libre (ou si
    l'arme est meilleure). Le sac ne fabrique plus : c'est
-   l'**almanach des recettes** (bouton livre, touche A), **par usage** (Soins, Combat, Chasse, Récolte, Pêche, Feu
-   et lumière ; champ `use` dans `recipes.json` et `items.json`) : chaque recette avec ce qu'il faut (ce qu'on a / ce
+   l'**almanach des recettes** (bouton livre, touche A), **par usage** (Soins, Combat, Chasse, Pêche, Récolte, Feu
+   et lumière, Voyage ; champ `use` dans `recipes.json` et `items.json`) : chaque recette avec ce qu'il faut (ce qu'on a / ce
    qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
    **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
    une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le « ? » qui l'attend

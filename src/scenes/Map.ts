@@ -467,7 +467,7 @@ export class MapScene extends Phaser.Scene {
     const MAT_ORDER = ['bois', 'pierre', 'fibre', 'herbes', 'peau', 'os'];
     const carriable = owned('tool').filter((i) => slotOf(i.id)).map((i) => slot(i.id, equipped(i.id)));
     const tools = owned('tool').filter((i) => !slotOf(i.id));
-    const USES = ['chasse', 'recolte', 'peche', 'feu', 'voyage'];
+    const USES = ['chasse', 'peche', 'recolte', 'feu', 'voyage'];
     this.sheet.showSac({
       title: t('sac.title'), sub: t('sac.sub', { hp: s.hp, max: s.maxHp, f: Math.round(s.food), g: s.gold }),
       tabs: [{ key: 'worn', label: t('sac.worn') }, { key: 'tools', label: t('pack.tools') }, { key: 'food', label: t('sac.foodTab') }, { key: 'mats', label: t('pack.materials') }],
@@ -514,7 +514,7 @@ export class MapScene extends Phaser.Scene {
       };
     });
     const rank = { ready: 0, missing: 1, done: 2 };
-    const groups = ['soin', 'combat', 'chasse', 'recolte', 'peche', 'feu', 'voyage'].map((u) => ({
+    const groups = ['soin', 'combat', 'chasse', 'peche', 'recolte', 'feu', 'voyage'].map((u) => ({
       key: u, title: t('use.' + u), cards: cards.filter((c) => c.use === u).sort((a, b) => rank[a.state] - rank[b.state]),
     }));
     const ready = cards.filter((c) => c.state === 'ready').length;

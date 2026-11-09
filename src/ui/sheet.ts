@@ -2,8 +2,8 @@
 // blend of an engraved Hetzel edition of Jules Verne and Moebius's calm "ligne claire"): an
 // engraved frame with fleurons in the corners and foxed paper; at the head, a little landscape in
 // flat soft colours under a ribbon banner; the explorer in an oval medallion ("Fig. 1"); slots as
-// specimen boxes with brass pins, tinted; recipes numbered in Roman figures, their ingredients in
-// dotted lines, a coloured band by use. Plain DOM, built from models the map scene gives.
+// specimen boxes with brass pins, tinted; recipes with their ingredients in dotted lines, a
+// coloured band by use. Plain DOM, built from models the map scene gives.
 import { t } from '../i18n';
 import { itemPicture } from './itemArt';
 import { portrait, type Carried } from './portrait';
@@ -83,7 +83,6 @@ const CSS = `
 .sheet .rec .in { flex: 1; display: flex; gap: 10px; padding: 9px 10px 10px; min-width: 0; }
 .sheet .rec.ready { background: #eef0d2; }
 .sheet .rec.done { opacity: .72; }
-.sheet .rec .num { flex: none; min-width: 30px; font: 21px/1 "IM Fell English", serif; text-align: center; padding-top: 2px; white-space: nowrap; }
 body.sheet-open .hud-buttons { display: none; }
 .sheet .ill { position: relative; flex: none; margin: 4px 4px 0; border: 1.5px solid ${INK}; overflow: visible; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #8f7f64;
   background: repeating-linear-gradient(135deg, rgba(43,33,23,.07) 0 1px, transparent 1px 7px), linear-gradient(#c6dadb, #ead9b2 62%, #d8b989 62.5%, #e4c89a); }
@@ -154,7 +153,6 @@ body.sheet-open .hud-buttons { display: none; }
 const USE_COLOUR: Record<string, string> = { soin: '#c98a8a', combat: '#c9a06a', chasse: '#b07a5a', recolte: '#8fa36a', peche: '#7fa3b0', feu: '#d98c4a', voyage: '#a08cb0' };
 /** Tints of the four places on the explorer: right hand, left hand, clothing, feet. */
 const PLACE_TINT = ['#d8c9a4', '#f0cf8c', '#c79e78', '#bfae8c'];
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
 
 /** A fleuron for the corners of the engraved frame. */
 const FLEURON = `<svg viewBox="0 0 26 26"><path d="M2 24 V2 H24" fill="none" stroke="${INK}" stroke-width="1.5"/><path d="M5 5 q9 1 11 11 q-9 -2 -11 -11z M5 5 l6 6" fill="${INK}"/><circle cx="19" cy="5" r="1.4" fill="${INK}"/><circle cx="5" cy="19" r="1.4" fill="${INK}"/></svg>`;
@@ -344,10 +342,9 @@ export class Sheet {
       thumbs.append(b);
     }
     page.append(thumbs);
-    let n = 0;
     for (const g of groups) {
       if (!g.cards.length) continue;
-      if (g.key !== open) { n += g.cards.length; continue; } // the numbering runs through the whole book
+      if (g.key !== open) continue;
       const colour = USE_COLOUR[g.key] ?? '#c9b48a';
       const cat = document.createElement('div'); cat.className = 'cat';
       const sw = document.createElement('i'); sw.style.background = colour;
@@ -357,7 +354,6 @@ export class Sheet {
         const rec = document.createElement('div'); rec.className = 'rec ' + c.state;
         const band = document.createElement('div'); band.className = 'band'; band.style.background = colour;
         const inner = document.createElement('div'); inner.className = 'in';
-        const num = document.createElement('div'); num.className = 'num'; num.textContent = ROMAN[n++] ?? String(n);
         const what = document.createElement('div'); what.className = 'what';
         const b = document.createElement('b'); b.textContent = c.name;
         const i = document.createElement('i'); i.textContent = c.text;
@@ -377,7 +373,7 @@ export class Sheet {
           const st = document.createElement('div'); st.className = 'state'; st.textContent = t(c.state === 'done' ? 'almanac.done' : 'almanac.missing');
           what.append(st);
         }
-        inner.append(num, what, this.box(c.id));
+        inner.append(what, this.box(c.id));
         rec.append(band, inner);
         body.append(rec);
       }

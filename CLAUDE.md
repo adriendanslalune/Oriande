@@ -361,8 +361,8 @@ sur le téléphone de Doudou via GitLab Pages.
    **Bourgs refaits** (demande d'Adrien : « arriver dans un village, pas dans un menu » ; prototype validé) : même
    planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : grande vue illustrée, nom en
    banderole, « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
-   (`flavourOf`, la même à chaque retour), les **lieux** en vignettes illustrées (ce qu'un village n'a pas est
-   estompé, « Seulement en ville »), « Reprendre la route ». **Chaque lieu** : son illustration, la réplique de
+   (`flavourOf`, la même à chaque retour), les **lieux** en vignettes illustrées (ce qu'un village n'a pas, forge et
+   taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son illustration, la réplique de
    celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**
    (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur

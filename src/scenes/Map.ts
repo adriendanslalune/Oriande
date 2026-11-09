@@ -337,8 +337,9 @@ export class MapScene extends Phaser.Scene {
         places: [
           place('inn', true, t('town.line.inn', { p: ecus(k.inn) })),
           place('shop', true, t('town.line.shop')),
-          place('smith', k.forge.length > 0, k.forge.length ? t('town.line.smith') : t('town.onlyCity')),
-          place('tavern', k.tavern, k.tavern ? t('town.line.tavern') : t('town.onlyCity')),
+          // a village has no smithy nor tavern: they are not shown at all (asked by Adrien)
+          ...(k.forge.length ? [place('smith', true, t('town.line.smith'))] : []),
+          ...(k.tavern ? [place('tavern', true, t('town.line.tavern'))] : []),
         ],
       });
       return;

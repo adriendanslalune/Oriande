@@ -33,12 +33,14 @@ import { INK, PAPER } from './palette';
 
 /** Durations of the fight's animations, ms: the explorer's swing, the animal's lunge, a flinch. */
 const STRIKE_MS = 380, LUNGE_MS = 420, HURT_MS = 220;
+/** The colour of a steel blade. */
+const STEEL = 'rgb(188,194,200)';
 
 type Attack = 'bite' | 'swipe' | 'ram' | 'kick';
 
 /** What the explorer holds and does, for the drawing. */
 interface Gear {
-  weapon: 'poings' | 'baton' | 'lance';
+  weapon: 'poings' | 'baton' | 'lance' | 'coutelas' | 'sabre';
   /** work in hand: its kind, what is gathered, where on screen (the float), how far along (0..1) */
   work: { kind: 'harvest' | 'fish'; res: string | null; at: [number, number]; done: number } | null;
 }
@@ -733,7 +735,7 @@ export class Overlay {
   /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
   private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false, gear: Gear = { weapon: 'baton', work: null }): void {
     const { ctx } = this;
-    const work = gear.work, armed = gear.weapon !== 'poings';
+    const work = gear.work, armed = gear.weapon !== 'poings', blade = gear.weapon === 'coutelas' || gear.weapon === 'sabre';
     // a blow of the staff: raised over the head, then brought down on the animal (STRIKE_MS);
     // and the flinch when the animal's blow lands
     const sp = (now - this.blows.you) / STRIKE_MS, striking = sp >= 0 && sp < 1;
@@ -810,9 +812,16 @@ export class Overlay {
       const r = a * Math.PI / 180, dx = Math.cos(r) * f, dy = Math.sin(r), hx = X(2.2), hy = Y(-11);
       ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke(); // the arm, raised
-      ctx.lineWidth = 1.2; ctx.strokeStyle = wood;
-      ctx.beginPath(); ctx.moveTo(hx - dx * 5 * u, hy - dy * 5 * u); ctx.lineTo(hx + dx * 11 * u, hy + dy * 11 * u); ctx.stroke();
-      spearTip(hx + dx * 11 * u, hy + dy * 11 * u, dx, dy);
+      if (blade) { // a cutlass or a sabre: the hilt in the fist, the blade sweeping down
+        const bl = gear.weapon === 'sabre' ? 9 : 6.5;
+        ctx.lineWidth = 1.4; ctx.strokeStyle = STEEL; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + dx * bl * u, hy + dy * bl * u); ctx.stroke();
+        ctx.lineWidth = 0.6; ctx.strokeStyle = INK; ctx.stroke();
+        ctx.lineWidth = 1.3; ctx.strokeStyle = 'rgb(150,120,60)'; ctx.beginPath(); ctx.moveTo(hx - dy * 1.4, hy + dx * 1.4); ctx.lineTo(hx + dy * 1.4, hy - dx * 1.4); ctx.stroke(); // the guard
+      } else {
+        ctx.lineWidth = 1.2; ctx.strokeStyle = wood;
+        ctx.beginPath(); ctx.moveTo(hx - dx * 5 * u, hy - dy * 5 * u); ctx.lineTo(hx + dx * 11 * u, hy + dy * 11 * u); ctx.stroke();
+        spearTip(hx + dx * 11 * u, hy + dy * 11 * u, dx, dy);
+      }
       if (sp > 0.35 && sp < 0.6) { // the whoosh of the blow
         ctx.globalAlpha = 0.5; ctx.strokeStyle = INK; ctx.lineWidth = 0.6;
         ctx.beginPath();
@@ -822,11 +831,19 @@ export class Overlay {
       }
     } else {
       const sx = X(3.6) + j * 0.3 * f;
-      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
-      ctx.beginPath(); ctx.moveTo(sx, Y(-16)); ctx.lineTo(sx + j * 0.15, y + 0.5); ctx.stroke();
-      spearTip(sx, Y(-16), 0, -1);
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
-      ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(sx, Y(-9.5)); ctx.stroke();
+      if (blade) { // the blade carried point down at the side
+        const bl = gear.weapon === 'sabre' ? 9 : 6.5, hx = X(2.6) + j * 0.3 * f, hy = Y(-9.5);
+        ctx.lineWidth = 1.4; ctx.strokeStyle = STEEL; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + f * 1.2 * u, hy + bl * u); ctx.stroke();
+        ctx.lineWidth = 0.6; ctx.strokeStyle = INK; ctx.stroke();
+        ctx.lineWidth = 1.3; ctx.strokeStyle = 'rgb(150,120,60)'; ctx.beginPath(); ctx.moveTo(hx - 1.4, hy + 0.3); ctx.lineTo(hx + 1.4, hy + 0.3); ctx.stroke();
+        ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke();
+      } else {
+        ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
+        ctx.beginPath(); ctx.moveTo(sx, Y(-16)); ctx.lineTo(sx + j * 0.15, y + 0.5); ctx.stroke();
+        spearTip(sx, Y(-16), 0, -1);
+        ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(sx, Y(-9.5)); ctx.stroke();
+      }
     }
     // head
     ctx.strokeStyle = INK; ctx.lineWidth = 0.9; ctx.fillStyle = 'rgb(230,200,165)';

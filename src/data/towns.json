@@ -1,0 +1,6 @@
+{
+  "_comment": "What a village and a city offer (asked by Adrien: a village is small, a city has everything). inn: écus for a night (life back in full). sells: what the merchant has. buys: share of an item's price paid when the explorer sells it (food and what was gathered). forge: weapons sold by the smith. tavern: rumours heard there (ids, texts in i18n: rumor.<id>), one at a time, changing every half hour.",
+  "village": { "inn": 3, "sells": ["biscuit", "remede", "viande"], "buys": 0.5, "forge": [], "tavern": false },
+  "city": { "inn": 5, "sells": ["biscuit", "remede", "viande", "poisson", "torche", "canne"], "buys": 0.75, "forge": ["coutelas", "sabre"], "tavern": true },
+  "rumors": ["tower", "leviathan", "songs", "maps", "south", "bells", "stones", "traveller", "ice", "river", "night", "name"]
+}

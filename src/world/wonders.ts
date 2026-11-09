@@ -6,6 +6,7 @@ import { TILE, altitude, humidity } from './terrain';
 import { settlement } from './settlements';
 import { CIRCUMFERENCE, wrapIndex } from './planet';
 import { nearWater } from './rivers';
+import { placesShown } from './features';
 
 export type WonderKind = 'tete' | 'rocher' | 'cristal' | 'titan' | 'arches' | 'arbre';
 
@@ -71,6 +72,7 @@ export function wonder(mi: number, mj: number): Wonder | null {
 
 /** Wonders whose ground reaches the box [x0, x1] x [y0, y1], with a margin. */
 export function wondersNear(x0: number, y0: number, x1: number, y1: number, margin: number): Wonder[] {
+  if (!placesShown()) return []; // off the map for now (see features.ts)
   const out: Wonder[] = [];
   for (let mj = Math.floor((y0 - margin) / WONDER_CELL); mj <= Math.floor((y1 + margin) / WONDER_CELL); mj++)
     for (let mi = Math.floor((x0 - margin) / WONDER_CELL); mi <= Math.floor((x1 + margin) / WONDER_CELL); mi++) {

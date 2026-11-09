@@ -10,6 +10,7 @@ import { settlement } from './settlements';
 import { CIRCUMFERENCE, wrapIndex } from './planet';
 import { wondersNear } from './wonders';
 import { nearWater } from './rivers';
+import { placesShown } from './features';
 
 export type MonumentKind = 'colosse' | 'pyramide' | 'temple' | 'sphinx' | 'sanctuaire' | 'arc' | 'amphitheatre' | 'aqueduc';
 
@@ -78,6 +79,7 @@ export function monument(mi: number, mj: number): Monument | null {
 
 /** Monuments whose ground reaches the box [x0, x1] x [y0, y1], with a margin. */
 export function monumentsNear(x0: number, y0: number, x1: number, y1: number, margin: number): Monument[] {
+  if (!placesShown()) return []; // off the map for now (see features.ts)
   const out: Monument[] = [];
   for (let mj = Math.floor((y0 - margin) / MONUMENT_CELL); mj <= Math.floor((y1 + margin) / MONUMENT_CELL); mj++)
     for (let mi = Math.floor((x0 - margin) / MONUMENT_CELL); mi <= Math.floor((x1 + margin) / MONUMENT_CELL); mi++) {

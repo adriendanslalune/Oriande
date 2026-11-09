@@ -4,6 +4,9 @@ import { LANDMARK_KINDS, landmark } from './landmarks';
 import { settlement } from './settlements';
 import { altitude, TILE } from './terrain';
 import { setLang, t } from '../i18n';
+import { showPlaces } from './features';
+
+showPlaces(true); // their generation is tested, though they are off the map for now
 
 describe('monuments and strange places', () => {
   it('monuments: every kind exists somewhere, on land, away from towns', () => {

@@ -92,7 +92,11 @@ Règles qui restent :
    **Obstacles** (`game/route.ts`, `walkable`/`obstacle`) : mer, lacs, banquise et montagnes
    (altitude ≥ 0,6), sauf le long d'une route ou d'une rivière qui les traverse (couloirs calculés
    par zone de 1 024, seulement là où une montagne est rencontrée).
-4. Rareté : lieux étranges ~10 % des tuiles (KEEP = 0,28), pictogrammes gravés, **35 types**
+4. **Retirés de la carte pour l'instant** (demande d'Adrien : sans intérêt tant qu'ils ne servent à rien) :
+   lieux étranges, monuments et merveilles. `world/features.ts` (`placesShown`, `showPlaces`) coupe
+   `landmark`, `monumentsNear`, `wondersNear` (et le chargement de leurs images) ; tout leur code, leurs
+   dessins et images restent, leurs tests les rallument. Ce qui suit décrit ce qui reviendra.
+   Rareté : lieux étranges ~10 % des tuiles (KEEP = 0,28), pictogrammes gravés, **35 types**
    (`LANDMARK_KINDS`, demande d'Adrien : une vraie variété) tirés selon le climat, l'altitude et
    l'eau (oasis au désert, ziggourat et idole en jungle, cimetière des éléphants et termitières en
    savane, mammouth en toundra, navire pris dans les glaces sur la banquise, phare et clocher
@@ -294,6 +298,14 @@ sur le téléphone de Doudou via GitLab Pages.
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).
    PAS de plan de ville à parcourir pour l'instant.
+   **Fait** (`game/town.ts`, `data/towns.json`, `Map.openTown`) : une marche qui finit dans un bourg (à moins de
+   40 du centre d'un village, 60 d'une ville, `townAt`) ouvre sa page ; un tap sur le bourg où l'on est propose
+   « Entrer ». **Village ≠ ville** (demande d'Adrien) : le village a une auberge (3 écus la nuit, toute la vie)
+   et un petit marchand (biscuit, remède, viande ; rachète la nourriture et les récoltes à 50 %) ; la ville a
+   l'auberge (5 écus), un grand marchand (aussi poisson, torche, canne ; rachète à 75 %), un **forgeron**
+   (coutelas 4-8, sabre 5-10 : mieux que ce qu'on fabrique) et une **taverne** (une rumeur sur Oriande parmi 12,
+   `rumor.<id>` en i18n, qui change toutes les demi-heures). Les écus viennent de la vente de ce qu'on chasse,
+   pêche et récolte.
 6. **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),
    un monstre par salle, un coffre, un indice sur Oriande à la fin.
 7. **Découvertes** : 5 découvertes illustrées (placeholders), fiche avec texte

@@ -20,8 +20,10 @@ export const RECIPES = recipesData.recipes as Recipe[];
 export const has = (s: GameState, id: string): boolean => (s.items[id] ?? 0) > 0;
 
 /** The explorer's blows with what they hold: bare fists, a staff, a spear. */
-export interface Weapon { id: 'poings' | 'baton' | 'lance'; damage: [number, number]; hit: number }
+export interface Weapon { id: 'poings' | 'baton' | 'lance' | 'coutelas' | 'sabre'; damage: [number, number]; hit: number }
 export const WEAPONS: Weapon[] = [
+  { id: 'sabre', damage: [5, 10], hit: 0.9 }, // bought from a city's smith
+  { id: 'coutelas', damage: [4, 8], hit: 0.88 },
   { id: 'lance', damage: [3, 7], hit: 0.88 },
   { id: 'baton', damage: [2, 5], hit: 0.85 },
   { id: 'poings', damage: [1, 3], hit: 0.8 },

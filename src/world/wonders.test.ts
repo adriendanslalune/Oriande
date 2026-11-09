@@ -5,6 +5,9 @@ import { settlement } from './settlements';
 import { landmark } from './landmarks';
 import { newGame, discover, cellKey, type TravelEvent } from '../game/travel';
 import { setLang, t } from '../i18n';
+import { showPlaces } from './features';
+
+showPlaces(true); // their generation is tested, though they are off the map for now
 
 const all = () => { const out = []; for (let mj = -10; mj < 10; mj++) for (let mi = -10; mi < 10; mi++) { const w = wonder(mi, mj); if (w) out.push(w); } return out; };
 
@@ -64,5 +67,17 @@ describe('strange places are rarer', () => {
     for (let tj = -30; tj < 30; tj++) for (let ti = -30; ti < 30; ti++) if (landmark(ti, tj)) n++;
     expect(n / 3600).toBeGreaterThan(0.06);
     expect(n / 3600).toBeLessThan(0.15);
+  });
+});
+
+describe('off the map for now', () => {
+  it('no strange place, monument or wonder is shown or found', async () => {
+    const { landmark } = await import('./landmarks');
+    const { monumentsNear } = await import('./monuments');
+    showPlaces(false);
+    expect(wondersNear(-50000, -50000, 50000, 50000, 0)).toEqual([]);
+    expect(monumentsNear(-50000, -50000, 50000, 50000, 0)).toEqual([]);
+    for (let k = 0; k < 400; k++) expect(landmark(k - 200, (k * 7) % 50 - 25)).toBeNull();
+    showPlaces(true);
   });
 });

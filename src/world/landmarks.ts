@@ -12,6 +12,7 @@ export const TOWN_CLEARANCE = 80, CITY_CLEARANCE = 130;
 
 import { biome, type Biome } from './climate';
 import { humidity } from './terrain';
+import { placesShown } from './features';
 
 export type LandmarkKind =
   | 'ruines' | 'squelette' | 'champignons' | 'cratere' | 'tour' | 'geyser' | 'epave' | 'tourbillon'
@@ -88,6 +89,7 @@ const memo = new Map<string, Landmark | null>();
 
 /** The strange place of tile (ti, tj), if any: at most one per tile, about one tile in ten. */
 export function landmark(ti: number, tj: number): Landmark | null {
+  if (!placesShown()) return null; // off the map for now (see features.ts)
   const rkey = ti + ',' + tj, wi = wrapIndex(ti, TILES_AROUND), key = wi + ',' + tj;
   const known = memo.get(rkey);
   if (known !== undefined) return known;

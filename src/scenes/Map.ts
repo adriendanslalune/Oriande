@@ -7,6 +7,8 @@ import { CONTACT, HUNT_RUN, ITEMS, REGROUP, beastsNear, end, hunt, stepFight, us
 import { isSeen } from '../game/travel';
 import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
 import { resourceAt } from '../world/resources';
+import { buy, goods, kindOf, rumor, sell, sellable, sleep, townAt, weaponDamage } from '../game/town';
+import type { Settlement } from '../world/settlements';
 import { settlement } from '../world/settlements';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
@@ -223,6 +225,14 @@ export class MapScene extends Phaser.Scene {
     }
     // a tap on (or near) a place already seen goes to that place, by its name
     const place = this.placeAt(tx, ty, Math.max(18, 26 / this.view.zoom));
+    // a tap on the town the explorer is already in: go in
+    const here = place?.town && townAt(this.state.x, this.state.y);
+    if (place?.town && here && here.key === place.town.key && !this.state.fight) {
+      const b = place.town;
+      this.overlay.plan = null;
+      this.hud.showWalk(t(b.city ? 'town.page.city' : 'town.page.village', { n: b.name }), null, () => this.openTown(b), () => this.cancelPlan(), t('town.enter', { n: b.name }));
+      return;
+    }
     const x = place ? place.x : tx, y = place ? place.y : ty;
     const s = this.state, route = planRoute(s.x, s.y, x, y);
     const L = route ? pathLength(route.path) : 0;
@@ -276,6 +286,54 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     this.hud.showWalk(detail, place?.name ?? null, walk, () => this.cancelPlan(), undefined, alt);
+  }
+
+  /**
+   * A town's page (phase 1, step 5): an atlas page over the map. A village has an inn and a small
+   * merchant; a city also a bigger merchant who pays better, a smith and a tavern.
+   */
+  private openTown(b: Settlement): void {
+    const s = this.state, k = kindOf(b), name = (id: string): string => t('item.' + id + '.name');
+    const ecus = (n: number): string => tn('town.ecus', n, { n });
+    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean };
+    const done = (): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold); this.openTown(b); };
+    const e: Entry[] = [];
+    // the inn
+    e.push({ label: t('town.inn'), sub: '', use: null, head: true });
+    const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
+    e.push({
+      label: t('town.sleep', { p: ecus(k.inn) }), sub: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor'),
+      use: tired && rich ? () => { sleep(s, b); done(); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); } : null,
+    });
+    // the merchant: buying, then selling
+    e.push({ label: t('town.shop'), sub: '', use: null, head: true });
+    for (const g of goods(s, b).filter((x) => !x.smith)) {
+      const it = ITEMS.find((i) => i.id === g.id)!;
+      e.push({
+        label: t('town.buy', { a: name(g.id), p: ecus(g.price) }),
+        sub: it.kind === 'food' ? t('town.buy.food', { n: it.heal, k: s.items[g.id] ?? 0 }) : t('item.' + g.id + '.text'),
+        use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null,
+      });
+    }
+    e.push({ label: t('town.sellHead'), sub: '', use: null, head: true });
+    const wares = sellable(s, b);
+    if (!wares.length) e.push({ label: '', sub: t('town.nothingToSell'), use: null, info: true });
+    for (const w of wares) e.push({ label: t('town.sell', { a: name(w.id), n: w.n }), sub: t('town.sell.sub', { p: ecus(w.price) }), use: () => { sell(s, b, w.id); done(); } });
+    // the smith, in a city
+    const arms = goods(s, b).filter((x) => x.smith);
+    if (k.forge.length) {
+      e.push({ label: t('town.smith'), sub: '', use: null, head: true });
+      if (!arms.length) e.push({ label: '', sub: t('town.smith.done'), use: null, info: true });
+      for (const g of arms) {
+        const [lo, hi] = weaponDamage(g.id) ?? [0, 0];
+        e.push({ label: t('town.buy', { a: name(g.id), p: ecus(g.price) }), sub: t('town.weapon.sub', { a: lo, b: hi }) + ' · ' + t('item.' + g.id + '.text'), use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null });
+      }
+    }
+    // the tavern, in a city: what is being said tonight
+    const r = rumor(b, worldTime());
+    if (r) e.push({ label: t('town.tavern'), sub: '', use: null, head: true }, { label: '', sub: t('rumor.' + r), use: null, info: true });
+    this.overlay.plan = null;
+    this.hud.showPack(e, t(b.city ? 'town.page.city' : 'town.page.village', { n: b.name }) + ' · ' + t('town.purse', { hp: s.hp, max: s.maxHp, g: ecus(s.gold) }), '');
   }
 
   /** Go after this animal (hunt it, or attack it). */
@@ -382,17 +440,17 @@ export class MapScene extends Phaser.Scene {
   }
 
   /** The nearest place already seen within r of (x, y): a town, a strange place, a wonder. */
-  private placeAt(x: number, y: number, r: number): { x: number; y: number; name: string } | null {
+  private placeAt(x: number, y: number, r: number): { x: number; y: number; name: string; town?: Settlement } | null {
     const s = this.state;
-    let best: { x: number; y: number; name: string } | null = null, bd = r;
-    const consider = (px: number, py: number, name: () => string): void => {
+    let best: { x: number; y: number; name: string; town?: Settlement } | null = null, bd = r;
+    const consider = (px: number, py: number, name: () => string, town?: Settlement): void => {
       const d = Math.hypot(px - x, py - y);
-      if (d < bd && isSeen(s, px, py)) { bd = d; best = { x: px, y: py, name: name() }; }
+      if (d < bd && isSeen(s, px, py)) { bd = d; best = { x: px, y: py, name: name(), town }; }
     };
     const ti = Math.floor(x / TILE), tj = Math.floor(y / TILE);
     for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
       const b = settlement(ti + di, tj + dj);
-      if (b) consider(b.x, b.y, () => b.name);
+      if (b) consider(b.x, b.y, () => b.name, b);
       const L = landmark(ti + di, tj + dj);
       if (L) consider(L.x, L.y, () => t(`landmark.${L.kind}.name`, { n: L.name }));
     }
@@ -566,6 +624,8 @@ export class MapScene extends Phaser.Scene {
     const walking = advance(s, dt, events);
     this.fightStep(dt, delta);
     this.workStep(dt);
+    // a walk that ends in a town: its page opens
+    if (walking && !s.journey && !s.fight && !s.work) { const b = townAt(s.x, s.y); if (b) this.openTown(b); }
     // crossing longitude 180°: the explorer comes back around the planet, the view follows
     v.x += wrapPosition(s);
     for (const e of events) this.onEvent(e);

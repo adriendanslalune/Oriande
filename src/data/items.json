@@ -1,16 +1,83 @@
 {
-  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made once, kept). heal: life given back when eaten. price: in écus (the merchant, later). Meat comes from hunting, fish from fishing.",
+  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made or bought once, kept). heal: life given back when eaten. price: in écus at a merchant (who buys back food and gathered things for less, see towns.json). Meat comes from hunting, fish from fishing; the cutlass and the sabre from a city's smith.",
   "items": [
-    { "id": "remede", "kind": "food", "heal": 8, "price": 6 },
-    { "id": "biscuit", "kind": "food", "heal": 3, "price": 2 },
-    { "id": "viande", "kind": "food", "heal": 4, "price": 1 },
-    { "id": "poisson", "kind": "food", "heal": 3, "price": 1 },
-    { "id": "bois", "kind": "material", "heal": 0, "price": 1 },
-    { "id": "pierre", "kind": "material", "heal": 0, "price": 1 },
-    { "id": "fibre", "kind": "material", "heal": 0, "price": 1 },
-    { "id": "baton", "kind": "tool", "heal": 0, "price": 3 },
-    { "id": "torche", "kind": "tool", "heal": 0, "price": 4 },
-    { "id": "canne", "kind": "tool", "heal": 0, "price": 5 },
-    { "id": "lance", "kind": "tool", "heal": 0, "price": 8 }
+    {
+      "id": "remede",
+      "kind": "food",
+      "heal": 8,
+      "price": 8
+    },
+    {
+      "id": "biscuit",
+      "kind": "food",
+      "heal": 3,
+      "price": 3
+    },
+    {
+      "id": "viande",
+      "kind": "food",
+      "heal": 4,
+      "price": 3
+    },
+    {
+      "id": "poisson",
+      "kind": "food",
+      "heal": 3,
+      "price": 3
+    },
+    {
+      "id": "bois",
+      "kind": "material",
+      "heal": 0,
+      "price": 1
+    },
+    {
+      "id": "pierre",
+      "kind": "material",
+      "heal": 0,
+      "price": 1
+    },
+    {
+      "id": "fibre",
+      "kind": "material",
+      "heal": 0,
+      "price": 1
+    },
+    {
+      "id": "baton",
+      "kind": "tool",
+      "heal": 0,
+      "price": 3
+    },
+    {
+      "id": "torche",
+      "kind": "tool",
+      "heal": 0,
+      "price": 4
+    },
+    {
+      "id": "canne",
+      "kind": "tool",
+      "heal": 0,
+      "price": 6
+    },
+    {
+      "id": "lance",
+      "kind": "tool",
+      "heal": 0,
+      "price": 10
+    },
+    {
+      "id": "coutelas",
+      "kind": "tool",
+      "heal": 0,
+      "price": 30
+    },
+    {
+      "id": "sabre",
+      "kind": "tool",
+      "heal": 0,
+      "price": 70
+    }
   ]
 }

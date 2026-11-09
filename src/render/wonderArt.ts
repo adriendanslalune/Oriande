@@ -4,6 +4,7 @@
 import type { WonderKind } from '../world/wonders';
 import type { LandmarkKind } from '../world/landmarks';
 import type { MonumentKind } from '../world/monuments';
+import { placesShown } from '../world/features';
 
 const wonderUrls = import.meta.glob('../assets/wonders/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 // The strange places stay pictograms on the map (asked by Adrien: they are frequent, a rich
@@ -63,6 +64,7 @@ function loadAll<K extends string>(urls: Record<string, string>, into: Map<K, HT
 
 /** Load every picture; resolves when all have loaded or failed (never rejects). */
 export function loadWonderArt(): Promise<void> {
+  if (!placesShown()) return Promise.resolve(); // off the map for now: nothing to load
   if (typeof Image === 'undefined') return Promise.resolve();
   return Promise.all([...loadAll(wonderUrls, images), ...loadAll(landmarkUrls, landmarkImages), ...loadAll(monumentUrls, monumentImages)]).then(() => undefined);
 }

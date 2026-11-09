@@ -34,8 +34,8 @@ Style choisi par Adrien : **surtout Moebius**, une touche de Jules Verne. Pas as
 
 | clé | Où | Format | Sujet à demander (anglais) |
 |---|---|---|---|
-| `village` | arrivée dans un village | paysage 3:2 | a small village seen from the dirt road leading to it: thatched cottages, a well, smoke from chimneys, fields, a few trees |
-| `city` | arrivée dans une ville | paysage 3:2 | a walled town seen from its gates: stone ramparts, steeples, roofs climbing a hill, a road with a cart |
+| `village` | arrivée dans un village | paysage 3:2 | the central square of a small village, seen from inside it: a stone well in the middle, thatched cottages and a little chapel around, a bench under an old tree, laundry drying, a cart without its horse; quiet late-afternoon light, a big calm sky above the roofs; nobody, or one distant figure |
+| `city` | arrivée dans une ville | paysage 3:2 | the main square of a walled town, seen from inside it: cobblestones, a fountain with a weathered statue, tall stone houses with shop signs, a clock tower and steeples, folded market awnings, a gas lamp; calm, a big sky above the roofs; nobody, or one distant figure |
 | `inn` | l'auberge | paysage 3:2 | the common room of a country inn: a fireplace with a pot, wooden beams, a staircase to the rooms, a lantern |
 | `shop` | le marchand | paysage 3:2 | a merchant's stall in a village street: crates, sacks, hanging sausages, jars, a scale, an awning |
 | `smith` | la forge | paysage 3:2 | a blacksmith's forge: glowing hearth, anvil, hammers and blades on the wall, sparks |

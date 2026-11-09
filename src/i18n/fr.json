@@ -347,5 +347,17 @@
   "almanac.make": "Fabriquer",
   "almanac.done": "Déjà fabriqué.",
   "almanac.missing": "Il manque des matériaux.",
-  "item.remede.text": "Herbes pilées et baies : rend 8 de vie."
+  "item.remede.text": "Herbes pilées et baies : rend 8 de vie.",
+  "sac.foodTab": "Vivres",
+  "sac.place.hand": "Arme",
+  "sac.place.off": "Main gauche",
+  "sac.place.body": "Vêtement",
+  "sac.equipHint": "Touchez un objet pour le prendre ou le ranger.",
+  "sac.noGear": "Rien à porter : fabriquez un bâton, une torche, une veste…",
+  "use.soin": "Soins",
+  "use.combat": "Combat",
+  "use.chasse": "Chasse",
+  "use.recolte": "Récolte",
+  "use.peche": "Pêche",
+  "use.feu": "Feu et lumière"
 }

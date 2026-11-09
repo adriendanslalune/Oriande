@@ -11,7 +11,7 @@ import { monumentsNear } from '../world/monuments';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, lifeOf, presence, type Animal, type Look } from '../world/fauna';
 import { CONTACT, speciesById } from '../game/combat';
-import { FISH_SECONDS, has, weaponOf, workSeconds } from '../game/craft';
+import { FISH_SECONDS, weaponOf, workSeconds } from '../game/craft';
 import { campLit } from '../game/camp';
 import { drawAnimal, drawSkeleton } from './animals';
 import { DPR } from '../ui/screen';
@@ -46,6 +46,10 @@ type Attack = 'bite' | 'swipe' | 'ram' | 'kick';
 /** What the explorer holds and does, for the drawing. */
 interface Gear {
   weapon: 'poings' | 'baton' | 'lance' | 'coutelas' | 'sabre';
+  /** the torch burns (at night) rather than being carried unlit */
+  lit?: boolean;
+  /** a leather jacket instead of the travelling coat */
+  jacket?: boolean;
   /** work in hand: its kind, what is gathered, where on screen (the float), how far along (0..1) */
   work: { kind: 'harvest' | 'fish'; res: string | null; at: [number, number]; done: number } | null;
 }
@@ -202,7 +206,7 @@ export class Overlay {
     fg.globalAlpha = 1;
     // the night over everything (paper included), with the lights punched out of it
     const fire = campLit(s, worldTime()) ? [s.camp!.x, s.camp!.y] as [number, number] : null;
-    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now, has(s, 'torche'), fire);
+    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now, s.equip.off === 'torche', fire);
     fg.globalCompositeOperation = 'source-over';
     this.weather.paintNight(fg, v, 4, lights);
     ctx.imageSmoothingEnabled = true; ctx.drawImage(fog, 0, 0, v.W, v.H);
@@ -324,8 +328,8 @@ export class Overlay {
     const w = s.work && s.work.left !== null && !s.journey ? s.work : null;
     if (w && Math.abs(w.x - s.x) > 1) this.facing = w.x > s.x ? 1 : -1;
     const [wx, wy] = w ? screen(w.x, w.y) : [0, 0];
-    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12 && has(s, 'torche'), {
-      weapon: weaponOf(s).id,
+    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, s.equip.off === 'torche', {
+      weapon: weaponOf(s).id, lit: sky(v.x).darkness > 0.12, jacket: s.equip.body === 'veste',
       work: w ? { kind: w.kind, res: w.res, at: [wx, wy], done: 1 - (w.left ?? 0) / (w.kind === 'fish' ? FISH_SECONDS : workSeconds(s, w.res)) } : null,
     });
     // the animal's bite or claws on the explorer: red slashes, for a moment
@@ -785,7 +789,7 @@ export class Overlay {
   }
 
   /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
-  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false, gear: Gear = { weapon: 'baton', work: null }): void {
+  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false, gear: Gear = { weapon: 'baton', work: null, lit: true }): void {
     const { ctx } = this;
     const work = gear.work, armed = gear.weapon !== 'poings', blade = gear.weapon === 'coutelas' || gear.weapon === 'sabre';
     // a blow of the staff: raised over the head, then brought down on the animal (STRIKE_MS);
@@ -816,7 +820,7 @@ export class Overlay {
     ctx.fillStyle = 'rgb(200,175,130)';
     ctx.beginPath(); ctx.ellipse(X(-2.6), Y(-13.9), 2.3 * u, 1 * u, 0, 0, 6.3); ctx.fill(); ctx.stroke();
     // coat
-    ctx.fillStyle = 'rgb(150,128,86)';
+    ctx.fillStyle = gear.jacket ? 'rgb(124,82,48)' : 'rgb(150,128,86)'; // the leather jacket, or the travelling coat
     ctx.beginPath(); ctx.moveTo(X(-1.7), Y(-13)); ctx.lineTo(X(1.7), Y(-13)); ctx.lineTo(X(2.4), Y(-5.6)); ctx.lineTo(X(-2.4), Y(-5.6)); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(X(-2), Y(-8.6)); ctx.lineTo(X(2.1), Y(-8.6)); ctx.stroke(); // belt
     // what the hands do: work, a blow, or carrying the staff (or nothing) along
@@ -935,10 +939,12 @@ export class Overlay {
       ctx.beginPath(); ctx.moveTo(X(-1.2), Y(-12)); ctx.lineTo(X(-2.2), Y(-15)); ctx.stroke(); // the arm
       ctx.strokeStyle = 'rgb(90,62,38)'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(X(-2.1), Y(-13.5)); ctx.lineTo(tx, ty + 2.5); ctx.stroke(); // the handle
-      ctx.fillStyle = 'rgba(255,150,40,.95)';
-      ctx.beginPath(); ctx.ellipse(tx + fl * 0.6, ty - 1.2, 2.2, 3.6 + fl, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,236,150,.95)';
-      ctx.beginPath(); ctx.ellipse(tx + fl * 0.3, ty - 0.4, 1.1, 2 + fl * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      if (gear.lit !== false) { // lit at night; by day it is carried out
+        ctx.fillStyle = 'rgba(255,150,40,.95)';
+        ctx.beginPath(); ctx.ellipse(tx + fl * 0.6, ty - 1.2, 2.2, 3.6 + fl, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,236,150,.95)';
+        ctx.beginPath(); ctx.ellipse(tx + fl * 0.3, ty - 0.4, 1.1, 2 + fl * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+      } else { ctx.fillStyle = 'rgb(70,56,40)'; ctx.beginPath(); ctx.ellipse(tx, ty + 0.8, 1.2, 1.8, 0, 0, Math.PI * 2); ctx.fill(); } // the unlit head
     }
     if (work) { // how far the work has got: a ring filling up over the hat
       const cy = Y(-25);

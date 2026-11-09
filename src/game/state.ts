@@ -49,7 +49,7 @@ export interface Work {
 }
 
 export interface GameState {
-  version: 8;
+  version: 9;
   x: number;
   y: number;
   /** leagues walked */
@@ -88,7 +88,12 @@ export interface GameState {
   food: number;
   /** the campfire the explorer laid, if any: where, and until when it burns (world seconds) */
   camp: Camp | null;
+  /** what the explorer carries and wears (chosen in the pack): the weapon in hand, the other hand, the body */
+  equip: Equip;
 }
+
+/** The explorer's equipment: item ids, or null for an empty hand. */
+export interface Equip { hand: string | null; off: string | null; body: string | null }
 
 /** A campfire on the map. */
 export interface Camp { x: number; y: number; until: number }

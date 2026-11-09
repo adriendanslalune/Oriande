@@ -1,13 +1,14 @@
 // Save and load the GameState in localStorage: small, versioned, robust.
 // What is saved: position, leagues, zoom, discovered places, the walk in progress, revealed fog
 // cells (run-length encoded) and footsteps (delta encoded). Never anything drawn.
-import type { Camp, Carcass, Fight, GameState, Journey, Work } from './state';
+import type { Camp, Carcass, Equip, Fight, GameState, Journey, Work } from './state';
+import { bestEquip } from './craft';
 import { START_HP, START_ITEMS, speciesById } from './combat';
 
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -42,6 +43,8 @@ export interface SaveFile {
   // v8: survival
   food: number;
   camp: Camp | null;
+  // v9: equipment
+  equip: Equip;
 }
 
 // ---- fog cells: run-length encoding by row ----
@@ -132,7 +135,7 @@ export function toSaveFile(s: GameState, now = new Date()): SaveFile {
     fight: s.fight ? { ...s.fight, home: [s.fight.home[0], s.fight.home[1]] } : null, gone: { ...s.gone },
     work: s.work ? { ...s.work } : null,
     carcasses: s.carcasses.map((c) => ({ ...c })),
-    food: s.food, camp: s.camp ? { ...s.camp } : null,
+    food: s.food, camp: s.camp ? { ...s.camp } : null, equip: { ...s.equip },
   };
 }
 
@@ -197,7 +200,12 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> |
     Object.assign(save, { food: 100, camp: null });
     save.v = 8;
   }
-  // next: if (save.v === 8) { ...; save.v = 9; }
+  if (save.v === 8) {
+    // v9: equipment chosen in the pack: to start with, the best of what was carried
+    save.equip = bestEquip((save.items ?? {}) as Record<string, number>);
+    save.v = 9;
+  }
+  // next: if (save.v === 9) { ...; save.v = 10; }
   return save;
 }
 
@@ -232,8 +240,11 @@ export function fromSaveFile(json: string): GameState {
   if (!Array.isArray(carcasses) || !carcasses.every((c) => c && typeof c === 'object' && !!speciesById(c.species) && [c.x, c.y, c.dir, c.t].every(isNum))) throw new Error('bad carcasses');
   const camp = f.camp as Camp | null;
   if (!isNum(f.food) || (camp !== null && (typeof camp !== 'object' || ![camp.x, camp.y, camp.until].every(isNum)))) throw new Error('bad survival');
+  const eq = f.equip as Equip;
+  const okSlot = (v: unknown): boolean => v === null || (typeof v === 'string' && (items as Record<string, number>)[v] > 0);
+  if (!eq || typeof eq !== 'object' || !okSlot(eq.hand) || !okSlot(eq.off) || !okSlot(eq.body)) throw new Error('bad equipment');
   return {
-    version: 8, work: work ? { ...work } : null, carcasses: carcasses.map((c) => ({ ...c })),
+    version: 9, equip: { hand: eq.hand, off: eq.off, body: eq.body }, work: work ? { ...work } : null, carcasses: carcasses.map((c) => ({ ...c })),
     food: Math.max(0, Math.min(100, f.food as number)), camp: camp ? { ...camp } : null,
     hp: Math.max(1, f.hp as number), maxHp: f.maxHp as number, gold: f.gold as number,
     items: items as Record<string, number>, seed: (f.seed as number) >>> 0, calmUntil: f.calmUntil as number,

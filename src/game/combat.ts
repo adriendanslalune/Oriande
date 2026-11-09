@@ -196,7 +196,7 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
   if (close && back && f.cdFoe === 0) {
     f.cdFoe = FOE_PACE;
     if (roll(s) < FOE_HIT) {
-      const dmg = Math.max(1, between(s, sp.damage ?? [1, 2]) - (has(s, 'veste') ? 1 : 0)); // a leather jacket takes the edge off
+      const dmg = Math.max(1, between(s, sp.damage ?? [1, 2]) - (s.equip.body === 'veste' ? 1 : 0)); // a leather jacket, worn, takes the edge off
       s.hp = Math.max(0, s.hp - dmg);
       out.push({ kind: 'hit', who: 'foe', damage: dmg, x: s.x, y: s.y });
       if (s.hp <= 0) defeat(s, t, out);

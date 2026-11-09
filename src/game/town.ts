@@ -6,7 +6,7 @@ import townsData from '../data/towns.json';
 import { hash2 } from '../world/noise';
 import { TILE } from '../world/terrain';
 import { settlement, type Settlement } from '../world/settlements';
-import { ITEMS, has, itemById, WEAPONS } from './craft';
+import { ITEMS, has, itemById, takeUp, WEAPONS } from './craft';
 import type { GameState } from './state';
 
 export interface TownKind { inn: number; sells: string[]; buys: number; forge: string[]; tavern: boolean }
@@ -68,6 +68,7 @@ export function buy(s: GameState, b: Settlement, id: string): boolean {
   if (!g || s.gold < g.price) return false;
   s.gold -= g.price;
   s.items[id] = (s.items[id] ?? 0) + 1;
+  takeUp(s, id); // a new weapon or torch goes in hand if it is free, or better
   return true;
 }
 

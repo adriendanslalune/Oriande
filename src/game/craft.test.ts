@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FISH_SECONDS, HARVEST_SECONDS, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from './craft';
+import { FISH_SECONDS, HARVEST_SECONDS, RECIPES, bestEquip, canCraft, castFrom, craft, equip, fishable, has, startWork, stepWork, weaponOf } from './craft';
 import { ITEMS, useItem } from './combat';
 import { NO_TORCH, newGame } from './travel';
 import { fromSaveFile, toSaveFile } from './save';
@@ -105,6 +105,30 @@ describe('making things', () => {
     const s = game(); s.hp = 5; s.items.bois = 2;
     expect(useItem(s, 'bois')).toBe(0);
     expect(s.items.bois).toBe(2);
+  });
+});
+
+describe('equipment', () => {
+  it('what is made is taken up if the hand is free; the pack chooses what is carried', () => {
+    const s = game(); s.items = { bois: 10, pierre: 4, fibre: 6 };
+    craft(s, 'baton');
+    expect(s.equip.hand).toBe('baton');
+    craft(s, 'lance');
+    expect(s.equip.hand).toBe('lance'); // better: taken up
+    expect(weaponOf(s).id).toBe('lance');
+    equip(s, 'baton');
+    expect(weaponOf(s).id).toBe('baton');
+    equip(s, 'baton'); // put away: bare fists
+    expect(weaponOf(s).id).toBe('poings');
+    craft(s, 'torche');
+    expect(s.equip.off).toBe('torche');
+    equip(s, 'torche');
+    expect(s.equip.off).toBeNull();
+    expect(equip(s, 'bois')).toBe(false); // wood is not carried in hand
+  });
+
+  it('an older save carries the best of its pack', () => {
+    expect(bestEquip({ baton: 1, lance: 1, torche: 1 })).toEqual({ hand: 'lance', off: 'torche', body: null });
   });
 });
 

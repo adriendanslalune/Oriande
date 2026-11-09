@@ -11,11 +11,11 @@ import type { GameState, Work } from './state';
 import { layCamp } from './camp';
 import { extrasAt } from '../world/resources';
 
-export interface Item { id: string; kind: 'food' | 'material' | 'tool'; heal: number; price: number; food?: number; sick?: number; cooks?: string }
+export interface Item { id: string; kind: 'food' | 'material' | 'tool'; heal: number; price: number; food?: number; sick?: number; cooks?: string; use?: string }
 export const ITEMS = itemsData.items as Item[];
 export const itemById = (id: string): Item | undefined => ITEMS.find((i) => i.id === id);
 
-export interface Recipe { id: string; needs: Record<string, number> }
+export interface Recipe { id: string; needs: Record<string, number>; use: string }
 export const RECIPES = recipesData.recipes as unknown as Recipe[];
 
 /** Whether the explorer has made this tool. */
@@ -30,7 +30,37 @@ export const WEAPONS: Weapon[] = [
   { id: 'baton', damage: [2, 5], hit: 0.85 },
   { id: 'poings', damage: [1, 3], hit: 0.8 },
 ];
-export const weaponOf = (s: GameState): Weapon => WEAPONS.find((w) => w.id === 'poings' || has(s, w.id))!;
+/** The weapon in the explorer's hand (bare fists when none is held). */
+export const weaponOf = (s: GameState): Weapon => WEAPONS.find((w) => w.id === s.equip.hand && has(s, w.id)) ?? WEAPONS.find((w) => w.id === 'poings')!;
+
+// ---- equipment (chosen in the pack) ----
+
+export type EquipSlot = 'hand' | 'off' | 'body';
+/** Where each thing is carried or worn. */
+export const SLOT_OF: Record<string, EquipSlot> = { baton: 'hand', lance: 'hand', coutelas: 'hand', sabre: 'hand', torche: 'off', veste: 'body' };
+export const slotOf = (id: string): EquipSlot | null => SLOT_OF[id] ?? null;
+
+/** Take this in hand (or put it on); taking what is already there puts it back in the pack. */
+export function equip(s: GameState, id: string): boolean {
+  const slot = slotOf(id);
+  if (!slot || !has(s, id)) return false;
+  s.equip[slot] = s.equip[slot] === id ? null : id;
+  return true;
+}
+
+/** The best of what a pack holds, carried: the strongest weapon, the torch, the jacket. */
+export function bestEquip(items: Record<string, number>): { hand: string | null; off: string | null; body: string | null } {
+  const owned = (id: string): boolean => (items[id] ?? 0) > 0;
+  return { hand: WEAPONS.find((w) => w.id !== 'poings' && owned(w.id))?.id ?? null, off: owned('torche') ? 'torche' : null, body: owned('veste') ? 'veste' : null };
+}
+
+/** Something new to carry: into its slot if that hand is free (or the new weapon is better). */
+export function takeUp(s: GameState, id: string): void {
+  const slot = slotOf(id);
+  if (!slot) return;
+  const better = slot === 'hand' && WEAPONS.findIndex((w) => w.id === id) < WEAPONS.findIndex((w) => w.id === (s.equip.hand ?? 'poings'));
+  if (!s.equip[slot] || better) s.equip[slot] = id;
+}
 
 /** Whether this is made once and kept (a tool), rather than again and again (a remedy, a fire). */
 const isTool = (id: string): boolean => itemById(id)?.kind === 'tool';
@@ -50,7 +80,7 @@ export function craft(s: GameState, id: string, t = 0): boolean {
     if (s.items[k] <= 0) delete s.items[k];
   }
   if (id === 'feu') layCamp(s, t);
-  else s.items[id] = isTool(id) ? 1 : (s.items[id] ?? 0) + 1;
+  else { s.items[id] = isTool(id) ? 1 : (s.items[id] ?? 0) + 1; takeUp(s, id); }
   return true;
 }
 

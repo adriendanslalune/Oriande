@@ -1,5 +1,5 @@
 {
-  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made or bought once, kept). heal: life given back when eaten. food: how much it fills the belly (out of 100). sick: chance that it upsets the stomach eaten as it is (raw), which costs life. cooks: what a campfire makes of it. price: in écus at a merchant (who buys back food and gathered things for less, see towns.json).",
+  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made or bought once, kept). heal: life given back when eaten. food: how much it fills the belly (out of 100). sick: chance that it upsets the stomach eaten as it is (raw), which costs life. cooks: what a campfire makes of it. price: in écus at a merchant (who buys back food and gathered things for less, see towns.json). use (tools): what it is for (combat, chasse, recolte, peche, feu).",
   "items": [
     {
       "id": "remede",
@@ -110,67 +110,78 @@
       "id": "baton",
       "kind": "tool",
       "heal": 0,
-      "price": 3
+      "price": 3,
+      "use": "combat"
     },
     {
       "id": "torche",
       "kind": "tool",
       "heal": 0,
-      "price": 4
+      "price": 4,
+      "use": "feu"
     },
     {
       "id": "canne",
       "kind": "tool",
       "heal": 0,
-      "price": 6
+      "price": 6,
+      "use": "peche"
     },
     {
       "id": "lance",
       "kind": "tool",
       "heal": 0,
-      "price": 10
+      "price": 10,
+      "use": "combat"
     },
     {
       "id": "hachette",
       "kind": "tool",
       "heal": 0,
-      "price": 8
+      "price": 8,
+      "use": "recolte"
     },
     {
       "id": "pioche",
       "kind": "tool",
       "heal": 0,
-      "price": 8
+      "price": 8,
+      "use": "recolte"
     },
     {
       "id": "couteau",
       "kind": "tool",
       "heal": 0,
-      "price": 6
+      "price": 6,
+      "use": "chasse"
     },
     {
       "id": "hamecon",
       "kind": "tool",
       "heal": 0,
-      "price": 5
+      "price": 5,
+      "use": "peche"
     },
     {
       "id": "veste",
       "kind": "tool",
       "heal": 0,
-      "price": 20
+      "price": 20,
+      "use": "combat"
     },
     {
       "id": "coutelas",
       "kind": "tool",
       "heal": 0,
-      "price": 30
+      "price": 30,
+      "use": "combat"
     },
     {
       "id": "sabre",
       "kind": "tool",
       "heal": 0,
-      "price": 70
+      "price": 70,
+      "use": "combat"
     }
   ]
 }

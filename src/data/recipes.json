@@ -1,32 +1,36 @@
 {
-  "_comment": "What the explorer can make from what they gather (asked by Adrien: they start with nothing, everything is made along the way). needs: item id -> how many. A tool is made once and kept; food (a remedy) can be made again and again; the campfire is laid where the explorer stands.",
+  "_comment": "What the explorer can make from what they gather (asked by Adrien: they start with nothing, everything is made along the way). needs: item id -> how many. A tool is made once and kept; food (a remedy) can be made again and again; the campfire is laid where the explorer stands. use: what it is for, to sort the almanac and the tools (soin, combat, chasse, recolte, peche, feu).",
   "recipes": [
     {
       "id": "baton",
       "needs": {
         "bois": 2
-      }
+      },
+      "use": "combat"
     },
     {
       "id": "feu",
       "needs": {
         "bois": 3,
         "pierre": 2
-      }
+      },
+      "use": "feu"
     },
     {
       "id": "torche",
       "needs": {
         "bois": 1,
         "fibre": 2
-      }
+      },
+      "use": "feu"
     },
     {
       "id": "couteau",
       "needs": {
         "pierre": 2,
         "fibre": 1
-      }
+      },
+      "use": "chasse"
     },
     {
       "id": "hachette",
@@ -34,7 +38,8 @@
         "bois": 2,
         "pierre": 2,
         "fibre": 1
-      }
+      },
+      "use": "recolte"
     },
     {
       "id": "pioche",
@@ -42,21 +47,24 @@
         "bois": 2,
         "pierre": 3,
         "fibre": 1
-      }
+      },
+      "use": "recolte"
     },
     {
       "id": "canne",
       "needs": {
         "bois": 2,
         "fibre": 3
-      }
+      },
+      "use": "peche"
     },
     {
       "id": "hamecon",
       "needs": {
         "os": 1,
         "fibre": 1
-      }
+      },
+      "use": "peche"
     },
     {
       "id": "lance",
@@ -64,21 +72,24 @@
         "bois": 2,
         "pierre": 2,
         "fibre": 2
-      }
+      },
+      "use": "combat"
     },
     {
       "id": "remede",
       "needs": {
         "herbes": 3,
         "baies": 1
-      }
+      },
+      "use": "soin"
     },
     {
       "id": "veste",
       "needs": {
         "peau": 4,
         "fibre": 3
-      }
+      },
+      "use": "combat"
     }
   ]
 }

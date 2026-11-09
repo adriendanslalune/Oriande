@@ -347,5 +347,17 @@
   "almanac.make": "Make",
   "almanac.done": "Already made.",
   "almanac.missing": "Materials are missing.",
-  "item.remede.text": "Pounded herbs and berries: restores 8 life."
+  "item.remede.text": "Pounded herbs and berries: restores 8 life.",
+  "sac.foodTab": "Food",
+  "sac.place.hand": "Weapon",
+  "sac.place.off": "Other hand",
+  "sac.place.body": "Clothing",
+  "sac.equipHint": "Tap a thing to take it up or put it away.",
+  "sac.noGear": "Nothing to carry: make a staff, a torch, a jacket…",
+  "use.soin": "Care",
+  "use.combat": "Fighting",
+  "use.chasse": "Hunting",
+  "use.recolte": "Gathering",
+  "use.peche": "Fishing",
+  "use.feu": "Fire and light"
 }

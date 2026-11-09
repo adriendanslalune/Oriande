@@ -11,7 +11,6 @@ import { MONUMENT_SIGHT, monumentsNear, type Monument } from '../world/monuments
 import type { GameState } from './state';
 import { alongPath, pathLength, planRoute } from './route';
 import { START_HP, START_ITEMS } from './combat';
-import { has } from './craft';
 
 /** Radius revealed around the explorer on open plains, world units. */
 export const VIEW_RADIUS = 200;
@@ -57,7 +56,7 @@ export const NO_TORCH = 0.5;
 /** Reveal every fog cell the explorer can see from (x, y). */
 export function reveal(s: GameState, x: number, y: number): void {
   // rain, snow, fog, sand and the night shorten the view; without a torch, the night far more
-  const dark = has(s, 'torche') ? 1 : 1 - sky(x).darkness * NO_TORCH;
+  const dark = s.equip.off === 'torche' ? 1 : 1 - sky(x).darkness * NO_TORCH; // a torch in hand
   revealCircle(s, x, y, sightRadius(x, y) * visibilityAt(x, y) * dark);
 }
 
@@ -113,13 +112,13 @@ export function wrapPosition(s: GameState): number {
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 8, x, y, leagues: 0,
+    version: 9, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
     hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },
     // the dice of a new game: different for each player (the world itself is the same for all)
     seed: (Math.random() * 4294967296) >>> 0,
-    calmUntil: 0, rest: [x, y], fight: null, gone: {}, work: null, carcasses: [], food: 100, camp: null,
+    calmUntil: 0, rest: [x, y], fight: null, gone: {}, work: null, carcasses: [], food: 100, camp: null, equip: { hand: null, off: null, body: null },
   };
   reveal(s, x, y);
   return s;

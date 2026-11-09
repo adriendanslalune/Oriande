@@ -7,7 +7,7 @@ import { CONTACT, HUNT_RUN, ITEMS, REGROUP, beastsNear, end, hunt, stepFight, ty
 import { SLEEP_FOOD, canCook, canSleepByFire, cook, eat, sleepByFire, stepHunger } from '../game/survival';
 import { campLit } from '../game/camp';
 import { isSeen } from '../game/travel';
-import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
+import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, equip, fishable, has, slotOf, startWork, stepWork } from '../game/craft';
 import { resourceAt } from '../world/resources';
 import { iconOfResource } from '../ui/icons';
 import { Sheet, type RecipeCard, type Slot } from '../ui/sheet';
@@ -410,32 +410,28 @@ export class MapScene extends Phaser.Scene {
 
   /** The pack and the almanac, as pages over the map. */
   private sheet!: Sheet;
-  /** the thing tapped in the pack, whose card is shown */
+  /** the thing tapped in the pack, whose card is shown, and the tab open */
   private sacSel: string | null = null;
+  private sacTab = 'worn';
 
   /**
-   * The pack (asked by Adrien: clear compartments, things in slots with their picture and how many):
-   * what the explorer carries in hand and wears, the tools made, then food and materials. Tapping a
-   * slot shows its card below, with what can be done with it (eat, cook). Making things is the
-   * almanac's (see openAlmanac). By a lit campfire, sleeping is offered at the top.
+   * The pack (asked by Adrien): tabs. "Carried": the explorer drawn with what he holds and wears,
+   * chosen by tapping what was made. "Tools": the others, by use. "Food" and "Materials": slots with
+   * a picture and how many; tapping one shows its card (eat, cook). Making things is the almanac's.
    */
-  private openPack(sel = this.sacSel): void {
+  private openPack(sel = this.sacSel, tab = this.sacTab): void {
     this.actAt = null; this.cancelPlan();
     const s = this.state, now = worldTime(), name = (id: string): string => t('item.' + id + '.name');
     const again = (keep: string | null): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openPack(keep && (s.items[keep] ?? 0) > 0 ? keep : null); };
-    this.sacSel = sel;
+    this.sacSel = sel; this.sacTab = tab;
     const slot = (id: string, worn = false): Slot => ({ id, name: name(id), count: s.items[id] ?? 0, worn });
-    const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0).map((it) => it.id);
-    // carried: the weapon in hand (the best one), the jacket, the torch; the other tools in the pack
-    const weapon = weaponOf(s).id, worn = [weapon !== 'poings' ? weapon : '', has(s, 'veste') ? 'veste' : '', has(s, 'torche') ? 'torche' : ''].filter(Boolean);
-    const tools = owned('tool').filter((id) => !worn.includes(id)); // a weapon not in hand stays in the pack
-    const MAT_ORDER = ['bois', 'pierre', 'fibre', 'herbes', 'peau', 'os'];
-    const mats = owned('material').sort((a, b) => MAT_ORDER.indexOf(a) - MAT_ORDER.indexOf(b));
+    const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0);
     const fire = campLit(s, now) && Math.hypot(s.camp!.x - s.x, s.camp!.y - s.y) < 40;
-    // the card of the thing tapped
+    const equipped = (id: string): boolean => s.equip.hand === id || s.equip.off === id || s.equip.body === id;
+    // the card of the thing tapped (food and materials)
     let detail: Parameters<Sheet['showSac']>[0]['detail'] = null;
     const it = sel ? ITEMS.find((i) => i.id === sel) : undefined;
-    if (it && (s.items[it.id] ?? 0) > 0) {
+    if (it && (s.items[it.id] ?? 0) > 0 && tab !== 'worn') {
       const lines: string[] = [], actions: { label: string; use: (() => void) | null }[] = [];
       if (it.kind === 'food') {
         lines.push(t('pack.eat.sub', { f: it.food ?? 0, h: it.heal }) + (it.sick ? t('pack.raw') : ''));
@@ -446,33 +442,45 @@ export class MapScene extends Phaser.Scene {
       else lines.push(t('sac.material'));
       detail = { id: it.id, name: name(it.id) + (s.items[it.id] > 1 && it.kind !== 'tool' ? ' × ' + s.items[it.id] : ''), lines, actions };
     }
+    const MAT_ORDER = ['bois', 'pierre', 'fibre', 'herbes', 'peau', 'os'];
+    const carriable = owned('tool').filter((i) => slotOf(i.id)).map((i) => slot(i.id, equipped(i.id)));
+    const tools = owned('tool').filter((i) => !slotOf(i.id));
+    const USES = ['chasse', 'recolte', 'peche', 'feu'];
     this.sheet.showSac({
       title: t('sac.title'), sub: t('sac.sub', { hp: s.hp, max: s.maxHp, f: Math.round(s.food), g: s.gold }),
-      top: fire ? { title: t('pack.fire'), actions: [{ label: t('pack.sleep') + (canSleepByFire(s, now) ? ' · −' + SLEEP_FOOD + ' ' + t('hud.bellyLabel').toLowerCase() : ''), use: canSleepByFire(s, now) ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(sel); } : null }] } : null,
-      sections: [
-        { title: t('sac.worn'), slots: worn.map((id) => slot(id, true)), empty: t('pack.fists') },
-        { title: t('pack.tools'), slots: tools.map((id) => slot(id)), empty: t('sac.noTools') },
-        { title: t('pack.food'), slots: owned('food').map((id) => slot(id)), empty: t('sac.noFood') },
-        { title: t('pack.materials'), slots: mats.map((id) => slot(id)), empty: t('sac.noMats') },
-      ],
+      tabs: [{ key: 'worn', label: t('sac.worn') }, { key: 'tools', label: t('pack.tools') }, { key: 'food', label: t('sac.foodTab') }, { key: 'mats', label: t('pack.materials') }],
+      tab, setTab: (key) => this.openPack(null, key),
+      top: fire && tab === 'food' ? { title: t('pack.fire'), actions: [{ label: t('pack.sleep') + (canSleepByFire(s, now) ? ' · −' + SLEEP_FOOD + ' ' + t('hud.bellyLabel').toLowerCase() : ''), use: canSleepByFire(s, now) ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(sel); } : null }] } : null,
+      carried: tab === 'worn' ? {
+        gear: { ...s.equip },
+        places: (['hand', 'off', 'body'] as const).map((k) => ({ label: t('sac.place.' + k), id: s.equip[k], name: s.equip[k] ? name(s.equip[k]!) : '' })),
+        choices: carriable,
+        pick: (id) => { equip(s, id); saveGame(s); this.openPack(null, 'worn'); },
+        hint: t('sac.equipHint'), empty: t('sac.noGear'),
+      } : undefined,
+      sections: tab === 'tools' ? (tools.length ? USES.map((u) => ({ title: t('use.' + u), slots: tools.filter((i) => i.use === u).map((i) => slot(i.id)) })).filter((g) => g.slots.length) : [{ title: t('pack.tools'), slots: [], empty: t('sac.noTools') }])
+        : tab === 'food' ? [{ title: t('pack.food'), slots: owned('food').map((i) => slot(i.id)), empty: t('sac.noFood') }]
+        : tab === 'mats' ? [{ title: t('pack.materials'), slots: owned('material').map((i) => i.id).sort((a, b) => MAT_ORDER.indexOf(a) - MAT_ORDER.indexOf(b)).map((id) => slot(id)), empty: t('sac.noMats') }]
+        : [],
       selected: sel,
       detail,
-      select: (id) => this.openPack(id === sel ? null : id),
+      select: (id) => this.openPack(id === sel ? null : id, tab),
     });
   }
 
   /**
-   * The almanac of recipes (asked by Adrien): everything that can be made, what it takes, what
-   * the pack holds; what can be made now is shown plainly and made with a tap.
+   * The almanac of recipes (asked by Adrien): sorted by use (care, fighting, hunting, gathering,
+   * fishing, fire), what each needs and what the pack holds; what can be made now stands out and
+   * is made with a tap.
    */
   private openAlmanac(): void {
     this.actAt = null; this.cancelPlan();
     const s = this.state, now = worldTime(), name = (id: string): string => t('item.' + id + '.name');
-    const cards: RecipeCard[] = RECIPES.map((r) => {
+    const cards: (RecipeCard & { use: string })[] = RECIPES.map((r) => {
       const tool = ITEMS.find((i) => i.id === r.id)?.kind === 'tool';
       const state: RecipeCard['state'] = tool && has(s, r.id) ? 'done' : canCraft(s, r.id) ? 'ready' : 'missing';
       return {
-        id: r.id, name: name(r.id), text: t('item.' + r.id + '.text'),
+        id: r.id, name: name(r.id), text: t('item.' + r.id + '.text'), use: r.use,
         needs: Object.entries(r.needs).map(([k, n]) => ({ id: k, name: name(k), have: s.items[k] ?? 0, need: n })),
         state,
         make: () => {
@@ -484,9 +492,11 @@ export class MapScene extends Phaser.Scene {
       };
     });
     const rank = { ready: 0, missing: 1, done: 2 };
-    cards.sort((a, b) => rank[a.state] - rank[b.state]);
+    const groups = ['soin', 'combat', 'chasse', 'recolte', 'peche', 'feu'].map((u) => ({
+      title: t('use.' + u), cards: cards.filter((c) => c.use === u).sort((a, b) => rank[a.state] - rank[b.state]),
+    }));
     const ready = cards.filter((c) => c.state === 'ready').length;
-    this.sheet.showAlmanac(t('almanac.title'), ready ? tn('almanac.ready', ready, { n: ready }) : t('almanac.sub'), cards);
+    this.sheet.showAlmanac(t('almanac.title'), ready ? tn('almanac.ready', ready, { n: ready }) : t('almanac.sub'), groups);
   }
 
   /** The animal under a tap, if any (only where the explorer has seen). */

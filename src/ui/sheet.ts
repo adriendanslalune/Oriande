@@ -3,6 +3,7 @@
 // Plain DOM, built from models the map scene gives; no game rules here.
 import { t } from '../i18n';
 import { itemPicture } from './itemArt';
+import { portrait, type Carried } from './portrait';
 
 const CSS = `
 .sheet { position: fixed; inset: 0; display: none; z-index: 4; background: rgba(42,36,29,.18); }
@@ -51,12 +52,26 @@ const CSS = `
 .sheet .need.short { color: #a83428; border-color: #a83428; }
 .sheet .card .state { font: italic 13px "IM Fell English", serif; color: #6a5f4f; margin-top: 6px; }
 .sheet .card .make { margin-top: 8px; background: #46602f; border-color: #2a241d; }
+.sheet-tabs { display: flex; border-bottom: 1.5px solid #2a241d; padding: 0 10px; gap: 4px; margin-top: 6px; }
+.sheet-tabs button { flex: 1; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: #6a5f4f; background: #e2d6b4; border: 1.5px solid #2a241d;
+  border-bottom: 0; padding: 7px 2px 5px; margin-bottom: -1.5px; cursor: pointer; touch-action: manipulation; }
+.sheet-tabs button.on { background: #ede4c9; color: #2a241d; padding-top: 9px; }
+.sheet .figure { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; justify-items: center; margin: 8px 0 4px; }
+.sheet .figure .side { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.sheet .figure .lbl { font: 12px "IM Fell English SC", serif; letter-spacing: .05em; color: #6a5f4f; text-align: center; }
+.sheet .figure .slot { width: 74px; }
+.sheet .figure .slot.void { background: #ede4c9; border-style: dashed; cursor: default; }
+.sheet .hint { font: italic 13px "IM Fell English", serif; color: #6a5f4f; text-align: center; margin: 2px 0 6px; }
 `;
 
 /** A slot in the pack: a thing, how many, its picture; tapping it shows its card below. */
 export interface Slot { id: string; name: string; count: number; worn?: boolean }
 export interface SacModel {
   title: string; sub: string;
+  /** the tabs, and the one shown */
+  tabs: { key: string; label: string }[]; tab: string; setTab: (key: string) => void;
+  /** the "Carried" tab: the explorer drawn with his equipment, its places, what can be taken up */
+  carried?: { gear: Carried; places: { label: string; id: string | null; name: string }[]; choices: Slot[]; pick: (id: string) => void; hint: string; empty: string };
   sections: { title: string; slots: Slot[]; empty?: string }[];
   /** actions that are not about one thing (sleeping by the fire) */
   top?: { title: string; actions: { label: string; use: (() => void) | null }[] } | null;
@@ -118,30 +133,64 @@ export class Sheet {
     return acts;
   }
 
-  /** The pack: compartments of slots, and the card of the thing tapped. */
+  /** A slot button: the picture, the name, how many. */
+  private slot(s: Slot, sel: boolean, onClick: (() => void) | null): HTMLElement {
+    const b = document.createElement('button');
+    b.className = 'slot' + (sel ? ' sel' : '') + (s.worn ? ' worn' : '');
+    b.setAttribute('aria-label', s.name + (s.count > 1 ? ' × ' + s.count : ''));
+    b.innerHTML = itemPicture(s.id, 40);
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.name;
+    b.append(nm);
+    if (s.count > 1) { const n = document.createElement('span'); n.className = 'n'; n.textContent = String(s.count); b.append(n); }
+    if (onClick) b.addEventListener('click', onClick);
+    return b;
+  }
+
+  /** The pack: tabs (what is carried, tools, food, materials), slots, and the card of the thing tapped. */
   showSac(m: SacModel): void {
     const scroll = this.shown === 'sac' ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
-    this.shown = 'sac';
+    const sameTab = this.shown === 'sac' && this.root.dataset.tab === m.tab;
+    this.shown = 'sac'; this.root.dataset.tab = m.tab;
     const { page, body } = this.page(m.title, m.sub);
+    const tabs = document.createElement('div'); tabs.className = 'sheet-tabs'; tabs.setAttribute('role', 'tablist');
+    for (const tb of m.tabs) {
+      const b = document.createElement('button'); b.textContent = tb.label; b.setAttribute('role', 'tab');
+      if (tb.key === m.tab) { b.className = 'on'; b.setAttribute('aria-selected', 'true'); }
+      b.addEventListener('click', () => m.setTab(tb.key));
+      tabs.append(b);
+    }
+    page.insertBefore(tabs, body);
     if (m.top) { this.section(body, m.top.title); body.append(this.buttons(m.top.actions)); }
+    if (m.carried) {
+      // the explorer, with a place on each side for what he holds and wears
+      const c = m.carried, fig = document.createElement('div'); fig.className = 'figure';
+      const place = (k: number): HTMLElement => {
+        const p = c.places[k], box = document.createElement('div'); box.className = 'side';
+        const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = p.label;
+        const sl = p.id ? this.slot({ id: p.id, name: p.name, count: 1, worn: true }, false, () => c.pick(p.id!)) : document.createElement('div');
+        if (!p.id) { sl.className = 'slot void'; }
+        box.append(lbl, sl);
+        return box;
+      };
+      const left = document.createElement('div'); left.className = 'side'; left.append(place(1), place(2));
+      const mid = document.createElement('div'); mid.innerHTML = portrait(c.gear, 128);
+      const right = document.createElement('div'); right.className = 'side'; right.append(place(0));
+      fig.append(left, mid, right);
+      body.append(fig);
+      const hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = c.choices.length ? c.hint : c.empty;
+      body.append(hint);
+      const grid = document.createElement('div'); grid.className = 'grid';
+      for (const s of c.choices) grid.append(this.slot(s, false, () => c.pick(s.id)));
+      body.append(grid);
+    }
     for (const sec of m.sections) {
       this.section(body, sec.title);
       if (!sec.slots.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = sec.empty ?? ''; body.append(p); continue; }
       const grid = document.createElement('div'); grid.className = 'grid';
-      for (const s of sec.slots) {
-        const b = document.createElement('button');
-        b.className = 'slot' + (m.selected === s.id ? ' sel' : '') + (s.worn ? ' worn' : '');
-        b.setAttribute('aria-label', s.name + (s.count > 1 ? ' × ' + s.count : ''));
-        b.innerHTML = itemPicture(s.id, 40);
-        const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = s.name;
-        b.append(nm);
-        if (s.count > 1) { const n = document.createElement('span'); n.className = 'n'; n.textContent = String(s.count); b.append(n); }
-        b.addEventListener('click', () => m.select(s.id));
-        grid.append(b);
-      }
+      for (const s of sec.slots) grid.append(this.slot(s, m.selected === s.id, () => m.select(s.id)));
       body.append(grid);
     }
-    body.scrollTop = scroll;
+    if (sameTab) body.scrollTop = scroll;
     const d = document.createElement('div'); d.className = 'sheet-detail' + (m.detail ? ' on' : '');
     if (m.detail) {
       const big = document.createElement('div'); big.className = 'big'; big.innerHTML = itemPicture(m.detail.id, 56);
@@ -155,11 +204,14 @@ export class Sheet {
   }
 
   /** The almanac: every recipe, what it needs and what the pack holds; those ready can be made. */
-  showAlmanac(title: string, sub: string, cards: RecipeCard[]): void {
+  showAlmanac(title: string, sub: string, groups: { title: string; cards: RecipeCard[] }[]): void {
     const scroll = this.shown === 'almanac' ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'almanac';
     const { body } = this.page(title, sub);
-    for (const c of cards) {
+    for (const g of groups) {
+    if (!g.cards.length) continue;
+    this.section(body, g.title);
+    for (const c of g.cards) {
       const card = document.createElement('div'); card.className = 'card ' + c.state;
       const big = document.createElement('div'); big.className = 'big'; big.innerHTML = itemPicture(c.id, 50);
       const what = document.createElement('div'); what.className = 'what';
@@ -172,7 +224,7 @@ export class Sheet {
         el.title = n.name; el.innerHTML = itemPicture(n.id, 22); el.append(`${Math.min(n.have, n.need)}/${n.need} ${n.name.toLowerCase()}`);
         needs.append(el);
       }
-      what.append(needs);
+      if (c.state !== 'done') what.append(needs); // what it took no longer matters once made
       if (c.state === 'ready') {
         const mk = document.createElement('button'); mk.className = 'make'; mk.textContent = t('almanac.make') + ' ›';
         mk.addEventListener('click', c.make);
@@ -183,6 +235,7 @@ export class Sheet {
       }
       card.append(big, what);
       body.append(card);
+    }
     }
     body.scrollTop = scroll;
   }

@@ -48,7 +48,7 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v8 (v3 à v7 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses, faim et feu) ; les sauvegardes v1/v2
+- Échelle des sauvegardes : v9 (v3 à v8 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses, faim et feu, équipement) ; les sauvegardes v1/v2
   (monde plat) sont mises de côté.
 
 Règles qui restent :
@@ -322,10 +322,16 @@ sur le téléphone de Doudou via GitLab Pages.
    remède à fabriquer (3 herbes + 1 baies). Un seul billet par récolte (« +3 bois · +1 champignons »).
    Sauvegarde **v8** (`food`, `camp`).
    **Sac et almanach** (`ui/sheet.ts`, demande d'Adrien : style Verne / Moebius, compartiments, cases) : le
-   **sac** est une page d'atlas en cases (illustration + nombre) : « Porté » (arme en main = la meilleure,
-   veste, torche), « Outils », « À manger », « Récoltes » ; toucher une case ouvre sa fiche en bas (Manger,
-   Cuire si un feu est là) ; près d'un feu, « Dormir au feu » en tête. Le sac ne fabrique plus : c'est
-   l'**almanach des recettes** (bouton livre, touche A) : chaque recette avec ce qu'il faut (ce qu'on a / ce
+   **sac** est une page d'atlas à **onglets** : « Porté » (portrait de l'explorateur, `ui/portrait.ts`, avec trois
+   places : arme, main gauche, vêtement ; on choisit en touchant ce qu'on a fabriqué, et l'objet apparaît sur le
+   portrait et sur la carte), « Outils » (classés par usage : chasse, récolte, pêche), « Vivres », « Récoltes » ;
+   cases avec illustration et nombre ; toucher une case ouvre sa fiche en bas (Manger, Cuire si un feu est là) ;
+   près d'un feu, « Dormir au feu » en tête des vivres. **Équipement** (`GameState.equip`, sauvegarde **v9**,
+   v8 migrée avec le meilleur du sac) : c'est l'arme **en main** qui frappe, la torche n'éclaire que **tenue**, la
+   veste ne protège que **portée** ; ce qu'on fabrique ou achète est pris en main si la place est libre (ou si
+   l'arme est meilleure). Le sac ne fabrique plus : c'est
+   l'**almanach des recettes** (bouton livre, touche A), **par usage** (Soins, Combat, Chasse, Récolte, Pêche, Feu
+   et lumière ; champ `use` dans `recipes.json` et `items.json`) : chaque recette avec ce qu'il faut (ce qu'on a / ce
    qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
    **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
    une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le pictogramme provisoire

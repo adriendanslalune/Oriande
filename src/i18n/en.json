@@ -363,5 +363,7 @@
   "item.bottes.name": "Leather boots",
   "item.bottes.text": "Walking empties the belly less (−25%).",
   "sac.place.feet": "Feet",
-  "use.voyage": "Travel"
+  "use.voyage": "Travel",
+  "sac.inPack": "In the pack",
+  "sac.caption": "Fig. 1 — The explorer dressed for the road."
 }

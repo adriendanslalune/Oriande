@@ -321,7 +321,13 @@ sur le téléphone de Doudou via GitLab Pages.
    baies et herbes dans l'herbe, champignons sous les arbres humides (en plus de la récolte, par chance) ;
    remède à fabriquer (3 herbes + 1 baies). Un seul billet par récolte (« +3 bois · +1 champignons »).
    Sauvegarde **v8** (`food`, `camp`).
-   **Sac et almanach** (`ui/sheet.ts`, demande d'Adrien : style Verne / Moebius, compartiments, cases) : le
+   **Sac et almanach** (`ui/sheet.ts`, demande d'Adrien : style Verne / Moebius, compartiments, cases). **Direction
+   artistique** choisie par Adrien sur prototypes (mélange « planche gravée » Verne + « Verne × Moebius ») :
+   cadre gravé à fleurons, papier taché ; en tête un petit paysage en aplats doux (ciel, dunes, montagnes,
+   soleil) sous une banderole de titre ; portrait dans un médaillon ovale hachuré (« Fig. 1 — L'explorateur en
+   tenue de route ») ; cases comme des boîtes à spécimens à clous de laiton, teintées par place ; titres ❦ ;
+   almanach : bande de couleur par usage, recettes numérotées en chiffres romains, ingrédients en pointillés
+   (« Bois ………… 2 / 2 »), bouton « Fabriquer » vert en relief. Le
    **sac** est une page d'atlas à **onglets** : « Porté » (portrait de l'explorateur, `ui/portrait.ts`, avec quatre
    places : main droite (arme), main gauche (torche), tenue (veste), pieds (bottes de cuir : 2 peaux + 2 fibres,
    marcher creuse 25 % moins le ventre) ; au départ tête nue, chemise de lin, pieds nus, aussi sur la carte ; on choisit en touchant ce qu'on a fabriqué, et l'objet apparaît sur le

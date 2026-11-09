@@ -363,5 +363,7 @@
   "item.bottes.name": "Bottes de cuir",
   "item.bottes.text": "Marcher creuse moins le ventre (−25 %).",
   "sac.place.feet": "Pieds",
-  "use.voyage": "Voyage"
+  "use.voyage": "Voyage",
+  "sac.inPack": "Dans le sac",
+  "sac.caption": "Fig. 1 — L’explorateur en tenue de route."
 }

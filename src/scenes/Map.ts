@@ -456,7 +456,7 @@ export class MapScene extends Phaser.Scene {
         places: (['hand', 'off', 'body', 'feet'] as const).map((k) => ({ label: t('sac.place.' + k), id: s.equip[k], name: s.equip[k] ? name(s.equip[k]!) : '' })),
         choices: carriable,
         pick: (id) => { equip(s, id); saveGame(s); this.openPack(null, 'worn'); },
-        hint: t('sac.equipHint'), empty: t('sac.noGear'),
+        hint: t('sac.equipHint'), empty: t('sac.noGear'), caption: t('sac.caption'),
       } : undefined,
       sections: tab === 'tools' ? (tools.length ? USES.map((u) => ({ title: t('use.' + u), slots: tools.filter((i) => i.use === u).map((i) => slot(i.id)) })).filter((g) => g.slots.length) : [{ title: t('pack.tools'), slots: [], empty: t('sac.noTools') }])
         : tab === 'food' ? [{ title: t('pack.food'), slots: owned('food').map((i) => slot(i.id)), empty: t('sac.noFood') }]
@@ -493,7 +493,7 @@ export class MapScene extends Phaser.Scene {
     });
     const rank = { ready: 0, missing: 1, done: 2 };
     const groups = ['soin', 'combat', 'chasse', 'recolte', 'peche', 'feu', 'voyage'].map((u) => ({
-      title: t('use.' + u), cards: cards.filter((c) => c.use === u).sort((a, b) => rank[a.state] - rank[b.state]),
+      key: u, title: t('use.' + u), cards: cards.filter((c) => c.use === u).sort((a, b) => rank[a.state] - rank[b.state]),
     }));
     const ready = cards.filter((c) => c.state === 'ready').length;
     this.sheet.showAlmanac(t('almanac.title'), ready ? tn('almanac.ready', ready, { n: ready }) : t('almanac.sub'), groups);

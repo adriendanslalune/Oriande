@@ -366,15 +366,15 @@ sur le téléphone de Doudou via GitLab Pages.
    `src/assets/skylines/<village|city>-<n>.webp`, une tirée par bourg ; la silhouette codée en repli), nom sur une **banderole vintage** (`ribbon`, texte sur la courbe), « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
    (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem`) sur sa banderole en repli ; **enseignes suspendues** ChatGPT reçues (`shopSign`,
    `docs/emblems.md`, `src/assets/signs/<inn-village|inn-city|shop-village|shop-city|smith|tavern>.webp`, nom écrit par
-   le jeu le long de la courbe du bandeau vide de la planche (SVG `textPath`), pour l'i18n : `BAND` donne la courbe sur chaque image) (ce qu'un village n'a pas, forge et
+   le jeu le long de la courbe du bandeau vide de la planche (SVG `textPath`), pour l'i18n : `BAND` donne la courbe sur chaque image ; noms sans article, demande d'Adrien : « Auberge », « Marchand ») (ce qu'un village n'a pas, forge et
    taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son emblème et sa banderole, la réplique de
    celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**
    (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur
    place, `eatDish`, `dishes` dans `towns.json`). **Village ≠ ville aussi dans les mots** (demande d'Adrien :
    rustique et boueux au village, plus propre en ville) : auberge et marchand ont leur version de village (`inn-village`,
-   `shop-village` : « L'Auberge », la carriole du marchand) et de ville (`inn-city` « L'Hôtel des Voyageurs », `shop-city`
-   « La Boutique »), avec leur réplique. **Plus d'illustrations dans les bourgs** (essayées en Moebius puis en gravure : elles cassaient l'esprit du jeu, Adrien ne
+   `shop-village` : « Auberge », la carriole du marchand) et de ville (`inn-city` « Hôtel des Voyageurs », `shop-city`
+   « Boutique »), avec leur réplique. **Plus d'illustrations dans les bourgs** (essayées en Moebius puis en gravure : elles cassaient l'esprit du jeu, Adrien ne
    les garde que pour les objets).
 6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).
    **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),

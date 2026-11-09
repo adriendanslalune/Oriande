@@ -11,7 +11,7 @@ import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, equip, f
 import { resourceAt } from '../world/resources';
 import { iconOfResource } from '../ui/icons';
 import { Sheet, type RecipeCard, type Slot } from '../ui/sheet';
-import { buy, goods, kindOf, rumor, sell, sellable, sleep, townAt, weaponDamage } from '../game/town';
+import { DISHES, buy, eatDish, flavourOf, goods, kindOf, regionOf, rumor, sell, sellPrice, sellable, sleep, townAt, weaponDamage } from '../game/town';
 import type { Settlement } from '../world/settlements';
 import { settlement } from '../world/settlements';
 import { landmark } from '../world/landmarks';
@@ -317,52 +317,72 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * A town's page (phase 1, step 5): an atlas page over the map. A village has an inn and a small
-   * merchant; a city also a bigger merchant who pays better, a smith and a tavern.
+   * A town (asked by Adrien: arriving in a village, not opening a menu): its view and a word of
+   * welcome, its places drawn as cards; each place has its picture, its keeper, what is done there.
+   * A village has an inn and a merchant; a city also a smith and a tavern (rumours, dishes).
    */
-  private openTown(b: Settlement): void {
-    this.actAt = null;
+  private openTown(b: Settlement, view = 'square', tab = 'buy', sel: string | null = null): void {
+    this.actAt = null; this.cancelPlan();
     const s = this.state, k = kindOf(b), name = (id: string): string => t('item.' + id + '.name');
     const ecus = (n: number): string => tn('town.ecus', n, { n });
-    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean; icon?: string };
-    const done = (): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openTown(b); };
-    const e: Entry[] = [];
-    // the inn
-    e.push({ label: t('town.inn'), sub: '', use: null, head: true });
-    const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
-    e.push({
-      icon: 'sleep', label: t('town.sleep', { p: ecus(k.inn) }), sub: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor'),
-      use: tired && rich ? () => { sleep(s, b); done(); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); } : null,
-    });
-    // the merchant: buying, then selling
-    e.push({ label: t('town.shop'), sub: '', use: null, head: true });
-    for (const g of goods(s, b).filter((x) => !x.smith)) {
-      const it = ITEMS.find((i) => i.id === g.id)!;
-      e.push({
-        icon: it.kind === 'food' ? 'food' : 'tools', label: t('town.buy', { a: name(g.id), p: ecus(g.price) }),
-        sub: it.kind === 'food' ? t('town.buy.food', { n: it.heal, k: s.items[g.id] ?? 0 }) : t('item.' + g.id + '.text'),
-        use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null,
+    const purse = t('town.purse2', { hp: s.hp, max: s.maxHp, f: Math.round(s.food), g: ecus(s.gold) });
+    const again = (v = view, tb = tab, sl: string | null = sel): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openTown(b, v, tb, sl); };
+    const back = { label: t(b.city ? 'town.backCity' : 'town.backVillage'), go: () => this.openTown(b) };
+    const kind = b.city ? 'city' : 'village';
+    if (view === 'square') {
+      const place = (key: string, open: boolean, line: string) => ({ key, title: t('town.place.' + key), line, picture: key, open, go: () => this.openTown(b, key) });
+      this.sheet.showTownSquare({
+        name: b.name, kind: t('town.kind.' + kind) + ' · ' + t('town.region.' + regionOf(b)), flavour: t(`town.flavour.${kind}.${flavourOf(b)}`), purse,
+        picture: kind, pictureWhat: t('town.pic.' + kind, { n: b.name }), placesTitle: t('town.places'), leave: t('town.leave'),
+        places: [
+          place('inn', true, t('town.line.inn', { p: ecus(k.inn) })),
+          place('shop', true, t('town.line.shop')),
+          place('smith', k.forge.length > 0, k.forge.length ? t('town.line.smith') : t('town.onlyCity')),
+          place('tavern', k.tavern, k.tavern ? t('town.line.tavern') : t('town.onlyCity')),
+        ],
       });
+      return;
     }
-    e.push({ label: t('town.sellHead'), sub: '', use: null, head: true });
-    const wares = sellable(s, b);
-    if (!wares.length) e.push({ label: '', sub: t('town.nothingToSell'), use: null, info: true });
-    for (const w of wares) e.push({ icon: 'coin', label: t('town.sell', { a: name(w.id), n: w.n }), sub: t('town.sell.sub', { p: ecus(w.price) }), use: () => { sell(s, b, w.id); done(); } });
-    // the smith, in a city
-    const arms = goods(s, b).filter((x) => x.smith);
-    if (k.forge.length) {
-      e.push({ label: t('town.smith'), sub: '', use: null, head: true });
-      if (!arms.length) e.push({ label: '', sub: t('town.smith.done'), use: null, info: true });
-      for (const g of arms) {
-        const [lo, hi] = weaponDamage(g.id) ?? [0, 0];
-        e.push({ icon: 'hunt', label: t('town.buy', { a: name(g.id), p: ecus(g.price) }), sub: t('town.weapon.sub', { a: lo, b: hi }) + ' · ' + t('item.' + g.id + '.text'), use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null });
+    const common = { key: view, title: t('town.place.' + view), picture: view, pictureWhat: t('town.pic.' + view), face: 'keeper-' + view, back, purse };
+    if (view === 'inn') {
+      const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
+      this.sheet.showTownPlace({ ...common, say: t('town.say.inn'),
+        actions: [{ label: t('town.sleep', { p: ecus(k.inn) }), use: tired && rich ? () => { sleep(s, b); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); again(); } : null }],
+        note: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor') });
+      return;
+    }
+    if (view === 'shop' || view === 'smith') {
+      const selling = view === 'shop' && tab === 'sell';
+      const list = selling
+        ? sellable(s, b).map((w) => ({ id: w.id, name: name(w.id), price: ecus(w.price), count: w.n }))
+        : goods(s, b).filter((g) => g.smith === (view === 'smith')).map((g) => ({ id: g.id, name: name(g.id), price: ecus(g.price), poor: s.gold < g.price }));
+      let detail: { id: string; name: string; lines: string[]; actions: { label: string; use: (() => void) | null }[] } | null = null;
+      const it = sel ? ITEMS.find((i) => i.id === sel) : undefined;
+      if (it && list.some((w) => w.id === it.id)) {
+        const lines = [it.kind === 'food' ? t('pack.eat.sub', { f: it.food ?? 0, h: it.heal }) + (it.sick ? t('pack.raw') : '') : t('item.' + it.id + '.text')];
+        const dmg = weaponDamage(it.id); if (dmg) lines.unshift(t('town.weapon.sub', { a: dmg[0], b: dmg[1] }));
+        lines.push(t('town.have', { n: s.items[it.id] ?? 0 }));
+        if (selling) {
+          const p = sellPrice(b, it.id);
+          detail = { id: it.id, name: name(it.id), lines, actions: [{ label: t('town.sellOne', { p: ecus(p) }), use: () => { sell(s, b, it.id); this.hud.pulsePack(); again(view, tab, (s.items[it.id] ?? 0) > 0 ? it.id : null); } }] };
+        } else {
+          const g = goods(s, b).find((x) => x.id === it.id)!;
+          detail = { id: it.id, name: name(it.id), lines, actions: [{ label: t('town.buyOne', { p: ecus(g.price) }), use: s.gold >= g.price ? () => { buy(s, b, it.id); this.hud.pulsePack(); again(view, tab, goods(s, b).some((x) => x.id === it.id) ? it.id : null); } : null }] };
+        }
       }
+      this.sheet.showTownPlace({ ...common, say: t('town.say.' + view),
+        tabs: view === 'shop' ? [{ key: 'buy', label: t('town.tab.buy') }, { key: 'sell', label: t('town.tab.sell') }] : undefined,
+        tab, setTab: (key) => this.openTown(b, view, key),
+        wares: list, empty: selling ? t('town.nothingToSell') : t('town.smith.done'),
+        selected: sel, select: (id) => this.openTown(b, view, tab, id === sel ? null : id), detail });
+      return;
     }
-    // the tavern, in a city: what is being said tonight
+    // the tavern: a rumour, and something to eat
     const r = rumor(b, worldTime());
-    if (r) e.push({ label: t('town.tavern'), sub: '', use: null, head: true }, { label: '', sub: t('rumor.' + r), use: null, info: true, icon: 'rumor' });
-    this.overlay.plan = null;
-    this.hud.showPack(e, t(b.city ? 'town.page.city' : 'town.page.village', { n: b.name }) + ' · ' + t('town.purse', { hp: s.hp, max: s.maxHp, g: ecus(s.gold) }), '');
+    this.sheet.showTownPlace({ ...common, say: t('town.say.tavern'), rumor: r ? t('rumor.' + r) : undefined,
+      dishesTitle: t('town.menu'),
+      dishes: DISHES.map((d) => ({ id: d.id, name: t('dish.' + d.id), sub: t('pack.eat.sub', { f: d.food, h: d.heal }), price: ecus(d.price),
+        use: s.gold >= d.price ? () => { if (eatDish(s, b, d.id)) this.overlay.float(s.x, s.y - 30, t('dish.' + d.id), 'loot'); again(); } : null })) });
   }
 
   /** Go after this animal (hunt it, or attack it). */

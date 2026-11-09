@@ -4,15 +4,20 @@
 // Phaser: the map scene shows the page and calls these.
 import townsData from '../data/towns.json';
 import { hash2 } from '../world/noise';
-import { TILE } from '../world/terrain';
+import { TILE, altitude, humidity } from '../world/terrain';
+import { biome, type Biome } from '../world/climate';
 import { settlement, type Settlement } from '../world/settlements';
 import { ITEMS, has, itemById, takeUp, WEAPONS } from './craft';
 import type { GameState } from './state';
+import { FOOD_MAX } from './survival';
 
 export interface TownKind { inn: number; sells: string[]; buys: number; forge: string[]; tavern: boolean }
 export const VILLAGE = townsData.village as TownKind;
 export const CITY = townsData.city as TownKind;
 export const RUMORS = townsData.rumors as string[];
+export interface Dish { id: string; food: number; heal: number; price: number }
+export const DISHES = townsData.dishes as Dish[];
+const FLAVOURS = townsData.flavour as number;
 export const kindOf = (b: Settlement): TownKind => (b.city ? CITY : VILLAGE);
 
 /** How near its centre the explorer must stand to be in a town (world units). */
@@ -85,3 +90,20 @@ export const weaponDamage = (id: string): [number, number] | null => WEAPONS.fin
 /** Everything the explorer could sell, with its price here. */
 export const sellable = (s: GameState, b: Settlement): { id: string; n: number; price: number }[] =>
   ITEMS.filter((it) => it.kind !== 'tool' && (s.items[it.id] ?? 0) > 0).map((it) => ({ id: it.id, n: s.items[it.id], price: sellPrice(b, it.id) }));
+
+/** A dish at the tavern (a city's): paid, eaten at once. False if too poor, or it would do nothing. */
+export function eatDish(s: GameState, b: Settlement, id: string): boolean {
+  const d = DISHES.find((x) => x.id === id);
+  if (!d || !kindOf(b).tavern || s.gold < d.price) return false;
+  if ((d.food === 0 || s.food >= FOOD_MAX - 1) && (d.heal === 0 || s.hp >= s.maxHp)) return false;
+  s.gold -= d.price;
+  s.food = Math.min(FOOD_MAX, s.food + d.food);
+  s.hp = Math.min(s.maxHp, s.hp + d.heal);
+  return true;
+}
+
+/** The country a town stands in (forest, savanna, desert...), for its welcome. */
+export const regionOf = (b: Settlement): Biome => { const v = altitude(b.x, b.y); return biome(b.x, b.y, v, humidity(b.x, b.y)); };
+
+/** Which line of welcome this town has (the same each time one comes back to it). */
+export const flavourOf = (b: Settlement): number => Math.floor(hash2(b.wi * 7 + 3, b.tj * 11 - 5) * FLAVOURS) % FLAVOURS;

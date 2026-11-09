@@ -1,6 +1,66 @@
 {
-  "_comment": "What a village and a city offer (asked by Adrien: a village is small, a city has everything). inn: écus for a night (life back in full). sells: what the merchant has. buys: share of an item's price paid when the explorer sells it (food and what was gathered). forge: weapons sold by the smith. tavern: rumours heard there (ids, texts in i18n: rumor.<id>), one at a time, changing every half hour.",
-  "village": { "inn": 3, "sells": ["biscuit", "remede", "viande"], "buys": 0.5, "forge": [], "tavern": false },
-  "city": { "inn": 5, "sells": ["biscuit", "remede", "viande", "poisson", "torche", "canne"], "buys": 0.75, "forge": ["coutelas", "sabre"], "tavern": true },
-  "rumors": ["tower", "leviathan", "songs", "maps", "south", "bells", "stones", "traveller", "ice", "river", "night", "name"]
+  "_comment": "What a village and a city offer (asked by Adrien: a village is small, a city has everything). inn: écus for a night (life back in full). sells: what the merchant has. buys: share of an item's price paid when the explorer sells it (food and what was gathered). forge: weapons sold by the smith. tavern: rumours heard there (ids, texts in i18n: rumor.<id>), one at a time, changing every half hour. dishes: what the tavern serves (food: how much it fills the belly, heal: life, price in écus; names in i18n: dish.<id>). flavour: how many lines of welcome there are for each (i18n town.flavour.<village|city>.<n>).",
+  "village": {
+    "inn": 3,
+    "sells": [
+      "biscuit",
+      "remede",
+      "viande"
+    ],
+    "buys": 0.5,
+    "forge": [],
+    "tavern": false
+  },
+  "city": {
+    "inn": 5,
+    "sells": [
+      "biscuit",
+      "remede",
+      "viande",
+      "poisson",
+      "torche",
+      "canne"
+    ],
+    "buys": 0.75,
+    "forge": [
+      "coutelas",
+      "sabre"
+    ],
+    "tavern": true
+  },
+  "rumors": [
+    "tower",
+    "leviathan",
+    "songs",
+    "maps",
+    "south",
+    "bells",
+    "stones",
+    "traveller",
+    "ice",
+    "river",
+    "night",
+    "name"
+  ],
+  "dishes": [
+    {
+      "id": "ragout",
+      "food": 40,
+      "heal": 4,
+      "price": 4
+    },
+    {
+      "id": "pain",
+      "food": 20,
+      "heal": 1,
+      "price": 2
+    },
+    {
+      "id": "biere",
+      "food": 0,
+      "heal": 2,
+      "price": 1
+    }
+  ],
+  "flavour": 5
 }

@@ -356,6 +356,17 @@ sur le téléphone de Doudou via GitLab Pages.
    (coutelas 4-8, sabre 5-10 : mieux que ce qu'on fabrique) et une **taverne** (une rumeur sur Oriande parmi 12,
    `rumor.<id>` en i18n, qui change toutes les demi-heures). Les écus viennent de la vente de ce qu'on chasse,
    pêche et récolte.
+   **Bourgs refaits** (demande d'Adrien : « arriver dans un village, pas dans un menu » ; prototype validé) : même
+   planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : grande vue illustrée, nom en
+   banderole, « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
+   (`flavourOf`, la même à chaque retour), les **lieux** en vignettes illustrées (ce qu'un village n'a pas est
+   estompé, « Seulement en ville »), « Reprendre la route ». **Chaque lieu** : son illustration, le visage de
+   celui qui le tient dans un médaillon avec sa réplique, puis : auberge (dormir), marchand (onglets Acheter /
+   Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**
+   (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur
+   place, `eatDish`, `dishes` dans `towns.json`). **Illustrations** à faire avec ChatGPT (`docs/towns.md`, 10
+   images : vues de village et de ville, quatre lieux, quatre visages) dans `src/assets/towns/<clé>.webp`
+   (`ui/townArt.ts`) ; un « ? » en attendant.
 6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).
    **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),
    un monstre par salle, un coffre, un indice sur Oriande à la fin.

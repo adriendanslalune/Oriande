@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CITY, RUMORS, VILLAGE, buy, goods, rumor, sell, sellPrice, sleep, townAt } from './town';
+import { CITY, DISHES, RUMORS, VILLAGE, buy, eatDish, flavourOf, goods, regionOf, rumor, sell, sellPrice, sleep, townAt } from './town';
 import { newGame } from './travel';
 import { weaponOf } from './craft';
 import { settlement } from '../world/settlements';
@@ -63,6 +63,33 @@ describe('towns', () => {
     expect(buy(s, city, 'sabre')).toBe(true);
     expect(weaponOf(s).id).toBe('sabre');
     expect(goods(s, city).some((g) => g.id === 'sabre')).toBe(false); // bought once
+  });
+
+  it('the tavern serves dishes, paid and eaten at once; a village has none', () => {
+    const s = newGame(); s.food = 30; s.hp = 10; s.gold = 10;
+    const stew = DISHES.find((d) => d.id === 'ragout')!;
+    expect(eatDish(s, village, 'ragout')).toBe(false); // no tavern in a village
+    expect(eatDish(s, city, 'ragout')).toBe(true);
+    expect(s.gold).toBe(10 - stew.price);
+    expect(s.food).toBe(30 + stew.food);
+    expect(s.hp).toBe(10 + stew.heal);
+    s.gold = 0;
+    expect(eatDish(s, city, 'pain')).toBe(false); // too poor
+  });
+
+  it('each town has its words of welcome, from the country it stands in', () => {
+    for (const b of [village, city]) {
+      const f = flavourOf(b);
+      expect(f).toBeGreaterThanOrEqual(0); expect(f).toBeLessThan(5);
+      for (const lang of ['fr', 'en'] as const) {
+        setLang(lang);
+        expect(t(`town.flavour.${b.city ? 'city' : 'village'}.${f}`)).not.toContain('town.');
+        expect(t('town.region.' + regionOf(b))).not.toContain('town.');
+        for (const k of ['inn', 'shop', 'smith', 'tavern']) { expect(t('town.place.' + k)).not.toContain('town.'); expect(t('town.say.' + k)).not.toContain('town.'); }
+        for (const d of DISHES) expect(t('dish.' + d.id)).not.toContain('dish.');
+      }
+      setLang('fr');
+    }
   });
 
   it('every rumour and every name has its words in both languages', () => {

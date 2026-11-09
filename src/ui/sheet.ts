@@ -7,6 +7,7 @@
 import { t } from '../i18n';
 import { itemPicture } from './itemArt';
 import { portrait, type Carried } from './portrait';
+import { townPicture } from './townArt';
 
 const INK = '#2b2117';
 
@@ -84,6 +85,52 @@ const CSS = `
 .sheet .rec.done { opacity: .72; }
 .sheet .rec .num { flex: none; min-width: 30px; font: 21px/1 "IM Fell English", serif; text-align: center; padding-top: 2px; white-space: nowrap; }
 body.sheet-open .hud-buttons { display: none; }
+.sheet .ill { position: relative; flex: none; margin: 4px 4px 0; border: 1.5px solid ${INK}; overflow: visible; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #8f7f64;
+  background: repeating-linear-gradient(135deg, rgba(43,33,23,.07) 0 1px, transparent 1px 7px), linear-gradient(#c6dadb, #ead9b2 62%, #d8b989 62.5%, #e4c89a); }
+.sheet .ill img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sheet .ill .q { font: 60px/1 "IM Fell English", serif; }
+.sheet .ill .what { font: italic 13px "IM Fell English", serif; background: rgba(243,233,207,.85); padding: 1px 8px; border: 1px solid rgba(43,33,23,.4); }
+.sheet .ill .banner { position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%); width: min(82%, 320px); height: 48px; z-index: 2; }
+.sheet .ill .banner svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sheet .ill .banner h2 { position: absolute; inset: 0; margin: 0; font: 21px/48px "IM Fell English SC", serif; letter-spacing: .05em; text-align: center; white-space: nowrap; color: ${INK}; }
+.sheet .ill .close, .sheet .ill .back { position: absolute; top: 6px; z-index: 3; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: ${INK}; background: #f3e9cf; border: 1.5px solid ${INK}; padding: 3px 9px; cursor: pointer; }
+.sheet .ill .close { right: 6px; font: 18px/1 serif; padding: 3px 8px; }
+.sheet .ill .back { left: 6px; }
+.sheet.town .sheet-body { padding-top: 30px; }
+.sheet .kind { text-align: center; font: 14px "IM Fell English SC", serif; letter-spacing: .1em; }
+.sheet .flav { margin: 6px 8px 0; font: italic 15px/1.35 "IM Fell English", serif; text-align: center; }
+.sheet .purse { text-align: center; font: italic 13px "IM Fell English", serif; color: #5a4a36; margin-top: 6px; }
+.sheet .places { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sheet .placecard { display: block; text-align: left; padding: 0; border: 1.5px solid ${INK}; background: #f6eed8; box-shadow: 2px 2px 0 ${INK}; cursor: pointer; color: ${INK}; touch-action: manipulation; }
+.sheet .placecard .ill { margin: 0; height: 92px; border: 0; border-bottom: 1.5px solid ${INK}; }
+.sheet .placecard .ill .q { font-size: 38px; }
+.sheet .placecard b { display: block; font: 16px "IM Fell English SC", serif; letter-spacing: .05em; padding: 5px 8px 0; }
+.sheet .placecard i { display: block; font: italic 13px/1.25 "IM Fell English", serif; color: #5a4a36; padding: 0 8px 7px; }
+.sheet .placecard:disabled { opacity: .45; box-shadow: none; cursor: default; }
+.sheet .leave { display: block; margin: 14px auto 6px; width: 72%; padding: 8px; border: 1.5px solid ${INK}; font: 15px "IM Fell English SC", serif; letter-spacing: .08em; color: ${INK}; background: #e4d4ae; box-shadow: 2px 2px 0 ${INK}; cursor: pointer; }
+.sheet .keeper { display: flex; gap: 10px; margin: 2px 2px 0; align-items: flex-start; }
+.sheet .keeper .face { width: 56px; height: 56px; border-radius: 50%; flex: none; border: 1.5px solid ${INK}; outline: 1px solid ${INK}; outline-offset: 2px; background: #eadcb6; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; font: 26px "IM Fell English", serif; color: #a39377; }
+.sheet .keeper .face img { width: 100%; height: 100%; object-fit: cover; }
+.sheet .keeper .say { position: relative; flex: 1; background: #fbf6e6; border: 1.5px solid ${INK}; padding: 6px 10px; font: italic 14px/1.3 "IM Fell English", serif; }
+.sheet .keeper .say::before { content: ''; position: absolute; left: -8px; top: 18px; border: 7px solid transparent; border-right-color: ${INK}; border-left: 0; }
+.sheet .stabs { display: flex; margin: 12px 0 0; border-bottom: 1.5px solid ${INK}; }
+.sheet .stabs button { flex: 1; padding: 6px 0 4px; font: 15px "IM Fell English SC", serif; letter-spacing: .05em; color: #6d5c46; border: 1.5px solid ${INK}; border-bottom: 0; margin-right: -1.5px; background: #e4d4ae; cursor: pointer; }
+.sheet .stabs button.on { background: #f3e9cf; color: ${INK}; position: relative; top: 1.5px; }
+.sheet .stall { border: 1.5px solid ${INK}; border-top: 0; padding: 14px 8px 10px; }
+.sheet .stall .grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 16px 8px; }
+.sheet .tag { display: inline-block; position: relative; margin-top: -9px; z-index: 1; font: 700 13px "Old Standard TT", serif; background: #f6e7b5; border: 1px solid ${INK}; padding: 0 6px 0 11px;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%); white-space: nowrap; }
+.sheet .slot.poor .tag { background: #e8c8bd; color: #8a2a1e; }
+.sheet .scroll { margin: 16px 12px 4px; padding: 14px 18px; position: relative; background: #fbf3dc; border-left: 1.5px solid ${INK}; border-right: 1.5px solid ${INK}; font: italic 16px/1.4 "IM Fell English", serif; text-align: center; }
+.sheet .scroll::before, .sheet .scroll::after { content: ''; position: absolute; left: -10px; right: -10px; height: 12px; border: 1.5px solid ${INK}; border-radius: 6px; background: #e8d6a8; }
+.sheet .scroll::before { top: -7px; } .sheet .scroll::after { bottom: -7px; }
+.sheet .dish { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 4px; border: 0; border-bottom: 1px dotted ${INK}; background: none; font: 15px "IM Fell English", serif; color: ${INK}; text-align: left; cursor: pointer; }
+.sheet .dish .box { width: 48px; height: 48px; flex: none; }
+.sheet .dish .txt { flex: 1; }
+.sheet .dish .txt i { display: block; font-size: 13px; color: #5a4a36; }
+.sheet .dish:disabled { opacity: .5; cursor: default; }
+.sheet .innbed { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 14px; }
 .sheet .rec .box { width: 56px; height: 56px; flex: none; align-self: flex-start; }
 .sheet .rec .what { flex: 1; min-width: 0; }
 .sheet .rec b { display: block; font: 16px "IM Fell English SC", serif; letter-spacing: .05em; }
@@ -145,7 +192,7 @@ export class Sheet {
   private readonly root: HTMLElement;
   private readonly style: HTMLStyleElement;
   /** what the sheet shows now, to refresh it in place */
-  shown: 'sac' | 'almanac' | null = null;
+  shown: 'sac' | 'almanac' | 'town' | null = null;
 
   constructor(private readonly onClose: () => void) {
     this.style = document.createElement('style'); this.style.textContent = CSS;
@@ -223,7 +270,7 @@ export class Sheet {
     const scroll = this.shown === 'sac' ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     const sameTab = this.shown === 'sac' && this.root.dataset.tab === m.tab;
     this.shown = 'sac'; this.root.dataset.tab = m.tab;
-    this.root.classList.add('tabbed'); this.root.classList.remove('book');
+    this.root.classList.add('tabbed'); this.root.classList.remove('book', 'town');
     const { page, body } = this.page(m.title, m.sub);
     const tabs = document.createElement('div'); tabs.className = 'sheet-tabs'; tabs.setAttribute('role', 'tablist');
     for (const tb of m.tabs) {
@@ -282,7 +329,7 @@ export class Sheet {
     const same = this.shown === 'almanac' && this.root.dataset.tab === open;
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'almanac'; this.root.dataset.tab = open;
-    this.root.classList.remove('tabbed'); this.root.classList.add('book');
+    this.root.classList.remove('tabbed', 'town'); this.root.classList.add('book');
     const { page, body } = this.page(title, sub);
     // thumb tabs on the edge of the book, one by use, with how many recipes are ready there
     const thumbs = document.createElement('div'); thumbs.className = 'thumbs'; thumbs.setAttribute('role', 'tablist');
@@ -337,4 +384,147 @@ export class Sheet {
     }
     if (same) body.scrollTop = scroll;
   }
+
+  // ---- towns ----
+
+  /** A town page: its picture at the head with the title in a banner, back (to the square) or close. */
+  private townPage(picture: string, what: string, title: string, height: number, back: { label: string; go: () => void } | null): HTMLElement {
+    const page = document.createElement('div'); page.className = 'sheet-page';
+    const header = document.querySelector('.hud-header') as HTMLElement | null;
+    page.style.top = (header ? header.offsetHeight : 90) + 8 + 'px';
+    for (const [pos, tf] of [['left:-1px;top:-1px', ''], ['right:-1px;top:-1px', 'scaleX(-1)'], ['left:-1px;bottom:-1px', 'scaleY(-1)'], ['right:-1px;bottom:-1px', 'scale(-1)']]) {
+      const f = document.createElement('span'); f.className = 'fleuron'; f.style.cssText = pos + (tf ? ';transform:' + tf : ''); f.innerHTML = FLEURON; page.append(f);
+    }
+    const ill = this.illustration(picture, what, height);
+    const banner = document.createElement('div'); banner.className = 'banner'; banner.innerHTML = BANNER;
+    const h = document.createElement('h2'); h.textContent = title; banner.append(h); ill.append(banner);
+    if (back) { const b = document.createElement('button'); b.className = 'back'; b.textContent = '‹ ' + back.label; b.addEventListener('click', back.go); ill.append(b); }
+    const x = document.createElement('button'); x.className = 'close'; x.textContent = '×'; x.setAttribute('aria-label', t('walk.cancel'));
+    x.addEventListener('click', () => this.hide()); ill.append(x);
+    const body = document.createElement('div'); body.className = 'sheet-body';
+    page.append(ill, body);
+    this.root.replaceChildren(page);
+    this.root.classList.remove('tabbed', 'book'); this.root.classList.add('on', 'town');
+    document.body.classList.add('sheet-open');
+    return body;
+  }
+
+  /** A picture frame: the picture if it is drawn, else a "?" over a plain sky and ground. */
+  private illustration(key: string, what: string, height: number): HTMLElement {
+    const ill = document.createElement('div'); ill.className = 'ill'; ill.style.height = height + 'px';
+    const url = townPicture(key);
+    if (url) { const img = document.createElement('img'); img.src = url; img.alt = ''; ill.append(img); }
+    else { ill.innerHTML = `<span class="q">?</span>`; const w = document.createElement('span'); w.className = 'what'; w.textContent = what; ill.append(w); }
+    return ill;
+  }
+
+  /** The keeper of a place: a face in a medallion, what they say. */
+  private keeper(body: HTMLElement, face: string, say: string): void {
+    const k = document.createElement('div'); k.className = 'keeper';
+    const f = document.createElement('div'); f.className = 'face';
+    const url = townPicture(face);
+    if (url) { const img = document.createElement('img'); img.src = url; img.alt = ''; f.append(img); } else f.textContent = '?';
+    const sy = document.createElement('div'); sy.className = 'say'; sy.textContent = say;
+    k.append(f, sy); body.append(k);
+  }
+
+  /** Arriving in a town: its view, its name, a word of welcome, its places, the road on. */
+  showTownSquare(m: TownSquare): void {
+    this.shown = 'town';
+    const body = this.townPage(m.picture, m.pictureWhat, m.name, 250, null);
+    const k = document.createElement('div'); k.className = 'kind'; k.textContent = m.kind;
+    const f = document.createElement('div'); f.className = 'flav'; f.textContent = m.flavour;
+    const p = document.createElement('div'); p.className = 'purse'; p.textContent = m.purse;
+    body.append(k, f, p);
+    this.section(body, m.placesTitle);
+    const grid = document.createElement('div'); grid.className = 'places';
+    for (const pl of m.places) {
+      const b = document.createElement('button'); b.className = 'placecard'; b.disabled = !pl.open;
+      const ill = this.illustration(pl.picture, pl.title, 92);
+      const tt = document.createElement('b'); tt.textContent = pl.title;
+      const ln = document.createElement('i'); ln.textContent = pl.line;
+      b.append(ill, tt, ln);
+      if (pl.open) b.addEventListener('click', pl.go);
+      grid.append(b);
+    }
+    body.append(grid);
+    const leave = document.createElement('button'); leave.className = 'leave'; leave.textContent = m.leave + ' ›';
+    leave.addEventListener('click', () => this.hide());
+    body.append(leave);
+  }
+
+  /** A place in town: its picture, its keeper, and what is done there. */
+  showTownPlace(m: TownPlace): void {
+    const same = this.shown === 'town' && this.root.dataset.tab === m.key + (m.tab ?? '');
+    const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
+    this.shown = 'town'; this.root.dataset.tab = m.key + (m.tab ?? '');
+    const body = this.townPage(m.picture, m.pictureWhat, m.title, 190, m.back);
+    this.keeper(body, m.face, m.say);
+    if (m.rumor) { const sc = document.createElement('div'); sc.className = 'scroll'; sc.textContent = m.rumor; body.append(sc); }
+    if (m.actions) { const w = document.createElement('div'); w.className = 'innbed'; w.append(this.buttons(m.actions)); body.append(w); if (m.note) { const n = document.createElement('p'); n.className = 'hint'; n.textContent = m.note; body.append(n); } }
+    if (m.tabs) {
+      const tabs = document.createElement('div'); tabs.className = 'stabs';
+      for (const tb of m.tabs) { const b = document.createElement('button'); b.textContent = tb.label; if (tb.key === m.tab) b.className = 'on'; b.addEventListener('click', () => m.setTab!(tb.key)); tabs.append(b); }
+      body.append(tabs);
+    }
+    if (m.wares) {
+      const stall = document.createElement('div'); stall.className = 'stall';
+      if (!m.tabs) stall.style.borderTop = '1.5px solid ' + INK;
+      if (!m.wares.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = m.empty ?? ''; stall.append(p); }
+      const grid = document.createElement('div'); grid.className = 'grid';
+      for (const w of m.wares) {
+        const sl = this.slot({ id: w.id, name: w.name, count: w.count ?? 1 }, m.selected === w.id, () => m.select!(w.id));
+        if (w.poor) sl.classList.add('poor');
+        const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = w.price;
+        sl.insertBefore(tag, sl.querySelector('.nm'));
+        grid.append(sl);
+      }
+      stall.append(grid);
+      body.append(stall);
+    }
+    if (m.dishes) {
+      this.section(body, m.dishesTitle ?? '');
+      for (const d of m.dishes) {
+        const b = document.createElement('button'); b.className = 'dish'; b.disabled = !d.use;
+        const txt = document.createElement('span'); txt.className = 'txt'; txt.textContent = d.name;
+        const i = document.createElement('i'); i.textContent = d.sub; txt.append(i);
+        const tag = document.createElement('span'); tag.className = 'tag'; tag.style.marginTop = '0'; tag.textContent = d.price;
+        b.append(this.box(null), txt, tag);
+        (b.firstChild as HTMLElement).className = 'box'; (b.firstChild as HTMLElement).textContent = '?';
+        if (d.use) b.addEventListener('click', d.use);
+        body.append(b);
+      }
+    }
+    if (m.purse) { const p = document.createElement('div'); p.className = 'purse'; p.textContent = m.purse; body.append(p); }
+    if (same) body.scrollTop = scroll;
+    const d = document.createElement('div'); d.className = 'sheet-detail' + (m.detail ? ' on' : '');
+    if (m.detail) {
+      const what = document.createElement('div'); what.className = 'what';
+      const b = document.createElement('b'); b.textContent = m.detail.name; what.append(b);
+      for (const l of m.detail.lines) { const i = document.createElement('i'); i.textContent = l; what.append(i); }
+      what.append(this.buttons(m.detail.actions));
+      d.append(this.box(m.detail.id), what);
+    }
+    body.parentElement!.append(d);
+  }
+}
+
+/** The square of a town, on arrival. */
+export interface TownSquare {
+  name: string; kind: string; flavour: string; purse: string; picture: string; pictureWhat: string;
+  placesTitle: string; leave: string;
+  places: { key: string; title: string; line: string; picture: string; open: boolean; go: () => void }[];
+}
+/** A place in a town (inn, merchant, smith, tavern). */
+export interface TownPlace {
+  key: string; title: string; picture: string; pictureWhat: string; face: string; say: string;
+  back: { label: string; go: () => void };
+  rumor?: string;
+  actions?: { label: string; use: (() => void) | null }[]; note?: string;
+  tabs?: { key: string; label: string }[]; tab?: string; setTab?: (key: string) => void;
+  wares?: { id: string; name: string; price: string; count?: number; poor?: boolean }[]; empty?: string;
+  selected?: string | null; select?: (id: string) => void;
+  detail?: { id: string; name: string; lines: string[]; actions: { label: string; use: (() => void) | null }[] } | null;
+  dishes?: { id: string; name: string; sub: string; price: string; use: (() => void) | null }[]; dishesTitle?: string;
+  purse?: string;
 }

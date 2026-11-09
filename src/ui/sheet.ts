@@ -90,6 +90,7 @@ body.sheet-open .hud-buttons { display: none; }
 .sheet .townhead { position: relative; flex: none; margin: 4px 4px 0; padding: 14px 0 0; display: flex; flex-direction: column; align-items: center; }
 .sheet .townhead .skyline { display: block; width: 100%; height: 96px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); }
 .sheet .townhead .emblem { margin-top: 18px; }
+.sheet .emblem.art { mix-blend-mode: multiply; object-fit: contain; }
 .sheet .townhead .ribbon { width: min(86%, 330px); height: auto; margin-top: -6px; }
 .sheet .townhead .close, .sheet .townhead .back { position: absolute; top: 6px; z-index: 3; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: ${INK}; background: #f3e9cf; border: 1.5px solid ${INK}; padding: 3px 9px; cursor: pointer; }
 .sheet .townhead .close { right: 6px; font: 18px/1 serif; padding: 3px 8px; }

@@ -133,9 +133,17 @@ export const EMBLEMS: Record<string, string> = {
     <path ${HATCH} d="M21 28v22M28 28v23M35 28v22"/>`,
 };
 
-/** A place's emblem as SVG markup. */
-export const emblem = (key: string, size = 64): string =>
-  `<svg class="emblem" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">${EMBLEMS[key] ?? ''}</svg>`;
+// The emblems engraved with ChatGPT (see docs/emblems.md), dropped in src/assets/emblems/<key>.webp;
+// until one is there, the little drawing above stands in.
+const urls = import.meta.glob('../assets/emblems/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const PICTURES = new Map(Object.entries(urls).map(([path, url]) => [path.split('/').pop()!.replace('.webp', ''), url]));
+
+/** A place's emblem: its engraving if there is one (its white paper melts into the page), else the drawing. */
+export function emblem(key: string, size = 64): string {
+  const url = PICTURES.get(key);
+  if (url) return `<img class="emblem art" src="${url}" width="${Math.round(size * 1.25)}" height="${Math.round(size * 1.25)}" alt="">`;
+  return `<svg class="emblem" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">${EMBLEMS[key] ?? ''}</svg>`;
+}
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 let ribbons = 0;

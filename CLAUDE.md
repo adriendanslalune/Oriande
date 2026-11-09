@@ -85,7 +85,11 @@ Règles qui restent :
    liaison abandonnée au-delà de 1,8 × la ligne droite), villages et villes réalistes,
    noms détourés, vision selon le terrain (forêt 100, plaine 200, jusqu'à 600 en altitude),
    contournement de l'eau par l'explorateur. **Ordinateur** : clic droit = marcher (ou chasser) tout de suite,
-   sans confirmation ; clavier : Échap ferme, I ou S ouvre le sac, + et − zooment, Espace recentre. **Marche** : un tap montre l'itinéraire (pointillés,
+   sans confirmation ; clavier : Échap ferme, I ou S ouvre le sac, + et − zooment, Espace recentre. **Menu d'actions au point touché** (demande d'Adrien, plus
+   instinctif qu'un gros bouton en bas) : un tap ouvre un petit cartouche à côté de ce qui a été touché, qui suit
+   la carte (`Hud.showActions`/`placeActions`, `Map.actions`) : « Chasser · Cerf » sur un animal, « Récolter ·
+   Bois » puis « Marcher vers » sur la terre, « Pêcher » sur l'eau, « Entrer » sur le bourg où l'on est ;
+   l'action probable en premier, en foncé. Sac et pages des bourgs restent en panneau. **Marche** : un tap montre l'itinéraire (pointillés,
    drapeau) et propose « Marcher vers » (distance en lieues ; le nom du lieu si on touche un bourg,
    un lieu, un monument ou une merveille déjà vus) ; rien ne part sans confirmation. Plus de trace
    des pas passés sur la carte : seuls les pointillés de l'explorateur à sa destination.

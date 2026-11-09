@@ -220,7 +220,7 @@ export class MapScene extends Phaser.Scene {
       const d = Math.hypot(beast.x - this.state.x, beast.y - this.state.y);
       this.overlay.plan = [[this.state.x, this.state.y], [beast.x, beast.y]];
       const verb = beast.species.danger >= 1 ? 'hunt.attack' : 'hunt.go';
-      this.hud.showWalk(tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), null, () => this.goHunt(beast), () => this.cancelPlan(), t(verb, { a: t('animal.' + beast.species.id) }));
+      this.actions(beast.x, beast.y - beast.species.look.len * 0.6, [{ label: t(verb, { a: t('animal.' + beast.species.id) }), detail: tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), go: () => this.goHunt(beast) }]);
       return;
     }
     // a tap on (or near) a place already seen goes to that place, by its name
@@ -230,7 +230,7 @@ export class MapScene extends Phaser.Scene {
     if (place?.town && here && here.key === place.town.key && !this.state.fight) {
       const b = place.town;
       this.overlay.plan = null;
-      this.hud.showWalk(t(b.city ? 'town.page.city' : 'town.page.village', { n: b.name }), null, () => this.openTown(b), () => this.cancelPlan(), t('town.enter', { n: b.name }));
+      this.actions(b.x, b.y, [{ label: t('town.enter', { n: b.name }), go: () => this.openTown(b) }]);
       return;
     }
     const x = place ? place.x : tx, y = place ? place.y : ty;
@@ -253,7 +253,7 @@ export class MapScene extends Phaser.Scene {
     let alt: { label: string; detail: string; go: () => void } | undefined;
     const res = place || water || !isSeen(s, tx, ty) ? null : resourceAt(tx, ty);
     if (res && !s.fight) alt = {
-      label: t('work.harvest', { r: t('item.' + res + '.name') }), detail,
+      label: t('work.harvest', { r: t('item.' + res + '.name') }), detail: L >= 1 ? detail : '',
       go: () => {
         this.cancelPlan(); this.follow = true;
         startWork(s, 'harvest', tx, ty);
@@ -280,12 +280,28 @@ export class MapScene extends Phaser.Scene {
         };
       }
     }
-    if (L < 1) {
-      if (!alt) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
-      this.hud.showWalk(alt.detail, null, alt.go, () => this.cancelPlan(), alt.label);
-      return;
-    }
-    this.hud.showWalk(detail, place?.name ?? null, walk, () => this.cancelPlan(), undefined, alt);
+    if (L < 1 && !alt) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
+    // the likely action first: gathering or fishing where something can be had, then walking there
+    const items: { label: string; detail?: string; go: () => void }[] = [];
+    if (alt) items.push(alt);
+    if (L >= 1) items.push({ label: t('walk.go') + (place ? ' ' + place.name : ''), detail, go: walk });
+    this.actions(x, y, items);
+  }
+
+  /** Where the menu of actions points, on the map (it follows the map when it is dragged). */
+  private actAt: [number, number] | null = null;
+
+  /** Show the menu of actions beside world point (x, y). */
+  private actions(x: number, y: number, items: { label: string; detail?: string; go: () => void }[]): void {
+    this.actAt = [x, y];
+    this.hud.showActions(items, () => this.cancelPlan());
+    this.placeActions();
+  }
+
+  private placeActions(): void {
+    if (!this.actAt) return;
+    const v = this.view;
+    this.hud.placeActions(v.W / 2 + (this.actAt[0] - v.x) * v.zoom, v.H / 2 + (this.actAt[1] - v.y) * v.zoom);
   }
 
   /**
@@ -293,6 +309,7 @@ export class MapScene extends Phaser.Scene {
    * merchant; a city also a bigger merchant who pays better, a smith and a tavern.
    */
   private openTown(b: Settlement): void {
+    this.actAt = null;
     const s = this.state, k = kindOf(b), name = (id: string): string => t('item.' + id + '.name');
     const ecus = (n: number): string => tn('town.ecus', n, { n });
     type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean };
@@ -379,6 +396,7 @@ export class MapScene extends Phaser.Scene {
    * tools made, and what can be made from it.
    */
   private openPack(): void {
+    this.actAt = null;
     const s = this.state, name = (id: string): string => t('item.' + id + '.name');
     type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean };
     const entries: Entry[] = [];
@@ -461,6 +479,7 @@ export class MapScene extends Phaser.Scene {
 
   private cancelPlan(): void {
     this.overlay.plan = null;
+    this.actAt = null;
     this.hud.hideWalk();
   }
 
@@ -639,6 +658,7 @@ export class MapScene extends Phaser.Scene {
       saveGame(s);
     }
     if (this.follow) { v.x += (s.x - v.x) * 0.08; v.y += (s.y - v.y) * 0.08; }
+    this.placeActions();
 
     this.adaptQuality(time, delta);
     const visible = this.syncTiles();

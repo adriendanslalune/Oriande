@@ -33,6 +33,19 @@ const CSS = `
 .hud-walk.pack .title { font: 13px "IM Fell English SC", serif; letter-spacing: .08em; background: #ece3cb; border: 1.5px solid #2a241d; padding: 6px 10px; }
 .hud-walk.pack button:disabled { color: #9a8f7f; border-color: #9a8f7f; }
 .hud-walk button:focus-visible { outline: 2px dashed #2a241d; }
+.hud-act { position: fixed; left: 0; top: 0; display: none; z-index: 3; background: #ece3cb; border: 1.5px solid #2a241d;
+  box-shadow: 0 2px 8px rgba(42,36,29,.3); padding: 4px; gap: 4px; flex-direction: column; min-width: 128px; max-width: 230px; }
+.hud-act.on { display: flex; }
+.hud-act::after { content: ''; position: absolute; left: var(--ax, 50%); width: 10px; height: 10px; background: #ece3cb;
+  border: 1.5px solid #2a241d; border-top: 0; border-left: 0; transform: translateX(-50%) rotate(45deg); bottom: -6.5px; }
+.hud-act.below::after { bottom: auto; top: -6.5px; transform: translateX(-50%) rotate(225deg); }
+.hud-act button { font: 700 13px/1.15 "Old Standard TT", serif; color: #2a241d; background: #ece3cb; border: 1px solid #2a241d;
+  padding: 7px 26px 7px 8px; text-align: left; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; touch-action: manipulation; min-height: 36px; }
+.hud-act button i { display: block; font: italic 400 12px "IM Fell English", serif; text-transform: none; letter-spacing: 0; color: #6a5f4f; }
+.hud-act button.main { background: #2a241d; color: #ece3cb; }
+.hud-act button.main i { color: #d8ccb0; }
+.hud-act .x { position: absolute; right: 2px; top: 1px; width: 24px; height: 24px; border: 0; padding: 0; background: none !important;
+  color: #6a5f4f !important; font: 16px/24px serif; text-align: center; min-height: 0; z-index: 1; }
 .hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
   color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
 .hud-buttons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; z-index: 2; }
@@ -51,6 +64,8 @@ export class Hud {
   private readonly dial: HTMLCanvasElement;
   private readonly time: HTMLElement;
   private readonly walk: HTMLElement;
+  /** the little menu of actions shown beside what was tapped on the map */
+  private readonly act: HTMLElement;
   private readonly life: HTMLElement;
   private dialKey = '';
   private readonly coords: HTMLElement;
@@ -78,6 +93,9 @@ export class Hud {
     this.time = header.querySelector('.time')!;
     this.walk = document.createElement('div');
     this.walk.className = 'hud-walk';
+    this.act = document.createElement('div');
+    this.act.className = 'hud-act';
+    this.act.setAttribute('role', 'menu');
     this.note = document.createElement('div');
     this.note.className = 'hud-note';
     this.note.setAttribute('role', 'status');
@@ -94,7 +112,7 @@ export class Hud {
     const version = document.createElement('div');
     version.className = 'hud-version';
     version.textContent = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '';
-    this.root.push(style, header, this.note, this.walk, buttons, version);
+    this.root.push(style, header, this.note, this.walk, this.act, buttons, version);
     document.body.append(...this.root);
   }
 
@@ -164,7 +182,42 @@ export class Hud {
     this.walk.classList.add('on');
   }
 
-  hideWalk(): void { this.walk.classList.remove('on', 'pack', 'two'); }
+  hideWalk(): void { this.walk.classList.remove('on', 'pack', 'two'); this.act.classList.remove('on'); }
+
+  /**
+   * A small menu beside what was tapped on the map: chase, gather, fish, walk, go in... The first
+   * action (the likely one) stands out. Place it with `placeActions` (it follows the map).
+   */
+  showActions(items: { label: string; detail?: string; go: () => void }[], cancel: () => void): void {
+    this.hideNote();
+    this.walk.classList.remove('on', 'pack', 'two');
+    const rows: HTMLElement[] = items.map((it, k) => {
+      const b = document.createElement('button');
+      if (k === 0) b.className = 'main';
+      b.setAttribute('role', 'menuitem');
+      b.textContent = it.label;
+      if (it.detail) { const i = document.createElement('i'); i.textContent = it.detail; b.append(i); }
+      b.addEventListener('click', it.go);
+      return b;
+    });
+    const x = document.createElement('button');
+    x.className = 'x'; x.textContent = '×'; x.setAttribute('aria-label', t('walk.cancel'));
+    x.addEventListener('click', cancel);
+    this.act.replaceChildren(x, ...rows);
+    this.act.classList.add('on');
+  }
+
+  /** Put the menu of actions beside screen point (x, y) (CSS pixels): above it, or below near the top. */
+  placeActions(x: number, y: number): void {
+    if (!this.act.classList.contains('on')) return;
+    const w = this.act.offsetWidth, h = this.act.offsetHeight, W = window.innerWidth;
+    const top = this.header.offsetHeight + 6, below = y - h - 16 < top;
+    const left = Math.max(8, Math.min(W - w - 64, x - w / 2));
+    const ty = below ? y + 16 : y - h - 16;
+    this.act.classList.toggle('below', below);
+    this.act.style.transform = `translate(${Math.round(left)}px, ${Math.round(ty)}px)`;
+    this.act.style.setProperty('--ax', `${Math.max(10, Math.min(w - 10, x - left))}px`);
+  }
 
   /** The pack: what the explorer carries, each a button to eat or drink it. */
   showPack(entries: { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean }[], title: string, empty: string): void {
@@ -193,7 +246,7 @@ export class Hud {
     close.addEventListener('click', () => this.hideWalk());
     rows.push(close);
     this.walk.replaceChildren(...rows);
-    this.walk.classList.remove('two'); this.walk.classList.add('on', 'pack');
+    this.walk.classList.remove('two'); this.act.classList.remove('on'); this.walk.classList.add('on', 'pack');
   }
 
   /**

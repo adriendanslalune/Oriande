@@ -318,7 +318,7 @@ export class MapScene extends Phaser.Scene {
 
   /**
    * A town (asked by Adrien: arriving in a village, not opening a menu): its view and a word of
-   * welcome, its places drawn as cards; each place has its picture, its keeper, what is done there.
+   * welcome, its places drawn as cards; each place has its picture, its keeper's words, what is done there.
    * A village has an inn and a merchant; a city also a smith and a tavern (rumours, dishes).
    */
   private openTown(b: Settlement, view = 'square', tab = 'buy', sel: string | null = null): void {
@@ -344,9 +344,9 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     // the inn and the merchant are not the same in a village (rustic) and in a city (cleaner):
-    // their own pictures, keepers and words; the smith and the tavern are only in cities
+    // their own pictures and keepers' words; the smith and the tavern are only in cities
     const own = view === 'inn' || view === 'shop' ? view + '-' + kind : view;
-    const common = { key: view, title: t('town.place.' + own), picture: own, pictureWhat: t('town.pic.' + own), face: 'keeper-' + own, back, purse };
+    const common = { key: view, title: t('town.place.' + own), picture: own, pictureWhat: t('town.pic.' + own), back, purse };
     if (view === 'inn') {
       const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
       this.sheet.showTownPlace({ ...common, say: t('town.say.' + own),

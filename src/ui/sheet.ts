@@ -107,12 +107,7 @@ body.sheet-open .hud-buttons { display: none; }
 .sheet .placecard i { display: block; font: italic 13px/1.25 "IM Fell English", serif; color: #5a4a36; padding: 0 8px 7px; }
 .sheet .placecard:disabled { opacity: .45; box-shadow: none; cursor: default; }
 .sheet .leave { display: block; margin: 14px auto 6px; width: 72%; padding: 8px; border: 1.5px solid ${INK}; font: 15px "IM Fell English SC", serif; letter-spacing: .08em; color: ${INK}; background: #e4d4ae; box-shadow: 2px 2px 0 ${INK}; cursor: pointer; }
-.sheet .keeper { display: flex; gap: 12px; margin: 0 2px 0; align-items: center; }
-.sheet .keeper .face { width: 92px; height: 116px; border-radius: 50%; flex: none; border: 2px solid ${INK}; outline: 1px solid ${INK}; outline-offset: 3px; background: #f3e9cf; overflow: hidden;
-  display: flex; align-items: center; justify-content: center; font: 30px "IM Fell English", serif; color: #a39377; margin-left: 6px; }
-.sheet .keeper .face img { width: 118%; height: 118%; max-width: none; object-fit: cover; object-position: 50% 0; align-self: flex-start; }
-.sheet .keeper .say { position: relative; flex: 1; background: #fbf6e6; border: 1.5px solid ${INK}; padding: 6px 10px; font: italic 14px/1.3 "IM Fell English", serif; }
-.sheet .keeper .say::before { content: ''; position: absolute; left: -8px; top: calc(50% - 7px); border: 7px solid transparent; border-right-color: ${INK}; border-left: 0; }
+.sheet .say { margin: 2px 8px 0; padding: 4px 6px; font: italic 15px/1.35 "IM Fell English", serif; text-align: center; color: #3a3024; }
 .sheet .stabs { display: flex; margin: 12px 0 0; border-bottom: 1.5px solid ${INK}; }
 .sheet .stabs button { flex: 1; padding: 6px 0 4px; font: 15px "IM Fell English SC", serif; letter-spacing: .05em; color: #6d5c46; border: 1.5px solid ${INK}; border-bottom: 0; margin-right: -1.5px; background: #e4d4ae; cursor: pointer; }
 .sheet .stabs button.on { background: #f3e9cf; color: ${INK}; position: relative; top: 1.5px; }
@@ -414,14 +409,9 @@ export class Sheet {
     return ill;
   }
 
-  /** The keeper of a place: a face in a medallion, what they say. */
-  private keeper(body: HTMLElement, face: string, say: string): void {
-    const k = document.createElement('div'); k.className = 'keeper';
-    const f = document.createElement('div'); f.className = 'face';
-    const url = townPicture(face);
-    if (url) { const img = document.createElement('img'); img.src = url; img.alt = ''; f.append(img); } else f.textContent = '?';
-    const sy = document.createElement('div'); sy.className = 'say'; sy.textContent = say;
-    k.append(f, sy); body.append(k);
+  /** What the keeper of a place says (no face: one would have to be drawn for every town). */
+  private keeper(body: HTMLElement, say: string): void {
+    const sy = document.createElement('div'); sy.className = 'say'; sy.textContent = say; body.append(sy);
   }
 
   /** Arriving in a town: its view, its name, a word of welcome, its places, the road on. */
@@ -449,13 +439,13 @@ export class Sheet {
     body.append(leave);
   }
 
-  /** A place in town: its picture, its keeper, and what is done there. */
+  /** A place in town: its picture, what its keeper says, and what is done there. */
   showTownPlace(m: TownPlace): void {
     const same = this.shown === 'town' && this.root.dataset.tab === m.key + (m.tab ?? '');
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'town'; this.root.dataset.tab = m.key + (m.tab ?? '');
     const body = this.townPage(m.picture, m.pictureWhat, m.title, 190, m.back);
-    this.keeper(body, m.face, m.say);
+    this.keeper(body, m.say);
     if (m.rumor) { const sc = document.createElement('div'); sc.className = 'scroll'; sc.textContent = m.rumor; body.append(sc); }
     if (m.actions) { const w = document.createElement('div'); w.className = 'innbed'; w.append(this.buttons(m.actions)); body.append(w); if (m.note) { const n = document.createElement('p'); n.className = 'hint'; n.textContent = m.note; body.append(n); } }
     if (m.tabs) {
@@ -513,7 +503,7 @@ export interface TownSquare {
 }
 /** A place in a town (inn, merchant, smith, tavern). */
 export interface TownPlace {
-  key: string; title: string; picture: string; pictureWhat: string; face: string; say: string;
+  key: string; title: string; picture: string; pictureWhat: string; say: string;
   back: { label: string; go: () => void };
   rumor?: string;
   actions?: { label: string; use: (() => void) | null }[]; note?: string;

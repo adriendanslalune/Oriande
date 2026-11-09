@@ -362,14 +362,14 @@ sur le téléphone de Doudou via GitLab Pages.
    planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : grande vue illustrée, nom en
    banderole, « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
    (`flavourOf`, la même à chaque retour), les **lieux** en vignettes illustrées (ce qu'un village n'a pas est
-   estompé, « Seulement en ville »), « Reprendre la route ». **Chaque lieu** : son illustration, le visage de
-   celui qui le tient dans un médaillon avec sa réplique, puis : auberge (dormir), marchand (onglets Acheter /
+   estompé, « Seulement en ville »), « Reprendre la route ». **Chaque lieu** : son illustration, la réplique de
+   celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**
    (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur
    place, `eatDish`, `dishes` dans `towns.json`). **Village ≠ ville aussi à l'image** (demande d'Adrien :
    rustique et boueux au village, plus propre en ville) : auberge et marchand ont leur version de village (`inn-village`,
    `shop-village` : « L'Auberge », la carriole du marchand) et de ville (`inn-city` « L'Hôtel des Voyageurs », `shop-city`
-   « La Boutique »), avec leur visage et leur réplique. **Illustrations** à faire avec ChatGPT (`docs/towns.md`, 14
+   « La Boutique »), avec leur réplique. **Illustrations** à faire avec ChatGPT (`docs/towns.md`, 10
    images) dans `src/assets/towns/<clé>.webp`
    (`ui/townArt.ts`) ; un « ? » en attendant.
 6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).

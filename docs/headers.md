@@ -4,7 +4,7 @@ Le haut du sac et celui de l'almanach peuvent porter une illustration (demande d
 qu'elle manque, le petit paysage peint reste. Dès qu'un fichier est déposé dans
 `src/assets/headers/<clé>.webp`, il prend sa place.
 
-Même conversation et même bloc de style que pour les bourgs (`towns.md`), puis le sujet.
+Même conversation et même bloc de style (gravure sépia) que pour les bourgs (`towns.md`), puis le sujet. **Reçues** : `sac`, `almanac`.
 
 **Cadrage** : l'image est montrée en **bandeau très large** (environ 3 pour 1), le titre en banderole
 par-dessus, au milieu en haut. Demander un format paysage 3:2 et garder **le haut calme (surtout du

@@ -91,7 +91,7 @@ export class Hud {
   private readonly queue: [string, string, number][] = [];
   private readonly root: HTMLElement[] = [];
 
-  constructor(handlers: { zoomIn(): void; zoomOut(): void; center(): void; pack(): void }) {
+  constructor(handlers: { zoomIn(): void; zoomOut(): void; center(): void; pack(): void; almanac(): void }) {
     const style = document.createElement('style');
     style.textContent = CSS;
     const header = document.createElement('header');
@@ -115,10 +115,11 @@ export class Hud {
     this.note.setAttribute('role', 'status');
     const buttons = document.createElement('div');
     buttons.className = 'hud-buttons';
-    for (const [label, aria, fn] of [[t('ui.packShort'), 'ui.pack', handlers.pack], ['+', 'ui.zoomIn', handlers.zoomIn], ['−', 'ui.zoomOut', handlers.zoomOut], ['⌖', 'ui.center', handlers.center]] as const) {
+    for (const [label, aria, fn] of [[t('ui.packShort'), 'ui.pack', handlers.pack], [t('ui.almanacShort'), 'ui.almanac', handlers.almanac], ['+', 'ui.zoomIn', handlers.zoomIn], ['−', 'ui.zoomOut', handlers.zoomOut], ['⌖', 'ui.center', handlers.center]] as const) {
       const b = document.createElement('button');
       b.textContent = label;
       if (fn === handlers.pack) { b.className = 'bag'; b.innerHTML = icon('bag', 26); }
+      else if (fn === handlers.almanac) { b.className = 'bag'; b.innerHTML = icon('book', 26); }
       else if (label.length > 2) b.className = 'word';
       b.setAttribute('aria-label', t(aria));
       b.addEventListener('click', fn);

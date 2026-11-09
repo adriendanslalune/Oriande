@@ -98,6 +98,7 @@ describe('making things', () => {
     for (const lang of ['fr', 'en'] as const) {
       setLang(lang);
       for (const it of ITEMS) expect(t('item.' + it.id + '.name')).not.toBe('item.' + it.id + '.name');
+      for (const r of RECIPES) expect(t('item.' + r.id + '.text')).not.toBe('item.' + r.id + '.text'); // the almanac describes each
       for (const k of ['pack.make', 'pack.tools', 'pack.materials', 'pack.food', 'work.harvest', 'work.fish', 'work.needRod', 'item.feu.name', 'pack.fire', 'pack.cook', 'pack.sleep', 'hunger.title', 'sick.title', 'fire.title']) expect(t(k)).not.toBe(k);
     }
     setLang('fr');

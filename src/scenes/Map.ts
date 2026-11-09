@@ -10,6 +10,7 @@ import { isSeen } from '../game/travel';
 import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
 import { resourceAt } from '../world/resources';
 import { iconOfResource } from '../ui/icons';
+import { Sheet, type RecipeCard, type Slot } from '../ui/sheet';
 import { buy, goods, kindOf, rumor, sell, sellable, sleep, townAt, weaponDamage } from '../game/town';
 import type { Settlement } from '../world/settlements';
 import { settlement } from '../world/settlements';
@@ -70,8 +71,6 @@ function windName(w: { dx: number; dy: number; speed: number }): string {
 }
 
 /** The world map: tiles as Phaser textures under a screen-space overlay. */
-/** Pictograms of what is gathered, in the pack. */
-const MAT_ICON: Record<string, string> = { bois: 'wood', pierre: 'stone', fibre: 'fibre', herbes: 'fibre', peau: 'bag', os: 'tools' };
 
 export class MapScene extends Phaser.Scene {
   private state!: GameState;
@@ -131,7 +130,9 @@ export class MapScene extends Phaser.Scene {
       zoomOut: () => this.setZoom(this.view.zoom / 1.6),
       center: () => { this.follow = true; if (this.view.zoom < Z_ATLAS) this.setZoom(START_ZOOM); },
       pack: () => this.openPack(),
+      almanac: () => this.openAlmanac(),
     });
+    this.sheet = new Sheet(() => { /* closed */ });
     this.game.canvas.setAttribute('aria-label', t('ui.map'));
     this.setupInput();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
@@ -145,6 +146,7 @@ export class MapScene extends Phaser.Scene {
       window.removeEventListener('pagehide', saveNow);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
       this.hud.destroy();
+      this.sheet.destroy();
     });
   }
 
@@ -207,7 +209,8 @@ export class MapScene extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
     // the keyboard, on a computer: Escape closes, I or S opens the pack, + and - zoom, Space centres
     this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.cancelPlan();
+      if (e.key === 'Escape') { this.cancelPlan(); this.sheet.hide(); }
+      else if (e.key === 'a' || e.key === 'A' || e.key === 'r' || e.key === 'R') this.openAlmanac();
       else if (e.key === 'i' || e.key === 'I' || e.key === 's' || e.key === 'S') this.openPack();
       else if (e.key === '+' || e.key === '=') this.setZoom(this.view.zoom * 1.25);
       else if (e.key === '-' || e.key === '_') this.setZoom(this.view.zoom / 1.25);
@@ -325,14 +328,14 @@ export class MapScene extends Phaser.Scene {
     const done = (): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openTown(b); };
     const e: Entry[] = [];
     // the inn
-    e.push({ label: t('town.inn'), sub: '', use: null, head: true, icon: 'inn' });
+    e.push({ label: t('town.inn'), sub: '', use: null, head: true });
     const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
     e.push({
       icon: 'sleep', label: t('town.sleep', { p: ecus(k.inn) }), sub: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor'),
       use: tired && rich ? () => { sleep(s, b); done(); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); } : null,
     });
     // the merchant: buying, then selling
-    e.push({ label: t('town.shop'), sub: '', use: null, head: true, icon: 'shop' });
+    e.push({ label: t('town.shop'), sub: '', use: null, head: true });
     for (const g of goods(s, b).filter((x) => !x.smith)) {
       const it = ITEMS.find((i) => i.id === g.id)!;
       e.push({
@@ -341,14 +344,14 @@ export class MapScene extends Phaser.Scene {
         use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null,
       });
     }
-    e.push({ label: t('town.sellHead'), sub: '', use: null, head: true, icon: 'sell' });
+    e.push({ label: t('town.sellHead'), sub: '', use: null, head: true });
     const wares = sellable(s, b);
     if (!wares.length) e.push({ label: '', sub: t('town.nothingToSell'), use: null, info: true });
     for (const w of wares) e.push({ icon: 'coin', label: t('town.sell', { a: name(w.id), n: w.n }), sub: t('town.sell.sub', { p: ecus(w.price) }), use: () => { sell(s, b, w.id); done(); } });
     // the smith, in a city
     const arms = goods(s, b).filter((x) => x.smith);
     if (k.forge.length) {
-      e.push({ label: t('town.smith'), sub: '', use: null, head: true, icon: 'smith' });
+      e.push({ label: t('town.smith'), sub: '', use: null, head: true });
       if (!arms.length) e.push({ label: '', sub: t('town.smith.done'), use: null, info: true });
       for (const g of arms) {
         const [lo, hi] = weaponDamage(g.id) ?? [0, 0];
@@ -357,7 +360,7 @@ export class MapScene extends Phaser.Scene {
     }
     // the tavern, in a city: what is being said tonight
     const r = rumor(b, worldTime());
-    if (r) e.push({ label: t('town.tavern'), sub: '', use: null, head: true, icon: 'tavern' }, { label: '', sub: t('rumor.' + r), use: null, info: true, icon: 'rumor' });
+    if (r) e.push({ label: t('town.tavern'), sub: '', use: null, head: true }, { label: '', sub: t('rumor.' + r), use: null, info: true, icon: 'rumor' });
     this.overlay.plan = null;
     this.hud.showPack(e, t(b.city ? 'town.page.city' : 'town.page.village', { n: b.name }) + ' · ' + t('town.purse', { hp: s.hp, max: s.maxHp, g: ecus(s.gold) }), '');
   }
@@ -405,55 +408,85 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /** The pack and the almanac, as pages over the map. */
+  private sheet!: Sheet;
+  /** the thing tapped in the pack, whose card is shown */
+  private sacSel: string | null = null;
+
   /**
-   * The pack (in a fight too: the blows go on meanwhile): food to eat, what was gathered, the
-   * tools made, and what can be made from it.
+   * The pack (asked by Adrien: clear compartments, things in slots with their picture and how many):
+   * what the explorer carries in hand and wears, the tools made, then food and materials. Tapping a
+   * slot shows its card below, with what can be done with it (eat, cook). Making things is the
+   * almanac's (see openAlmanac). By a lit campfire, sleeping is offered at the top.
    */
-  private openPack(): void {
-    this.actAt = null;
+  private openPack(sel = this.sacSel): void {
+    this.actAt = null; this.cancelPlan();
     const s = this.state, now = worldTime(), name = (id: string): string => t('item.' + id + '.name');
-    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean; icon?: string };
-    const entries: Entry[] = [];
-    const again = (): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openPack(); };
-    const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0);
-    const food = owned('food'), mats = owned('material'), tools = owned('tool');
-    // by the campfire: cook what is raw, sleep
-    if (campLit(s, now) && Math.hypot(s.camp!.x - s.x, s.camp!.y - s.y) < 40) {
-      entries.push({ label: t('pack.fire'), sub: '', use: null, head: true, icon: 'fire' });
-      for (const it of food.filter((i) => canCook(s, i.id, now))) entries.push({
-        icon: 'cook', label: t('pack.cook', { a: name(it.id), n: s.items[it.id] }), sub: t('pack.cook.sub', { b: name(it.cooks!) }),
-        use: () => { cook(s, it.id, now); this.overlay.float(s.x, s.y - 30, '+1 ' + name(it.cooks!).toLowerCase(), 'loot'); again(); },
-      });
-      const can = canSleepByFire(s, now);
-      entries.push({ icon: 'sleep', label: t('pack.sleep'), sub: can ? t('pack.sleep.sub', { n: SLEEP_FOOD }) : t('pack.sleep.no'), use: can ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(); } : null });
+    const again = (keep: string | null): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openPack(keep && (s.items[keep] ?? 0) > 0 ? keep : null); };
+    this.sacSel = sel;
+    const slot = (id: string, worn = false): Slot => ({ id, name: name(id), count: s.items[id] ?? 0, worn });
+    const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0).map((it) => it.id);
+    // carried: the weapon in hand (the best one), the jacket, the torch; the other tools in the pack
+    const weapon = weaponOf(s).id, worn = [weapon !== 'poings' ? weapon : '', has(s, 'veste') ? 'veste' : '', has(s, 'torche') ? 'torche' : ''].filter(Boolean);
+    const tools = owned('tool').filter((id) => !worn.includes(id)); // a weapon not in hand stays in the pack
+    const MAT_ORDER = ['bois', 'pierre', 'fibre', 'herbes', 'peau', 'os'];
+    const mats = owned('material').sort((a, b) => MAT_ORDER.indexOf(a) - MAT_ORDER.indexOf(b));
+    const fire = campLit(s, now) && Math.hypot(s.camp!.x - s.x, s.camp!.y - s.y) < 40;
+    // the card of the thing tapped
+    let detail: Parameters<Sheet['showSac']>[0]['detail'] = null;
+    const it = sel ? ITEMS.find((i) => i.id === sel) : undefined;
+    if (it && (s.items[it.id] ?? 0) > 0) {
+      const lines: string[] = [], actions: { label: string; use: (() => void) | null }[] = [];
+      if (it.kind === 'food') {
+        lines.push(t('pack.eat.sub', { f: it.food ?? 0, h: it.heal }) + (it.sick ? t('pack.raw') : ''));
+        actions.push({ label: t('sac.eat'), use: () => { const meal = eat(s, it.id); if (meal?.sick) this.hud.showNote(t('sick.title'), t('sick.text'), 5000); again(it.id); } });
+        if (it.cooks) actions.push({ label: t('sac.cook', { b: name(it.cooks) }), use: canCook(s, it.id, now) ? () => { cook(s, it.id, now); this.overlay.float(s.x, s.y - 30, '+1 ' + name(it.cooks!).toLowerCase(), 'loot'); again(it.id); } : null });
+        if (it.cooks && !fire) lines.push(t('sac.needFire'));
+      } else if (it.kind === 'tool') lines.push(t('item.' + it.id + '.text'));
+      else lines.push(t('sac.material'));
+      detail = { id: it.id, name: name(it.id) + (s.items[it.id] > 1 && it.kind !== 'tool' ? ' × ' + s.items[it.id] : ''), lines, actions };
     }
-    if (food.length) entries.push({ label: t('pack.food'), sub: '', use: null, head: true, icon: 'food' }, ...food.map((it) => ({
-      icon: 'food',
-      label: `${name(it.id)} × ${s.items[it.id]}`,
-      sub: t('pack.eat.sub', { f: it.food ?? 0, h: it.heal }) + (it.sick ? t('pack.raw') : ''),
-      use: () => {
-        const meal = eat(s, it.id);
-        if (meal?.sick) this.hud.showNote(t('sick.title'), t('sick.text'), 5000);
-        again();
-      },
-    })));
-    if (mats.length) entries.push({ label: t('pack.materials'), sub: '', use: null, head: true, icon: 'wood' }, ...mats.map((it) => ({ label: `${name(it.id)} × ${s.items[it.id]}`, sub: '', use: null, info: true, icon: MAT_ICON[it.id] })));
-    entries.push({ label: t('pack.tools'), sub: '', use: null, head: true, icon: 'tools' });
-    if (weaponOf(s).id === 'poings') entries.push({ label: t('pack.fists'), sub: '', use: null, info: true });
-    for (const it of tools) entries.push({ label: name(it.id), sub: t('item.' + it.id + '.text'), use: null, info: true });
-    const todo = RECIPES.filter((r) => !(ITEMS.find((i) => i.id === r.id)?.kind === 'tool' && has(s, r.id)));
-    if (todo.length) entries.push({ label: t('pack.make'), sub: '', use: null, head: true, icon: 'make' }, ...todo.map((r) => ({
-      icon: r.id === 'feu' ? 'fire' : undefined,
-      label: name(r.id) + (canCraft(s, r.id) ? ' ›' : ''),
-      sub: t('pack.needs', { n: Object.entries(r.needs).map(([k, n]) => `${n} ${name(k).toLowerCase()}${(s.items[k] ?? 0) < n ? ' (' + (s.items[k] ?? 0) + ')' : ''}`).join(', ') })
-        + (r.id === 'feu' ? ' · ' + t('pack.lay') : ''),
-      use: canCraft(s, r.id) ? () => {
-        craft(s, r.id, now);
-        if (r.id === 'feu') { this.hud.hideWalk(); this.hud.showNote(t('fire.title'), t('fire.text'), 6000); saveGame(s); return; }
-        again();
-      } : null,
-    })));
-    this.hud.showPack(entries, t('pack.title', { hp: s.hp, max: s.maxHp }), t('pack.empty'));
+    this.sheet.showSac({
+      title: t('sac.title'), sub: t('sac.sub', { hp: s.hp, max: s.maxHp, f: Math.round(s.food), g: s.gold }),
+      top: fire ? { title: t('pack.fire'), actions: [{ label: t('pack.sleep') + (canSleepByFire(s, now) ? ' · −' + SLEEP_FOOD + ' ' + t('hud.bellyLabel').toLowerCase() : ''), use: canSleepByFire(s, now) ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(sel); } : null }] } : null,
+      sections: [
+        { title: t('sac.worn'), slots: worn.map((id) => slot(id, true)), empty: t('pack.fists') },
+        { title: t('pack.tools'), slots: tools.map((id) => slot(id)), empty: t('sac.noTools') },
+        { title: t('pack.food'), slots: owned('food').map((id) => slot(id)), empty: t('sac.noFood') },
+        { title: t('pack.materials'), slots: mats.map((id) => slot(id)), empty: t('sac.noMats') },
+      ],
+      selected: sel,
+      detail,
+      select: (id) => this.openPack(id === sel ? null : id),
+    });
+  }
+
+  /**
+   * The almanac of recipes (asked by Adrien): everything that can be made, what it takes, what
+   * the pack holds; what can be made now is shown plainly and made with a tap.
+   */
+  private openAlmanac(): void {
+    this.actAt = null; this.cancelPlan();
+    const s = this.state, now = worldTime(), name = (id: string): string => t('item.' + id + '.name');
+    const cards: RecipeCard[] = RECIPES.map((r) => {
+      const tool = ITEMS.find((i) => i.id === r.id)?.kind === 'tool';
+      const state: RecipeCard['state'] = tool && has(s, r.id) ? 'done' : canCraft(s, r.id) ? 'ready' : 'missing';
+      return {
+        id: r.id, name: name(r.id), text: t('item.' + r.id + '.text'),
+        needs: Object.entries(r.needs).map(([k, n]) => ({ id: k, name: name(k), have: s.items[k] ?? 0, need: n })),
+        state,
+        make: () => {
+          craft(s, r.id, now); saveGame(s); this.hud.pulsePack();
+          if (r.id === 'feu') { this.sheet.hide(); this.hud.showNote(t('fire.title'), t('fire.text'), 6000); return; }
+          this.overlay.float(s.x, s.y - 30, '+1 ' + name(r.id).toLowerCase(), 'loot');
+          this.openAlmanac();
+        },
+      };
+    });
+    const rank = { ready: 0, missing: 1, done: 2 };
+    cards.sort((a, b) => rank[a.state] - rank[b.state]);
+    const ready = cards.filter((c) => c.state === 'ready').length;
+    this.sheet.showAlmanac(t('almanac.title'), ready ? tn('almanac.ready', ready, { n: ready }) : t('almanac.sub'), cards);
   }
 
   /** The animal under a tap, if any (only where the explorer has seen). */

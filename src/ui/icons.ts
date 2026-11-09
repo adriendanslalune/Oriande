@@ -28,6 +28,7 @@ const PATHS: Record<string, string> = {
   sleep: `<path ${wash('#7f8fb0')} d="M15.5 4.5a7.5 7.5 0 1 0 4 12 6.4 6.4 0 0 1-4-12z"/>`,
   cook: `<path ${wash('#7d7a74')} d="M4 10h12v2a6 6 0 0 1-12 0z"/><path d="M16 11h4.5M7.5 6.5c0-1 1-1.5 1-2.5M11.5 6.5c0-1 1-1.5 1-2.5"/>`,
   sell: `<circle ${wash('#c9a24a')} cx="9" cy="14" r="5"/><path d="m14 5 5 0 0 5M19 5l-6 6"/>`,
+  book: `<path ${wash('#a8754a')} d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5M9 8h6M9 11h4"/>`,
   rumor: `<path ${wash('#ece3cb')} d="M4 6.5h16v9h-9l-4.5 3.5v-3.5H4z"/><path d="M8 10h8M8 12.5h5"/>`,
 };
 

@@ -320,7 +320,16 @@ sur le téléphone de Doudou via GitLab Pages.
    vite ; hameçon d'os (le poisson mord à 85 %) ; veste de cuir (4 peaux : −1 par coup reçu). **Ressources** :
    baies et herbes dans l'herbe, champignons sous les arbres humides (en plus de la récolte, par chance) ;
    remède à fabriquer (3 herbes + 1 baies). Un seul billet par récolte (« +3 bois · +1 champignons »).
-   Sauvegarde **v8** (`food`, `camp`). Les vies et coups des animaux
+   Sauvegarde **v8** (`food`, `camp`).
+   **Sac et almanach** (`ui/sheet.ts`, demande d'Adrien : style Verne / Moebius, compartiments, cases) : le
+   **sac** est une page d'atlas en cases (illustration + nombre) : « Porté » (arme en main = la meilleure,
+   veste, torche), « Outils », « À manger », « Récoltes » ; toucher une case ouvre sa fiche en bas (Manger,
+   Cuire si un feu est là) ; près d'un feu, « Dormir au feu » en tête. Le sac ne fabrique plus : c'est
+   l'**almanach des recettes** (bouton livre, touche A) : chaque recette avec ce qu'il faut (ce qu'on a / ce
+   qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
+   **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
+   une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le pictogramme provisoire
+   (`ui/itemArt.ts`). Plus de pictos dans les titres de compartiments (sac, bourgs). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).

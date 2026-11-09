@@ -147,7 +147,7 @@ describe('fishing from the near side', () => {
     expect(c).not.toBeNull();
     expect(fishable(c.water[0], c.water[1])).toBe(true);
     expect(fishable(c.shore[0], c.shore[1])).toBe(false);
-    expect(Math.hypot(c.shore[0] - c.water[0], c.shore[1] - c.water[1])).toBeLessThan(25);
+    expect(Math.hypot(c.shore[0] - c.water[0], c.shore[1] - c.water[1])).toBeLessThan(40);
     expect(castFrom(wx + 60, wy, wx + 61, wy)).toBeNull();
   });
 });

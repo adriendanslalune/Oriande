@@ -296,7 +296,8 @@ sur le téléphone de Doudou via GitLab Pages.
    **Pêche** : un tap sur la mer ou un lac propose « Pêcher » (sans canne, le bouton dit qu'il en faut une) ;
    l'explorateur va au **bord le plus proche sur le chemin** (`castFrom`, pas le rivage le plus proche du tap,
    qui peut être de l'autre côté du lac), lance
-   la ligne (bouchon qui flotte), 7 s, 65 % de chances : un poisson saute au bout de la ligne, +1 poisson
+   la ligne (**lancer animé**, `CAST_MS` = 1,3 s : canne ramenée par-dessus l'épaule, fouettée en avant, bouchon
+   qui part en cloche jusqu'à 26 du bord et tombe avec une éclaboussure et des ronds ; puis bouchon qui flotte), 7 s, 65 % de chances : un poisson saute au bout de la ligne, +1 poisson
    (rend 3). Le dessin de l'explorateur suit : mains vides / bâton / lance à pointe de silex, torche la nuit
    seulement s'il en a une. Travail en cours dans `GameState.work` (sauvegarde **v6**, v5 migrée en gardant
    le sac). Les vies et coups des animaux

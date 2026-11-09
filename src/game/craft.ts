@@ -74,7 +74,10 @@ export function castFrom(sx: number, sy: number, tx: number, ty: number): { shor
     const x = sx + (tx - sx) * k / n, y = sy + (ty - sy) * k / n;
     if (!fishable(x, y)) continue;
     const ux = (tx - sx) / (d || 1), uy = (ty - sy) / (d || 1);
-    return { shore: [x - ux * 8, y - uy * 8], water: [x + ux * 12, y + uy * 12] };
+    // the line goes well out, as far as the water allows (up to 26 past the edge)
+    let out = 12;
+    for (const o of [26, 20]) if (fishable(x + ux * o, y + uy * o)) { out = o; break; }
+    return { shore: [x - ux * 8, y - uy * 8], water: [x + ux * out, y + uy * out] };
   }
   return null;
 }

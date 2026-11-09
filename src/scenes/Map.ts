@@ -383,7 +383,8 @@ export class MapScene extends Phaser.Scene {
   private workStep(dt: number): void {
     const s = this.state;
     for (const e of stepWork(s, dt)) {
-      if (e.kind === 'gathered') this.overlay.float(e.x, e.y - 30, t('work.gathered', { n: e.n, r: t('item.' + e.res + '.name').toLowerCase() }), 'loot');
+      if (e.kind === 'begin' && e.work === 'fish') this.overlay.cast();
+      else if (e.kind === 'gathered') this.overlay.float(e.x, e.y - 30, t('work.gathered', { n: e.n, r: t('item.' + e.res + '.name').toLowerCase() }), 'loot');
       else if (e.kind === 'caught') { this.overlay.float(e.x, e.y - 10, t('work.caught'), 'loot'); this.overlay.catchFish(e.x, e.y); }
       else if (e.kind === 'nothing') this.overlay.float(s.x, s.y - 30, t('work.nothing'), 'you');
       else if (e.kind === 'tooFar') this.hud.showNote(t('work.tooFar'), t('work.tooFar.text'), 3000);

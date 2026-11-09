@@ -33,6 +33,8 @@ import { INK, PAPER } from './palette';
 
 /** Durations of the fight's animations, ms: the explorer's swing, the animal's lunge, a flinch. */
 const STRIKE_MS = 380, LUNGE_MS = 420, HURT_MS = 220;
+/** The cast of a fishing line: rod back, whipped forward, the float flying out to the water. */
+const CAST_MS = 1300;
 /** The colour of a steel blade. */
 const STEEL = 'rgb(188,194,200)';
 
@@ -101,6 +103,19 @@ export class Overlay {
   private fish: { x: number; y: number; t0: number; dir: number; size: number }[] = [];
   /** fish caught, to leap out of the water at the end of the line */
   private caught: [number, number][] = [];
+
+  /** When the last line was cast (performance time, ms). */
+  private castAt = -1e9;
+
+  /** The explorer casts the line: the cast is played (see the explorer's drawing). */
+  cast(): void { this.castAt = performance.now(); }
+
+  /** A float, red above and white below, at (x, y) in the explorer's drawing units. */
+  private float_(x: number, y: number): void {
+    const { ctx } = this;
+    ctx.fillStyle = 'rgb(176,48,36)'; ctx.beginPath(); ctx.arc(x, y - 0.6, 1.1, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = 'rgb(240,236,226)'; ctx.beginPath(); ctx.arc(x, y - 0.6, 1.1, 0, Math.PI); ctx.fill();
+  }
 
   /** A fish caught at (x, y): it leaps out of the water there. */
   catchFish(x: number, y: number): void { this.caught.push([x, y]); }
@@ -776,15 +791,40 @@ export class Overlay {
       ctx.beginPath(); ctx.moveTo(px + dx * 3.2 * u, py + dy * 3.2 * u); ctx.lineTo(px + nx * 0.9 * u, py + ny * 0.9 * u); ctx.lineTo(px - nx * 0.9 * u, py - ny * 0.9 * u); ctx.closePath(); ctx.fill(); ctx.stroke();
     };
     if (work && work.kind === 'fish' && !striking) {
-      // the rod held out over the water, the line down to a float that bobs
-      const hx = X(2.4), hy = Y(-11), tx = X(11), ty = Y(-22);
+      // the rod held out over the water, the line down to a float that bobs. Just after the work
+      // starts, the cast (CAST_MS): the rod swings back over the shoulder, whips forward, and the
+      // float flies out in an arc and drops into the water with a splash.
+      const cp = (now - this.castAt) / CAST_MS, casting = cp >= 0 && cp < 1;
+      const ease = (u: number): number => u * u * (3 - 2 * u);
+      const key = (a: [number, number], b: [number, number], u: number): [number, number] => [a[0] + (b[0] - a[0]) * ease(u), a[1] + (b[1] - a[1]) * ease(u)];
+      const REST: [number, number] = [11, -22], BACK: [number, number] = [-6, -24], FORE: [number, number] = [14, -15];
+      const [ox, oy] = !casting ? REST : cp < 0.35 ? key(REST, BACK, cp / 0.35) : cp < 0.5 ? key(BACK, FORE, (cp - 0.35) / 0.15) : cp < 0.75 ? key(FORE, REST, (cp - 0.5) / 0.25) : REST;
+      const tx = X(ox), ty = Y(oy), hx = X(2.4 + (ox - 11) * 0.12), hy = Y(-11 + (oy + 22) * 0.1);
       ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.strokeStyle = wood; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(0.6), Y(-8)); ctx.quadraticCurveTo(X(6), Y(-18), tx, ty); ctx.stroke();
-      const bx = (work.at[0] - atX) / scale, by = (work.at[1] - atY) / scale + Math.sin(now / 300) * 0.7 + (work.done > 0.85 ? Math.sin(now / 40) * 1.2 : 0);
-      ctx.strokeStyle = 'rgba(42,36,29,.7)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + bx) / 2, Math.max(ty, by) + 2, bx, by); ctx.stroke();
-      ctx.fillStyle = 'rgb(176,48,36)'; ctx.beginPath(); ctx.arc(bx, by - 0.6, 1.1, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = 'rgb(240,236,226)'; ctx.beginPath(); ctx.arc(bx, by - 0.6, 1.1, 0, Math.PI); ctx.fill();
-      ctx.strokeStyle = 'rgba(250,252,252,.8)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.ellipse(bx, by + 0.4, 2 + (now / 600 % 1) * 2, 0.7, 0, 0, 6.3); ctx.stroke();
+      ctx.strokeStyle = wood; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(0.6), Y(-8)); ctx.quadraticCurveTo(X(0.6 + (ox - 0.6) * 0.45), Y(-8 + (oy + 8) * 0.7), tx, ty); ctx.stroke();
+      const wx = (work.at[0] - atX) / scale, wy = (work.at[1] - atY) / scale; // where the float lands
+      if (casting && cp < 0.45) {
+        // the float still at the rod's tip, swinging behind it
+        ctx.strokeStyle = 'rgba(42,36,29,.7)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - f * 1.5, ty + 4); ctx.stroke();
+        this.float_(tx - f * 1.5, ty + 4.6);
+      } else if (casting && cp < 0.85) {
+        // in flight: an arc from the tip to the water
+        const u = (cp - 0.45) / 0.4, fx = tx + (wx - tx) * u, fy = ty + (wy - ty) * u - Math.sin(Math.PI * u) * 16;
+        ctx.strokeStyle = 'rgba(42,36,29,.6)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + fx) / 2, Math.min(ty, fy) - 3, fx, fy); ctx.stroke();
+        this.float_(fx, fy);
+      } else {
+        const bx = wx, by = wy + Math.sin(now / 300) * 0.7 + (work.done > 0.85 ? Math.sin(now / 40) * 1.2 : 0);
+        ctx.strokeStyle = 'rgba(42,36,29,.7)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + bx) / 2, Math.max(ty, by) + 2, bx, by); ctx.stroke();
+        this.float_(bx, by);
+        // the splash where it fell, then the slow rings round the float
+        const sp = casting ? (cp - 0.85) / 0.15 : 1 + (now - this.castAt - CAST_MS) / 500;
+        if (sp < 2.2) {
+          ctx.strokeStyle = 'rgba(250,252,252,.9)'; ctx.lineWidth = 0.6;
+          for (const k of [0, 0.4]) { const r = (sp - k) * 3.5; if (r > 0 && r < 7) { ctx.globalAlpha = 1 - r / 7; ctx.beginPath(); ctx.ellipse(bx, by + 0.4, r, r * 0.35, 0, 0, 6.3); ctx.stroke(); } }
+          ctx.globalAlpha = 1;
+          if (sp < 0.8) { ctx.fillStyle = 'rgba(250,252,252,.9)'; for (const d of [-1.5, 0, 1.5]) { ctx.beginPath(); ctx.arc(bx + d, by - 1 - Math.sin(sp * Math.PI / 0.8) * 3 * (1 - Math.abs(d) * 0.3), 0.45, 0, 6.3); ctx.fill(); } }
+        } else { ctx.strokeStyle = 'rgba(250,252,252,.8)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.ellipse(bx, by + 0.4, 2 + (now / 600 % 1) * 2, 0.7, 0, 0, 6.3); ctx.stroke(); }
+      }
     } else if (work && !striking) {
       // gathering: bending to the ground and up again, bits flying off
       const ph = (now / 520) % 1, down = Math.sin(ph * Math.PI * 2) * 0.5 + 0.5;

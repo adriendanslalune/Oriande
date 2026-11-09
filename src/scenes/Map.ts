@@ -5,7 +5,7 @@ import { newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type 
 import { pathLength, planRoute, prefetchWays } from '../game/route';
 import { CONTACT, HUNT_RUN, ITEMS, REGROUP, beastsNear, end, hunt, stepFight, useItem, type Beast } from '../game/combat';
 import { isSeen } from '../game/travel';
-import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
+import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
 import { resourceAt } from '../world/resources';
 import { settlement } from '../world/settlements';
 import { landmark } from '../world/landmarks';
@@ -227,7 +227,7 @@ export class MapScene extends Phaser.Scene {
     const s = this.state, route = planRoute(s.x, s.y, x, y);
     const L = route ? pathLength(route.path) : 0;
     const water = !place && isSeen(s, tx, ty) && fishable(tx, ty);
-    if ((!route || L < 1) && !(water && has(s, 'canne'))) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
+    if ((!route || L < 1) && !water) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
     this.overlay.plan = route && L >= 1 ? route.path : null;
     const stop = !route || route.reached ? '' : ' · ' + t(route.blocked === 'mountain' ? 'walk.foot' : 'walk.shore');
     const detail = tn('walk.leagues', L / LEAGUE, { n: num(L / LEAGUE, 1) }) + stop;
@@ -251,20 +251,30 @@ export class MapScene extends Phaser.Scene {
       },
     };
     if (water && !s.fight) {
-      if (has(s, 'canne')) alt = {
-        label: t('work.fish'), detail: L >= 1 ? detail : '',
-        go: () => {
-          this.cancelPlan(); this.follow = true;
-          // the explorer goes to the shore (or stays there), the line is cast towards the tap
-          const end0 = route && L >= 1 ? route.path[route.path.length - 1] : [s.x, s.y];
-          const d = Math.hypot(tx - end0[0], ty - end0[1]), k = d > 1 ? Math.min(d, FISH_REACH * 0.6) / d : 0;
-          if (route && L >= 1 && Math.hypot(tx - s.x, ty - s.y) > FISH_REACH * 0.6) startJourney(s, tx, ty);
-          startWork(s, 'fish', end0[0] + (tx - end0[0]) * k, end0[1] + (ty - end0[1]) * k);
-        },
-      };
-      else if (L < 1) { this.cancelPlan(); this.hud.showNote(t('work.needRod'), t('work.needRod.text'), 5000); return; }
+      // fish from the nearest edge of that water on the way there, not round the far side
+      const cast = castFrom(s.x, s.y, tx, ty);
+      const here = cast && Math.hypot(cast.water[0] - s.x, cast.water[1] - s.y) <= FISH_REACH * 0.8;
+      const way = cast && !here ? planRoute(s.x, s.y, cast.shore[0], cast.shore[1]) : null;
+      const LF = way ? pathLength(way.path) : 0;
+      if (cast && (here || LF >= 1)) {
+        if (way) this.overlay.plan = way.path;
+        alt = {
+          label: t('work.fish'), detail: here ? '' : tn('walk.leagues', LF / LEAGUE, { n: num(LF / LEAGUE, 1) }) + (has(s, 'canne') ? '' : ' · ' + t('work.needRod')),
+          go: () => {
+            this.cancelPlan();
+            if (!has(s, 'canne')) { this.hud.showNote(t('work.needRod'), t('work.needRod.text'), 6000); return; }
+            this.follow = true;
+            if (!here) startJourney(s, cast.shore[0], cast.shore[1]);
+            startWork(s, 'fish', cast.water[0], cast.water[1]);
+          },
+        };
+      }
     }
-    if (L < 1 && alt) { this.overlay.plan = null; this.hud.showWalk('', null, alt.go, () => this.cancelPlan(), alt.label); return; }
+    if (L < 1) {
+      if (!alt) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
+      this.hud.showWalk(alt.detail, null, alt.go, () => this.cancelPlan(), alt.label);
+      return;
+    }
     this.hud.showWalk(detail, place?.name ?? null, walk, () => this.cancelPlan(), undefined, alt);
   }
 

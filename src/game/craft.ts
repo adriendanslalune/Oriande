@@ -61,6 +61,22 @@ export function fishable(x: number, y: number): boolean {
   return lakesNear(x - 1, y - 1, x + 1, y + 1).some((l) => inLake(l, x, y));
 }
 
+/**
+ * Where to fish towards (tx, ty), coming from (sx, sy): the nearest edge of that water on the way,
+ * not the shore nearest the tap (which may be across the lake). `shore`: where to stand;
+ * `water`: where the line goes. Null if the way crosses no fishable water.
+ */
+export function castFrom(sx: number, sy: number, tx: number, ty: number): { shore: [number, number]; water: [number, number] } | null {
+  const d = Math.hypot(tx - sx, ty - sy), n = Math.max(1, Math.ceil(d / 4));
+  for (let k = 0; k <= n; k++) {
+    const x = sx + (tx - sx) * k / n, y = sy + (ty - sy) * k / n;
+    if (!fishable(x, y)) continue;
+    const ux = (tx - sx) / (d || 1), uy = (ty - sy) / (d || 1);
+    return { shore: [x - ux * 8, y - uy * 8], water: [x + ux * 12, y + uy * 12] };
+  }
+  return null;
+}
+
 /** Set to work: gather what grows at (x, y), or fish in the water there. The walk is the map's. */
 export function startWork(s: GameState, kind: Work['kind'], x: number, y: number): boolean {
   if (kind === 'fish' && !has(s, 'canne')) return false;

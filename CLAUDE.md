@@ -279,7 +279,9 @@ sur le téléphone de Doudou via GitLab Pages.
    gagne 1 à 3. **Fabrication** dans le sac (`game/craft.ts`, `data/recipes.json`) : bâton (2 bois, coups 2-5),
    torche (1 bois, 2 fibres), canne à pêche (2 bois, 3 fibres), lance de silex (2 bois, 2 pierres, 2 fibres,
    coups 3-7) ; un outil se fabrique une fois et se garde. `items.json` : `kind` food / material / tool.
-   **Pêche** (avec la canne) : un tap sur la mer ou un lac propose « Pêcher » ; l'explorateur va au bord, lance
+   **Pêche** : un tap sur la mer ou un lac propose « Pêcher » (sans canne, le bouton dit qu'il en faut une) ;
+   l'explorateur va au **bord le plus proche sur le chemin** (`castFrom`, pas le rivage le plus proche du tap,
+   qui peut être de l'autre côté du lac), lance
    la ligne (bouchon qui flotte), 7 s, 65 % de chances : un poisson saute au bout de la ligne, +1 poisson
    (rend 3). Le dessin de l'explorateur suit : mains vides / bâton / lance à pointe de silex, torche la nuit
    seulement s'il en a une. Travail en cours dans `GameState.work` (sauvegarde **v6**, v5 migrée en gardant

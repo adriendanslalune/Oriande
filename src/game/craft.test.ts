@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FISH_SECONDS, HARVEST_SECONDS, RECIPES, canCraft, craft, fishable, has, startWork, stepWork, weaponOf } from './craft';
+import { FISH_SECONDS, HARVEST_SECONDS, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from './craft';
 import { ITEMS, useItem } from './combat';
 import { NO_TORCH, newGame } from './travel';
 import { fromSaveFile, toSaveFile } from './save';
@@ -121,6 +121,19 @@ describe('fishing', () => {
     }
     expect(caught).toBeGreaterThan(2);
     expect(s.items.poisson).toBe(caught);
+  });
+});
+
+describe('fishing from the near side', () => {
+  it('the line goes to the first water on the way, the explorer stands just before it', () => {
+    const s = game();
+    const [wx, wy] = findNear(s.x, s.y, (x, y) => fishable(x, y) && !fishable(x + 60, y) && altitude(x + 60, y) > 0.05);
+    const c = castFrom(wx + 60, wy, wx - 200, wy)!;
+    expect(c).not.toBeNull();
+    expect(fishable(c.water[0], c.water[1])).toBe(true);
+    expect(fishable(c.shore[0], c.shore[1])).toBe(false);
+    expect(Math.hypot(c.shore[0] - c.water[0], c.shore[1] - c.water[1])).toBeLessThan(25);
+    expect(castFrom(wx + 60, wy, wx + 61, wy)).toBeNull();
   });
 });
 

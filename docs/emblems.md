@@ -1,35 +1,40 @@
-# Silhouettes des bourgs et emblèmes des lieux — à faire avec ChatGPT
+# Enseignes des lieux et silhouettes des bourgs — à faire avec ChatGPT
 
-Chaque lieu d'un bourg a un gros emblème au-dessus de son nom en banderole (demande d'Adrien : pas
-d'illustration de scène, un symbole). En attendant, un petit dessin codé tient la place. Dès qu'un
-fichier est déposé dans `src/assets/emblems/<clé>.webp`, il le remplace. Son fond blanc disparaît
-dans le papier de la page (fusion « multiply »), pas besoin de le détourer.
+## Enseignes des lieux
 
-Une conversation, le bloc de style d'abord, puis les sujets un par un.
+Chaque lieu d'un bourg a son **enseigne suspendue** (demande d'Adrien : comme une enseigne de boutique,
+pas une banderole) : une potence de fer forgé, une planche de bois qui pend à deux anneaux, le symbole
+du lieu gravé dessus, et un **bandeau vide** où le jeu écrit le nom dans la langue du joueur (pas de
+texte dans l'image : le jeu est en français et en anglais). Au village l'enseigne est rustique, en ville
+plus soignée. Fichiers : `src/assets/signs/<clé>.webp` ; en attendant, un petit emblème sur une banderole.
+Le fond blanc disparaît dans la page, pas besoin de détourer. Je règle la place du nom quand je reçois les images.
 
-## Bloc de style (à coller en premier)
+Une conversation, ce bloc d'abord :
 
 ```
-I am making emblems for an adventure game set in 1873, like the small engraved vignettes in
+I am making hanging shop signs for an adventure game set in 1873, drawn like the engravings in
 Jules Verne's original illustrated editions.
-Style for EVERY picture:
-- one object alone, centred, seen slightly from the side, filling most of a square picture;
-- brown-black ink line, like a pen drawing for an engraving, fine hatching only in the shadows;
-- at most a very light sepia wash; no other colour;
-- plain pure white background, no ground, no cast shadow, no frame, no text;
-- no 3D, no photorealism, no cartoon, no icon look.
-Keep exactly the same line and tone from one picture to the next.
+Every picture shows the same thing, square format:
+- a small wrought-iron bracket at the top left, from which a wooden signboard hangs by two rings;
+- the board is shaped like a shield or a cartouche, with a carved border;
+- across the UPPER third of the board, an EMPTY smooth band, left blank for lettering;
+- below it, the symbol of the shop, carved into the wood;
+- brown-black ink line, fine hatching only in the shadows, at most a very light sepia wash,
+  no other colour;
+- plain pure white background, no wall, no ground, no cast shadow;
+- absolutely no text, no letters, no numbers anywhere.
+Keep exactly the same line, size and layout from one picture to the next.
 Reply "ready" and wait for the subjects.
 ```
 
-## Les emblèmes (carré)
-
 | clé | Lieu | Sujet à demander (anglais) |
 |---|---|---|
-| `inn` | auberge, hôtel | an old wooden bed with a plump pillow and a folded blanket |
-| `shop` | marchand, boutique | a merchant's brass balance scale with two hanging pans |
-| `smith` | forge | a blacksmith's anvil with a heavy hammer resting on it |
-| `tavern` | taverne | a wooden beer tankard with foam spilling over the rim |
+| `inn-village` | l'auberge du village | a rough, slightly crooked plank, nails and a crack; symbol: a simple bed with a pillow |
+| `inn-city` | l'hôtel des voyageurs | a neat carved board with scrolls and a crown-like crest; symbol: a fine bed with a pillow and a blanket |
+| `shop-village` | le marchand du village | a rough plank hanging a little askew; symbol: a simple balance scale |
+| `shop-city` | la boutique | a neat carved board with scrolls; symbol: a brass balance scale with two pans |
+| `smith` | la forge (ville) | a sturdy board with iron studs; symbol: an anvil with a hammer resting on it |
+| `tavern` | la taverne (ville) | a carved board with a rope border; symbol: a wooden beer tankard with foam |
 
 ## Silhouettes des bourgs
 

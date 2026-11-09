@@ -364,7 +364,9 @@ sur le téléphone de Doudou via GitLab Pages.
    planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : la **silhouette du bourg d'un seul trait** (`ui/townSigns.ts`, `skyline`, propre à chaque bourg,
    demande d'Adrien : discret, laisse place à l'imagination ; à remplacer par des silhouettes ChatGPT, plusieurs par
    type, `src/assets/skylines/<village|city>-<n>.webp`, une tirée par bourg), nom sur une **banderole vintage** (`ribbon`, texte sur la courbe), « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
-   (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem` ; gravures ChatGPT à venir, `docs/emblems.md`, `src/assets/emblems/<clé>.webp`, le dessin codé en attendant) sur sa banderole (ce qu'un village n'a pas, forge et
+   (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem`) sur sa banderole, à remplacer par des **enseignes suspendues** ChatGPT (`shopSign`,
+   `docs/emblems.md`, `src/assets/signs/<inn-village|inn-city|shop-village|shop-city|smith|tavern>.webp`, nom écrit par
+   le jeu dans un bandeau vide de la planche, pour l'i18n) (ce qu'un village n'a pas, forge et
    taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son emblème et sa banderole, la réplique de
    celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**

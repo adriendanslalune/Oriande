@@ -332,7 +332,7 @@ export class MapScene extends Phaser.Scene {
     if (view === 'square') {
       // arriving here makes it the explorer's refuge: where they wake up after a fall (asked by Adrien: say so)
       const restNew = settleAt(s, b); if (restNew) saveGame(s);
-      const place = (key: string, open: boolean, line: string) => { const own = key === 'inn' || key === 'shop' ? key + '-' + kind : key; return { key, title: t('town.place.' + own), line, open, go: () => this.openTown(b, key) }; };
+      const place = (key: string, open: boolean, line: string) => { const own = key === 'inn' || key === 'shop' ? key + '-' + kind : key; return { key, sign: own, title: t('town.place.' + own), line, open, go: () => this.openTown(b, key) }; };
       this.sheet.showTownSquare({
         name: b.name, kind: t('town.kind.' + kind) + ' · ' + t('town.region.' + regionOf(b)), flavour: t(`town.flavour.${kind}.${flavourOf(b)}`), purse,
         seed: b.key, city: b.city, placesTitle: t('town.places'), leave: t('town.leave'), restNew,
@@ -350,7 +350,7 @@ export class MapScene extends Phaser.Scene {
     // the inn and the merchant are not the same in a village (rustic) and in a city (cleaner):
     // their own names and keepers' words; the smith and the tavern are only in cities
     const own = view === 'inn' || view === 'shop' ? view + '-' + kind : view;
-    const common = { key: view, title: t('town.place.' + own), back, purse };
+    const common = { key: view, sign: own, title: t('town.place.' + own), back, purse };
     if (view === 'inn') {
       // two beds to choose from (asked by Adrien): straw or a bed in a village, a room with or without breakfast in a city
       const helps = k.inn.some((x) => bedHelps(s, x)), rich = k.inn.some((x) => bedHelps(s, x) && s.gold >= x.price);

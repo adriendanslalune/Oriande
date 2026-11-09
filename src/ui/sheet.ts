@@ -7,7 +7,7 @@
 import { t } from '../i18n';
 import { itemPicture } from './itemArt';
 import { portrait, type Carried } from './portrait';
-import { emblem, ribbon, skyline } from './townSigns';
+import { ribbon, shopSign, skyline } from './townSigns';
 
 const INK = '#2b2117';
 
@@ -90,7 +90,11 @@ body.sheet-open .hud-buttons { display: none; }
 .sheet .townhead { position: relative; flex: none; margin: 4px 4px 0; padding: 14px 0 0; display: flex; flex-direction: column; align-items: center; }
 .sheet .townhead .skyline { display: block; width: 100%; height: 96px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); }
 .sheet .townhead .emblem { margin-top: 18px; }
-.sheet .emblem.art, .sheet .skyline.art { mix-blend-mode: multiply; object-fit: contain; }
+.sheet .skyline.art { mix-blend-mode: multiply; object-fit: contain; }
+.sheet .shopsign { position: relative; max-width: 100%; }
+.sheet .shopsign img { display: block; width: 100%; height: auto; mix-blend-mode: multiply; }
+.sheet .shopsign span { position: absolute; left: 22%; right: 12%; top: var(--band, 30%); transform: translateY(-50%); text-align: center; font: 15px/1.05 "IM Fell English SC", serif; letter-spacing: .04em; color: #2b2117; }
+.sheet .townhead .shopsign span { font-size: 21px; }
 .sheet .townhead img.skyline { object-fit: contain; object-position: 50% 100%; }
 .sheet .townhead .ribbon { width: min(86%, 330px); height: auto; margin-top: -6px; }
 .sheet .townhead .close, .sheet .townhead .back { position: absolute; top: 6px; z-index: 3; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: ${INK}; background: #f3e9cf; border: 1.5px solid ${INK}; padding: 3px 9px; cursor: pointer; }
@@ -384,7 +388,7 @@ export class Sheet {
    * A town page. At its head, for the square: the town's outline in one line, its name on a ribbon;
    * for a place: its big emblem over its name on a ribbon. Back (to the square) or close.
    */
-  private townPage(head: string, title: string, back: { label: string; go: () => void } | null): HTMLElement {
+  private townPage(head: string, title: string, back: { label: string; go: () => void } | null, signed = false): HTMLElement {
     const page = document.createElement('div'); page.className = 'sheet-page';
     const header = document.querySelector('.hud-header') as HTMLElement | null;
     page.style.top = (header ? header.offsetHeight : 90) + 8 + 'px';
@@ -392,7 +396,7 @@ export class Sheet {
       const f = document.createElement('span'); f.className = 'fleuron'; f.style.cssText = pos + (tf ? ';transform:' + tf : ''); f.innerHTML = FLEURON; page.append(f);
     }
     const top = document.createElement('div'); top.className = 'townhead';
-    top.innerHTML = head + ribbon(title);
+    top.innerHTML = signed ? head : head + ribbon(title); // a place's sign carries its own name
     const h = document.createElement('h2'); h.className = 'vh'; h.textContent = title; top.append(h); // for screen readers
     if (back) { const b = document.createElement('button'); b.className = 'back'; b.textContent = '‹ ' + back.label; b.addEventListener('click', back.go); top.append(b); }
     const x = document.createElement('button'); x.className = 'close'; x.textContent = '×'; x.setAttribute('aria-label', t('walk.cancel'));
@@ -423,7 +427,7 @@ export class Sheet {
     const grid = document.createElement('div'); grid.className = 'places';
     for (const pl of m.places) {
       const b = document.createElement('button'); b.className = 'placecard'; b.disabled = !pl.open;
-      const sign = document.createElement('div'); sign.className = 'sign'; sign.innerHTML = emblem(pl.key, 52) + ribbon(pl.title);
+      const sign = document.createElement('div'); sign.className = 'sign'; sign.innerHTML = shopSign(pl.sign, pl.key, pl.title, 52);
       const ln = document.createElement('i'); ln.textContent = pl.line;
       b.setAttribute('aria-label', pl.title); b.append(sign, ln);
       if (pl.open) b.addEventListener('click', pl.go);
@@ -440,7 +444,7 @@ export class Sheet {
     const same = this.shown === 'town' && this.root.dataset.tab === m.key + (m.tab ?? '');
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'town'; this.root.dataset.tab = m.key + (m.tab ?? '');
-    const body = this.townPage(emblem(m.key, 76), m.title, m.back);
+    const body = this.townPage(shopSign(m.sign, m.key, m.title, 76), m.title, m.back, true);
     this.keeper(body, m.say);
     if (m.rumor) { const sc = document.createElement('div'); sc.className = 'scroll'; sc.textContent = m.rumor; body.append(sc); }
     if (m.actions) { const w = document.createElement('div'); w.className = 'innbed'; w.append(this.buttons(m.actions)); body.append(w); if (m.note) { const n = document.createElement('p'); n.className = 'hint'; n.textContent = m.note; body.append(n); } }
@@ -495,11 +499,11 @@ export class Sheet {
 export interface TownSquare {
   name: string; seed: string; city: boolean; kind: string; flavour: string; purse: string;
   placesTitle: string; leave: string; rest: string; restNew: boolean;
-  places: { key: string; title: string; line: string; open: boolean; go: () => void }[];
+  places: { key: string; sign: string; title: string; line: string; open: boolean; go: () => void }[];
 }
 /** A place in a town (inn, merchant, smith, tavern). */
 export interface TownPlace {
-  key: string; title: string; say: string;
+  key: string; sign: string; title: string; say: string;
   back: { label: string; go: () => void };
   rumor?: string;
   actions?: { label: string; sub?: string; use: (() => void) | null }[]; note?: string;

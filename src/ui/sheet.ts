@@ -8,6 +8,7 @@ import { t } from '../i18n';
 import { itemPicture } from './itemArt';
 import { portrait, type Carried } from './portrait';
 import { townPicture } from './townArt';
+import { headerPicture } from './headerArt';
 
 const INK = '#2b2117';
 
@@ -23,6 +24,10 @@ const CSS = `
 .sheet .fleuron { position: absolute; width: 26px; height: 26px; pointer-events: none; z-index: 2; }
 .sheet-head { position: relative; flex: none; margin: 4px 4px 0; height: 104px; border: 1.5px solid ${INK}; overflow: hidden;
   background: linear-gradient(#b8d0d2 0%, #e9dcb7 64%, #d9b98a 64.5%, #e6c99a 100%); }
+.sheet-head.art { height: 132px; background: #e9dcb7; }
+.sheet-head > img.art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
+.sheet-head.art .sub { top: 64px; }
+.sheet-head.art .close { right: 6px; top: 6px; width: 30px; height: 30px; font: 20px/26px serif; background: #f3e9cf; border: 1.5px solid ${INK}; }
 .sheet-head svg.land { position: absolute; left: 0; bottom: 0; width: 100%; height: 56px; }
 .sheet-head .banner { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: min(86%, 380px); height: 46px; }
 .sheet-head .banner svg { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -202,8 +207,8 @@ export class Sheet {
 
   hide(): void { if (!this.shown) return; this.root.classList.remove('on'); document.body.classList.remove('sheet-open'); this.shown = null; this.onClose(); }
 
-  /** A new page: the engraved frame, the landscape with the title in its banner, the body. */
-  private page(title: string, sub: string): { page: HTMLElement; body: HTMLElement } {
+  /** A new page: the engraved frame, its picture (or a little landscape) with the title in its banner, the body. */
+  private page(title: string, sub: string, art: string): { page: HTMLElement; body: HTMLElement } {
     const page = document.createElement('div'); page.className = 'sheet-page';
     const header = document.querySelector('.hud-header') as HTMLElement | null; // the page starts under the header
     page.style.top = (header ? header.offsetHeight : 90) + 8 + 'px';
@@ -211,7 +216,9 @@ export class Sheet {
       const f = document.createElement('span'); f.className = 'fleuron'; f.style.cssText = pos + (tf ? ';transform:' + tf : ''); f.innerHTML = FLEURON; page.append(f);
     }
     const head = document.createElement('div'); head.className = 'sheet-head';
-    head.innerHTML = LAND;
+    const url = headerPicture(art); // its picture once drawn, else the little painted landscape
+    if (url) { head.classList.add('art'); const img = document.createElement('img'); img.className = 'art'; img.src = url; img.alt = ''; head.append(img); }
+    else head.innerHTML = LAND;
     const banner = document.createElement('div'); banner.className = 'banner'; banner.innerHTML = BANNER;
     const h = document.createElement('h2'); h.textContent = title; banner.append(h);
     const p = document.createElement('div'); p.className = 'sub'; const ps = document.createElement('span'); ps.textContent = sub; p.append(ps);
@@ -269,7 +276,7 @@ export class Sheet {
     const sameTab = this.shown === 'sac' && this.root.dataset.tab === m.tab;
     this.shown = 'sac'; this.root.dataset.tab = m.tab;
     this.root.classList.add('tabbed'); this.root.classList.remove('book', 'town');
-    const { page, body } = this.page(m.title, m.sub);
+    const { page, body } = this.page(m.title, m.sub, 'sac');
     const tabs = document.createElement('div'); tabs.className = 'sheet-tabs'; tabs.setAttribute('role', 'tablist');
     for (const tb of m.tabs) {
       const b = document.createElement('button'); b.textContent = tb.label; b.setAttribute('role', 'tab');
@@ -328,7 +335,7 @@ export class Sheet {
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'almanac'; this.root.dataset.tab = open;
     this.root.classList.remove('tabbed', 'town'); this.root.classList.add('book');
-    const { page, body } = this.page(title, sub);
+    const { page, body } = this.page(title, sub, 'almanac');
     // thumb tabs on the edge of the book, one by use, with how many recipes are ready there
     const thumbs = document.createElement('div'); thumbs.className = 'thumbs'; thumbs.setAttribute('role', 'tablist');
     for (const g of groups) {

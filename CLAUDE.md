@@ -345,7 +345,7 @@ sur le téléphone de Doudou via GitLab Pages.
    qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
    **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
    une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le « ? » qui l'attend
-   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). Les vies et coups des animaux
+   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). **En-têtes illustrés** du sac et de l'almanach (`docs/headers.md`, `src/assets/headers/sac|almanac.webp`, `ui/headerArt.ts`) ; le petit paysage peint en attendant. Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).

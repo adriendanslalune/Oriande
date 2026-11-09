@@ -91,8 +91,9 @@ Règles qui restent :
    Bois » puis « Marcher vers » sur la terre, « Pêcher » sur l'eau, « Entrer » sur le bourg où l'on est ;
    l'action probable en premier, en foncé. Un tap ailleurs pendant qu'un menu est ouvert le ferme seulement (le
    suivant en ouvre un). **Butin visible** : pendant le travail, ce qu'on récolte (« Bois », « Pêche… ») au-dessus
-   de l'anneau ; chaque gain (récolte, poisson, viande) fait un billet « +3 viande » au-dessus du bouton Sac
-   (`Hud.loot`, 3 s), qui s'illumine. Sac et pages des bourgs restent en panneau. **Marche** : un tap montre l'itinéraire (pointillés,
+   de l'anneau ; chaque gain (récolte, poisson, viande) fait un billet papier « +3 viande » **à l'endroit même**
+   (au-dessus de l'explorateur, du poisson, de l'animal abattu), qui monte doucement 2,6 s (`LOOT_MS`) ; le bouton
+   Sac s'illumine un instant (`Hud.pulsePack`). Sac et pages des bourgs restent en panneau. **Marche** : un tap montre l'itinéraire (pointillés,
    drapeau) et propose « Marcher vers » (distance en lieues ; le nom du lieu si on touche un bourg,
    un lieu, un monument ou une merveille déjà vus) ; rien ne part sans confirmation. Plus de trace
    des pas passés sur la carte : seuls les pointillés de l'explorateur à sa destination.

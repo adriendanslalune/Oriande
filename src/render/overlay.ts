@@ -35,6 +35,8 @@ import { INK, PAPER } from './palette';
 const STRIKE_MS = 380, LUNGE_MS = 420, HURT_MS = 220;
 /** The cast of a fishing line: rod back, whipped forward, the float flying out to the water. */
 const CAST_MS = 1300;
+/** How long what was gathered, fished or hunted stays written where it was had. */
+const LOOT_MS = 2600;
 /** The colour of a steel blade. */
 const STEEL = 'rgb(188,194,200)';
 
@@ -722,13 +724,22 @@ export class Overlay {
 
   private drawFloats(screen: (x: number, y: number) => [number, number], now: number): void {
     const { ctx } = this;
-    this.floats = this.floats.filter((f) => now - f.t0 < 1000);
+    const life = (f: { kind: string }): number => (f.kind === 'loot' ? LOOT_MS : 1000);
+    this.floats = this.floats.filter((f) => now - f.t0 < life(f));
     ctx.textAlign = 'center';
     for (const f of this.floats) {
-      const u = (now - f.t0) / 1000, [x, y] = screen(f.x, f.y);
+      const u = (now - f.t0) / life(f), [x, y] = screen(f.x, f.y);
       ctx.globalAlpha = Math.min(1, (1 - u) * 2.5);
-      ctx.font = (f.kind === 'loot' ? 'italic 14px' : '700 16px') + " 'Old Standard TT', serif";
-      ctx.fillStyle = f.kind === 'foe' ? 'rgb(168,52,40)' : f.kind === 'loot' ? 'rgb(70,96,50)' : INK;
+      if (f.kind === 'loot') { // what was gathered, fished or hunted: a paper slip rising slowly from where it was had
+        ctx.font = "700 15px 'Old Standard TT', serif";
+        const w = ctx.measureText(f.text).width + 16, h = 22, cx = x, cy = y - 12 - u * 22 - Math.max(0, 1 - u * 8) * 6;
+        ctx.fillStyle = 'rgba(236,227,203,.96)'; ctx.fillRect(cx - w / 2, cy - h / 2 - 5, w, h);
+        ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.strokeRect(cx - w / 2, cy - h / 2 - 5, w, h);
+        ctx.fillStyle = 'rgb(70,96,50)'; ctx.fillText(f.text, cx, cy + 1);
+        continue;
+      }
+      ctx.font = "700 16px 'Old Standard TT', serif";
+      ctx.fillStyle = f.kind === 'foe' ? 'rgb(168,52,40)' : INK;
       this.label(f.text, x, y - 30 - u * 26);
     }
     ctx.globalAlpha = 1; ctx.fillStyle = INK;

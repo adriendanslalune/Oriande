@@ -386,8 +386,7 @@ export class MapScene extends Phaser.Scene {
   private workStep(dt: number): void {
     const s = this.state;
     for (const e of stepWork(s, dt)) {
-      if (e.kind === 'gathered') this.hud.loot(t('work.gathered', { n: e.n, r: t('item.' + e.res + '.name').toLowerCase() }));
-      else if (e.kind === 'caught') this.hud.loot(t('work.caught'));
+      if (e.kind === 'gathered' || e.kind === 'caught') this.hud.pulsePack();
       if (e.kind === 'begin' && e.work === 'fish') this.overlay.cast();
       else if (e.kind === 'gathered') this.overlay.float(e.x, e.y - 30, t('work.gathered', { n: e.n, r: t('item.' + e.res + '.name').toLowerCase() }), 'loot');
       else if (e.kind === 'caught') { this.overlay.float(e.x, e.y - 10, t('work.caught'), 'loot'); this.overlay.catchFish(e.x, e.y); }
@@ -455,7 +454,7 @@ export class MapScene extends Phaser.Scene {
       const name = (sp: string): string => t('animal.' + sp);
       if (e.kind === 'hit' || e.kind === 'miss') { this.overlay.blow(e.who, e.kind === 'hit'); this.overlay.float(e.x, e.y, e.kind === 'hit' ? '−' + e.damage : t('fight.miss'), e.who === 'foe' ? 'foe' : 'you'); }
       else if (e.kind === 'charge') { this.cancelPlan(); this.follow = true; this.hud.showNote(t('fight.charge.title', { a: name(e.species) }), t('fight.charge.text'), 5000); }
-      else if (e.kind === 'killed') { this.hud.loot(t('fight.meat', { n: e.meat })); this.overlay.spurt(e.x, e.y, 6, e.x >= s.x ? 1 : -1, 14); this.overlay.float(e.x, e.y - 12, t('fight.meat', { n: e.meat }), 'loot'); this.hud.showNote(t('fight.killed', { a: name(e.species) }), t('fight.killed.text', { n: e.meat }), 4000); }
+      else if (e.kind === 'killed') { this.hud.pulsePack(); this.overlay.spurt(e.x, e.y, 6, e.x >= s.x ? 1 : -1, 14); this.overlay.float(e.x, e.y - 22, t('fight.meat', { n: e.meat }), 'loot'); this.hud.showNote(t('fight.killed', { a: name(e.species) }), t('fight.killed.text', { n: e.meat }), 4000); }
       else if (e.kind === 'escaped') this.hud.showNote(t('fight.escaped', { a: name(e.species) }), '', 3000);
       else if (e.kind === 'gaveUp') this.hud.showNote(t('fight.gaveUp', { a: name(e.species) }), '', 3000);
       else if (e.kind === 'lost') { this.view.x = s.x; this.view.y = s.y; this.follow = true; this.hud.showNote(t('fight.wake.title'), t('fight.wake.text', { n: e.goldLost }), 8000); }

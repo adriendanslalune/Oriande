@@ -101,7 +101,7 @@ describe('towns', () => {
         setLang(lang);
         expect(t(`town.flavour.${b.city ? 'city' : 'village'}.${f}`)).not.toContain('town.');
         expect(t('town.region.' + regionOf(b))).not.toContain('town.');
-        for (const k of ['inn-village', 'inn-city', 'shop-village', 'shop-city', 'smith', 'tavern']) { expect(t('town.place.' + k)).not.toContain('town.'); expect(t('town.say.' + k)).not.toContain('town.'); expect(t('town.pic.' + k)).not.toContain('town.'); }
+        for (const k of ['inn-village', 'inn-city', 'shop-village', 'shop-city', 'smith', 'tavern']) { expect(t('town.place.' + k)).not.toContain('town.'); expect(t('town.say.' + k)).not.toContain('town.'); }
         for (const d of DISHES) expect(t('dish.' + d.id)).not.toContain('dish.');
       }
       setLang('fr');

@@ -242,10 +242,8 @@ Carte ancienne, papier ivoire, encre brune, aquarelle. Polices : IM Fell English
 Old Standard TT (déjà dans le proto). Les menus sont des pages d'atlas, les
 boîtes de dialogue des cartouches. Pas de UI « jeu mobile » brillante.
 Les illustrations (découvertes, monstres, lieux) seront fournies par Doudou
-(images générées, style fixe). **Style des illustrations** (choix d'Adrien, revu : le Moebius en couleurs cassait l'esprit
-de la carte) : **gravure à la Jules Verne, dépouillée**, encre brune sur papier crème, hachures seulement dans les
-ombres, au plus un lavis sépia ; bloc de style dans `docs/towns.md`
-et `docs/items.md`. Prévoir des emplacements et des placeholders
+(images générées, style fixe). **Style des illustrations** (seulement les objets pour l'instant, choix d'Adrien) : **gravure à la
+Jules Verne, dépouillée**, encre brune sur papier crème, hachures seulement dans les ombres, au plus un lavis sépia ; bloc de style dans `docs/items.md`. Prévoir des emplacements et des placeholders
 dessinés à l'encre en attendant.
 
 ## Boucle de jeu visée
@@ -349,7 +347,7 @@ sur le téléphone de Doudou via GitLab Pages.
    qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
    **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
    une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le « ? » qui l'attend
-   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). **En-têtes illustrés** du sac et de l'almanach (`docs/headers.md`, `src/assets/headers/sac|almanac.webp`, `ui/headerArt.ts`) ; le petit paysage peint en attendant. Les vies et coups des animaux
+   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). **Pas d'illustrations** dans les en-têtes (le petit paysage peint reste). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).
@@ -363,19 +361,18 @@ sur le téléphone de Doudou via GitLab Pages.
    `rumor.<id>` en i18n, qui change toutes les demi-heures). Les écus viennent de la vente de ce qu'on chasse,
    pêche et récolte.
    **Bourgs refaits** (demande d'Adrien : « arriver dans un village, pas dans un menu » ; prototype validé) : même
-   planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : grande vue illustrée, nom en
-   banderole, « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
-   (`flavourOf`, la même à chaque retour), les **lieux** en vignettes illustrées (ce qu'un village n'a pas, forge et
-   taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son illustration, la réplique de
+   planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : la **silhouette du bourg d'un seul trait** (`ui/townSigns.ts`, `skyline`, propre à chaque bourg,
+   demande d'Adrien : discret, laisse place à l'imagination), nom sur une **banderole vintage** (`ribbon`, texte sur la courbe), « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
+   (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem`) sur sa banderole (ce qu'un village n'a pas, forge et
+   taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son emblème et sa banderole, la réplique de
    celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**
    (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur
-   place, `eatDish`, `dishes` dans `towns.json`). **Village ≠ ville aussi à l'image** (demande d'Adrien :
+   place, `eatDish`, `dishes` dans `towns.json`). **Village ≠ ville aussi dans les mots** (demande d'Adrien :
    rustique et boueux au village, plus propre en ville) : auberge et marchand ont leur version de village (`inn-village`,
    `shop-village` : « L'Auberge », la carriole du marchand) et de ville (`inn-city` « L'Hôtel des Voyageurs », `shop-city`
-   « La Boutique »), avec leur réplique. **Illustrations** à faire avec ChatGPT (`docs/towns.md`, 10
-   images) dans `src/assets/towns/<clé>.webp`
-   (`ui/townArt.ts`) ; un « ? » en attendant.
+   « La Boutique »), avec leur réplique. **Plus d'illustrations dans les bourgs** (essayées en Moebius puis en gravure : elles cassaient l'esprit du jeu, Adrien ne
+   les garde que pour les objets).
 6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).
    **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),
    un monstre par salle, un coffre, un indice sur Oriande à la fin.

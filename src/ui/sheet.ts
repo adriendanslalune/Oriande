@@ -7,8 +7,7 @@
 import { t } from '../i18n';
 import { itemPicture } from './itemArt';
 import { portrait, type Carried } from './portrait';
-import { townPicture } from './townArt';
-import { headerPicture } from './headerArt';
+import { emblem, ribbon, skyline } from './townSigns';
 
 const INK = '#2b2117';
 
@@ -24,10 +23,6 @@ const CSS = `
 .sheet .fleuron { position: absolute; width: 26px; height: 26px; pointer-events: none; z-index: 2; }
 .sheet-head { position: relative; flex: none; margin: 4px 4px 0; height: 104px; border: 1.5px solid ${INK}; overflow: hidden;
   background: linear-gradient(#b8d0d2 0%, #e9dcb7 64%, #d9b98a 64.5%, #e6c99a 100%); }
-.sheet-head.art { height: 132px; background: #e9dcb7; }
-.sheet-head > img.art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
-.sheet-head.art .sub { top: 64px; }
-.sheet-head.art .close { right: 6px; top: 6px; width: 30px; height: 30px; font: 20px/26px serif; background: #f3e9cf; border: 1.5px solid ${INK}; }
 .sheet-head svg.land { position: absolute; left: 0; bottom: 0; width: 100%; height: 56px; }
 .sheet-head .banner { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: min(86%, 380px); height: 46px; }
 .sheet-head .banner svg { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -89,27 +84,22 @@ const CSS = `
 .sheet .rec.ready { background: #eef0d2; }
 .sheet .rec.done { opacity: .72; }
 body.sheet-open .hud-buttons { display: none; }
-.sheet .ill { position: relative; flex: none; margin: 4px 4px 0; border: 1.5px solid ${INK}; overflow: visible; display: flex; align-items: center; justify-content: center; flex-direction: column; color: #8f7f64;
-  background: repeating-linear-gradient(135deg, rgba(43,33,23,.07) 0 1px, transparent 1px 7px), linear-gradient(#c6dadb, #ead9b2 62%, #d8b989 62.5%, #e4c89a); }
-.sheet .ill img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.sheet .ill .q { font: 60px/1 "IM Fell English", serif; }
-.sheet .ill .what { font: italic 13px "IM Fell English", serif; background: rgba(243,233,207,.85); padding: 1px 8px; border: 1px solid rgba(43,33,23,.4); }
-.sheet .ill .banner { position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%); width: min(82%, 320px); height: 48px; z-index: 2; }
-.sheet .ill .banner svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.sheet .ill .banner h2 { position: absolute; inset: 0; margin: 0; font: 21px/48px "IM Fell English SC", serif; letter-spacing: .05em; text-align: center; white-space: nowrap; color: ${INK}; }
-.sheet .ill .close, .sheet .ill .back { position: absolute; top: 6px; z-index: 3; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: ${INK}; background: #f3e9cf; border: 1.5px solid ${INK}; padding: 3px 9px; cursor: pointer; }
-.sheet .ill .close { right: 6px; font: 18px/1 serif; padding: 3px 8px; }
-.sheet .ill .back { left: 6px; }
-.sheet.town .sheet-body { padding-top: 30px; }
 .sheet .kind { text-align: center; font: 14px "IM Fell English SC", serif; letter-spacing: .1em; }
 .sheet .flav { margin: 6px 8px 0; font: italic 15px/1.35 "IM Fell English", serif; text-align: center; }
 .sheet .purse { text-align: center; font: italic 13px "IM Fell English", serif; color: #5a4a36; margin-top: 6px; }
+.sheet .townhead { position: relative; flex: none; margin: 4px 4px 0; padding: 14px 0 0; display: flex; flex-direction: column; align-items: center; }
+.sheet .townhead .skyline { display: block; width: 100%; height: 96px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); }
+.sheet .townhead .emblem { margin-top: 18px; }
+.sheet .townhead .ribbon { width: min(86%, 330px); height: auto; margin-top: -6px; }
+.sheet .townhead .close, .sheet .townhead .back { position: absolute; top: 6px; z-index: 3; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: ${INK}; background: #f3e9cf; border: 1.5px solid ${INK}; padding: 3px 9px; cursor: pointer; }
+.sheet .townhead .close { right: 6px; font: 18px/1 serif; padding: 3px 8px; }
+.sheet .townhead .back { left: 6px; }
+.sheet .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.sheet .placecard .sign { display: flex; flex-direction: column; align-items: center; padding: 10px 4px 0; }
+.sheet .placecard .sign .ribbon { width: 100%; height: auto; margin-top: -4px; }
 .sheet .places { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .sheet .placecard { display: block; text-align: left; padding: 0; border: 1.5px solid ${INK}; background: #f6eed8; box-shadow: 2px 2px 0 ${INK}; cursor: pointer; color: ${INK}; touch-action: manipulation; }
-.sheet .placecard .ill { margin: 0; height: 92px; border: 0; border-bottom: 1.5px solid ${INK}; }
-.sheet .placecard .ill .q { font-size: 38px; }
-.sheet .placecard b { display: block; font: 16px "IM Fell English SC", serif; letter-spacing: .05em; padding: 5px 8px 0; }
-.sheet .placecard i { display: block; font: italic 13px/1.25 "IM Fell English", serif; color: #5a4a36; padding: 0 8px 7px; }
+.sheet .placecard i { display: block; font: italic 13px/1.25 "IM Fell English", serif; color: #5a4a36; padding: 0 8px 9px; text-align: center; }
 .sheet .placecard:disabled { opacity: .45; box-shadow: none; cursor: default; }
 .sheet .leave { display: block; margin: 14px auto 6px; width: 72%; padding: 8px; border: 1.5px solid ${INK}; font: 15px "IM Fell English SC", serif; letter-spacing: .08em; color: ${INK}; background: #e4d4ae; box-shadow: 2px 2px 0 ${INK}; cursor: pointer; }
 .sheet .say { margin: 2px 8px 0; padding: 4px 6px; font: italic 15px/1.35 "IM Fell English", serif; text-align: center; color: #3a3024; }
@@ -207,8 +197,8 @@ export class Sheet {
 
   hide(): void { if (!this.shown) return; this.root.classList.remove('on'); document.body.classList.remove('sheet-open'); this.shown = null; this.onClose(); }
 
-  /** A new page: the engraved frame, its picture (or a little landscape) with the title in its banner, the body. */
-  private page(title: string, sub: string, art: string): { page: HTMLElement; body: HTMLElement } {
+  /** A new page: the engraved frame, the landscape with the title in its banner, the body. */
+  private page(title: string, sub: string): { page: HTMLElement; body: HTMLElement } {
     const page = document.createElement('div'); page.className = 'sheet-page';
     const header = document.querySelector('.hud-header') as HTMLElement | null; // the page starts under the header
     page.style.top = (header ? header.offsetHeight : 90) + 8 + 'px';
@@ -216,9 +206,7 @@ export class Sheet {
       const f = document.createElement('span'); f.className = 'fleuron'; f.style.cssText = pos + (tf ? ';transform:' + tf : ''); f.innerHTML = FLEURON; page.append(f);
     }
     const head = document.createElement('div'); head.className = 'sheet-head';
-    const url = headerPicture(art); // its picture once drawn, else the little painted landscape
-    if (url) { head.classList.add('art'); const img = document.createElement('img'); img.className = 'art'; img.src = url; img.alt = ''; head.append(img); }
-    else head.innerHTML = LAND;
+    head.innerHTML = LAND;
     const banner = document.createElement('div'); banner.className = 'banner'; banner.innerHTML = BANNER;
     const h = document.createElement('h2'); h.textContent = title; banner.append(h);
     const p = document.createElement('div'); p.className = 'sub'; const ps = document.createElement('span'); ps.textContent = sub; p.append(ps);
@@ -276,7 +264,7 @@ export class Sheet {
     const sameTab = this.shown === 'sac' && this.root.dataset.tab === m.tab;
     this.shown = 'sac'; this.root.dataset.tab = m.tab;
     this.root.classList.add('tabbed'); this.root.classList.remove('book', 'town');
-    const { page, body } = this.page(m.title, m.sub, 'sac');
+    const { page, body } = this.page(m.title, m.sub);
     const tabs = document.createElement('div'); tabs.className = 'sheet-tabs'; tabs.setAttribute('role', 'tablist');
     for (const tb of m.tabs) {
       const b = document.createElement('button'); b.textContent = tb.label; b.setAttribute('role', 'tab');
@@ -335,7 +323,7 @@ export class Sheet {
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'almanac'; this.root.dataset.tab = open;
     this.root.classList.remove('tabbed', 'town'); this.root.classList.add('book');
-    const { page, body } = this.page(title, sub, 'almanac');
+    const { page, body } = this.page(title, sub);
     // thumb tabs on the edge of the book, one by use, with how many recipes are ready there
     const thumbs = document.createElement('div'); thumbs.className = 'thumbs'; thumbs.setAttribute('role', 'tablist');
     for (const g of groups) {
@@ -390,35 +378,29 @@ export class Sheet {
 
   // ---- towns ----
 
-  /** A town page: its picture at the head with the title in a banner, back (to the square) or close. */
-  private townPage(picture: string, what: string, title: string, height: number, back: { label: string; go: () => void } | null): HTMLElement {
+  /**
+   * A town page. At its head, for the square: the town's outline in one line, its name on a ribbon;
+   * for a place: its big emblem over its name on a ribbon. Back (to the square) or close.
+   */
+  private townPage(head: string, title: string, back: { label: string; go: () => void } | null): HTMLElement {
     const page = document.createElement('div'); page.className = 'sheet-page';
     const header = document.querySelector('.hud-header') as HTMLElement | null;
     page.style.top = (header ? header.offsetHeight : 90) + 8 + 'px';
     for (const [pos, tf] of [['left:-1px;top:-1px', ''], ['right:-1px;top:-1px', 'scaleX(-1)'], ['left:-1px;bottom:-1px', 'scaleY(-1)'], ['right:-1px;bottom:-1px', 'scale(-1)']]) {
       const f = document.createElement('span'); f.className = 'fleuron'; f.style.cssText = pos + (tf ? ';transform:' + tf : ''); f.innerHTML = FLEURON; page.append(f);
     }
-    const ill = this.illustration(picture, what, height);
-    const banner = document.createElement('div'); banner.className = 'banner'; banner.innerHTML = BANNER;
-    const h = document.createElement('h2'); h.textContent = title; banner.append(h); ill.append(banner);
-    if (back) { const b = document.createElement('button'); b.className = 'back'; b.textContent = '‹ ' + back.label; b.addEventListener('click', back.go); ill.append(b); }
+    const top = document.createElement('div'); top.className = 'townhead';
+    top.innerHTML = head + ribbon(title);
+    const h = document.createElement('h2'); h.className = 'vh'; h.textContent = title; top.append(h); // for screen readers
+    if (back) { const b = document.createElement('button'); b.className = 'back'; b.textContent = '‹ ' + back.label; b.addEventListener('click', back.go); top.append(b); }
     const x = document.createElement('button'); x.className = 'close'; x.textContent = '×'; x.setAttribute('aria-label', t('walk.cancel'));
-    x.addEventListener('click', () => this.hide()); ill.append(x);
+    x.addEventListener('click', () => this.hide()); top.append(x);
     const body = document.createElement('div'); body.className = 'sheet-body';
-    page.append(ill, body);
+    page.append(top, body);
     this.root.replaceChildren(page);
     this.root.classList.remove('tabbed', 'book'); this.root.classList.add('on', 'town');
     document.body.classList.add('sheet-open');
     return body;
-  }
-
-  /** A picture frame: the picture if it is drawn, else a "?" over a plain sky and ground. */
-  private illustration(key: string, what: string, height: number): HTMLElement {
-    const ill = document.createElement('div'); ill.className = 'ill'; ill.style.height = height + 'px';
-    const url = townPicture(key);
-    if (url) { const img = document.createElement('img'); img.src = url; img.alt = ''; ill.append(img); }
-    else { ill.innerHTML = `<span class="q">?</span>`; const w = document.createElement('span'); w.className = 'what'; w.textContent = what; ill.append(w); }
-    return ill;
   }
 
   /** What the keeper of a place says (no face: one would have to be drawn for every town). */
@@ -429,7 +411,7 @@ export class Sheet {
   /** Arriving in a town: its view, its name, a word of welcome, its places, the road on. */
   showTownSquare(m: TownSquare): void {
     this.shown = 'town';
-    const body = this.townPage(m.picture, m.pictureWhat, m.name, 250, null);
+    const body = this.townPage(skyline(m.seed, m.city), m.name, null);
     const k = document.createElement('div'); k.className = 'kind'; k.textContent = m.kind;
     const f = document.createElement('div'); f.className = 'flav'; f.textContent = m.flavour;
     const p = document.createElement('div'); p.className = 'purse'; p.textContent = m.purse;
@@ -439,10 +421,9 @@ export class Sheet {
     const grid = document.createElement('div'); grid.className = 'places';
     for (const pl of m.places) {
       const b = document.createElement('button'); b.className = 'placecard'; b.disabled = !pl.open;
-      const ill = this.illustration(pl.picture, pl.title, 92);
-      const tt = document.createElement('b'); tt.textContent = pl.title;
+      const sign = document.createElement('div'); sign.className = 'sign'; sign.innerHTML = emblem(pl.key, 52) + ribbon(pl.title);
       const ln = document.createElement('i'); ln.textContent = pl.line;
-      b.append(ill, tt, ln);
+      b.setAttribute('aria-label', pl.title); b.append(sign, ln);
       if (pl.open) b.addEventListener('click', pl.go);
       grid.append(b);
     }
@@ -457,7 +438,7 @@ export class Sheet {
     const same = this.shown === 'town' && this.root.dataset.tab === m.key + (m.tab ?? '');
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'town'; this.root.dataset.tab = m.key + (m.tab ?? '');
-    const body = this.townPage(m.picture, m.pictureWhat, m.title, 190, m.back);
+    const body = this.townPage(emblem(m.key, 76), m.title, m.back);
     this.keeper(body, m.say);
     if (m.rumor) { const sc = document.createElement('div'); sc.className = 'scroll'; sc.textContent = m.rumor; body.append(sc); }
     if (m.actions) { const w = document.createElement('div'); w.className = 'innbed'; w.append(this.buttons(m.actions)); body.append(w); if (m.note) { const n = document.createElement('p'); n.className = 'hint'; n.textContent = m.note; body.append(n); } }
@@ -510,13 +491,13 @@ export class Sheet {
 
 /** The square of a town, on arrival. */
 export interface TownSquare {
-  name: string; kind: string; flavour: string; purse: string; picture: string; pictureWhat: string;
+  name: string; seed: string; city: boolean; kind: string; flavour: string; purse: string;
   placesTitle: string; leave: string; rest: string; restNew: boolean;
-  places: { key: string; title: string; line: string; picture: string; open: boolean; go: () => void }[];
+  places: { key: string; title: string; line: string; open: boolean; go: () => void }[];
 }
 /** A place in a town (inn, merchant, smith, tavern). */
 export interface TownPlace {
-  key: string; title: string; picture: string; pictureWhat: string; say: string;
+  key: string; title: string; say: string;
   back: { label: string; go: () => void };
   rumor?: string;
   actions?: { label: string; sub?: string; use: (() => void) | null }[]; note?: string;

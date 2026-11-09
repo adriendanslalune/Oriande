@@ -23,7 +23,7 @@ Keep exactly the same line and tone from one picture to the next.
 Reply "ready" and wait for the subjects.
 ```
 
-Style choisi par Adrien : **gravure à la Jules Verne, sépia, dépouillée**, comme les bourgs (`towns.md`). Pour un objet seul : « one object alone, centred, on plain cream paper ».
+Style choisi par Adrien : **gravure à la Jules Verne, sépia, dépouillée**, dans l'esprit de la carte. Pour un objet seul : « one object alone, centred, on plain cream paper ».
 
 
 ## Les objets

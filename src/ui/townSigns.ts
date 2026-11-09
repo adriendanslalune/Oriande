@@ -154,23 +154,33 @@ const SIGNS = new Map(Object.entries(urls).map(([path, url]) => [path.split('/')
 export const emblem = (key: string, size = 64): string =>
   `<svg class="emblem" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">${EMBLEMS[key] ?? ''}</svg>`;
 
-/** Where the empty band lies on each board (height of its middle, share of the picture), and its width. */
-const BAND: Record<string, [number, number]> = {
-  'inn-village': [0.385, 0.66], 'inn-city': [0.39, 0.66], 'shop-village': [0.405, 0.66],
-  'shop-city': [0.39, 0.66], smith: [0.395, 0.62], tavern: [0.405, 0.6],
+let ribbons = 0;
+
+/**
+ * The empty band on each board, read on the pictures (shares of their size): where its middle line
+ * starts and ends (x0, x1, at the height yEnd) and how high it rises in the centre (yMid). The name is
+ * written along that curve, as a sign painter would.
+ */
+const BAND: Record<string, [number, number, number, number]> = {
+  'inn-village': [0.15, 0.89, 0.42, 0.375], 'inn-city': [0.14, 0.89, 0.43, 0.385],
+  'shop-village': [0.13, 0.87, 0.44, 0.405], 'shop-city': [0.14, 0.89, 0.43, 0.385],
+  smith: [0.14, 0.87, 0.435, 0.39], tavern: [0.16, 0.88, 0.43, 0.395],
 };
 
 /** A place's sign with its name: the hanging board if drawn, else the emblem over a ribbon. */
 export function shopSign(sign: string, key: string, title: string, size: number): string {
   const url = SIGNS.get(sign);
   if (!url) return emblem(key, size) + ribbon(title);
-  const w = Math.round(size * 2.9), [y, bw] = BAND[sign] ?? [0.39, 0.62];
-  const px = Math.min(Math.round(w * 0.085), Math.floor((w * bw) / (title.length * 0.5))); // a long name, smaller
-  return `<div class="shopsign" style="width:${w}px"><img src="${url}" alt=""><span style="top:${y * 100}%;font-size:${px}px;width:${Math.round(bw * 100)}%">${esc(title)}</span></div>`;
+  const S = 512, [x0, x1, yEnd, yMid] = BAND[sign] ?? [0.14, 0.88, 0.43, 0.39], id = 'sg' + ++ribbons;
+  const yc = 2 * yMid - yEnd; // the control point that makes the curve pass through yMid in its middle
+  const room = (x1 - x0) * S * 0.92, px = Math.min(40, Math.floor(room / (title.length * 0.55))); // a long name, smaller
+  const fit = title.length * px * 0.58 > room ? ` textLength="${Math.round(room)}" lengthAdjust="spacingAndGlyphs"` : '';
+  return `<div class="shopsign" style="width:${Math.round(size * 2.9)}px"><img src="${url}" alt="">
+    <svg viewBox="0 0 ${S} ${S}" aria-hidden="true"><path id="${id}" d="M${x0 * S} ${yEnd * S}Q${S * (x0 + x1) / 2} ${yc * S} ${x1 * S} ${yEnd * S}" fill="none"/>
+    <text font-family="'IM Fell English SC', serif" font-size="${px}" letter-spacing="1" fill="#3a2a1a" dominant-baseline="middle"><textPath href="#${id}" startOffset="50%" text-anchor="middle"${fit}>${esc(title)}</textPath></text></svg></div>`;
 }
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-let ribbons = 0;
 
 /**
  * A vintage ribbon with a title written along its curve: a slightly arched band, its two tails

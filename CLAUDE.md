@@ -366,7 +366,7 @@ sur le téléphone de Doudou via GitLab Pages.
    `src/assets/skylines/<village|city>-<n>.webp`, une tirée par bourg ; la silhouette codée en repli), nom sur une **banderole vintage** (`ribbon`, texte sur la courbe), « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
    (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem`) sur sa banderole en repli ; **enseignes suspendues** ChatGPT reçues (`shopSign`,
    `docs/emblems.md`, `src/assets/signs/<inn-village|inn-city|shop-village|shop-city|smith|tavern>.webp`, nom écrit par
-   le jeu dans le bandeau vide de la planche, pour l'i18n : `BAND` donne sa place sur chaque image) (ce qu'un village n'a pas, forge et
+   le jeu le long de la courbe du bandeau vide de la planche (SVG `textPath`), pour l'i18n : `BAND` donne la courbe sur chaque image) (ce qu'un village n'a pas, forge et
    taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son emblème et sa banderole, la réplique de
    celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**

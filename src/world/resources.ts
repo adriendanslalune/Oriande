@@ -27,3 +27,14 @@ export function resourceAt(x: number, y: number): Resource | null {
   if (hu < 0.32) return 'pierre'; // dry sands and gravels
   return 'fibre'; // grass
 }
+
+/**
+ * What else may come with a handful of this at (x, y), and the chance of it: berries and herbs
+ * in the grass (not in the cold), mushrooms under damp trees.
+ */
+export function extrasAt(x: number, y: number, res: Resource): [string, number][] {
+  const v = altitude(x, y), t = temperature(x, y, v), hu = humidity(x, y), cold = coldness(t) > 0.5;
+  if (res === 'fibre') return cold ? [['herbes', 0.2]] : [['baies', 0.35], ['herbes', 0.25]];
+  if (res === 'bois') return hu > 0.6 && !cold ? [['champignon', 0.35]] : [['baies', 0.15]];
+  return [];
+}

@@ -1,13 +1,13 @@
 // Save and load the GameState in localStorage: small, versioned, robust.
 // What is saved: position, leagues, zoom, discovered places, the walk in progress, revealed fog
 // cells (run-length encoded) and footsteps (delta encoded). Never anything drawn.
-import type { Carcass, Fight, GameState, Journey, Work } from './state';
+import type { Camp, Carcass, Fight, GameState, Journey, Work } from './state';
 import { START_HP, START_ITEMS, speciesById } from './combat';
 
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -39,6 +39,9 @@ export interface SaveFile {
   work: Work | null;
   // v7: the last animals killed
   carcasses: Carcass[];
+  // v8: survival
+  food: number;
+  camp: Camp | null;
 }
 
 // ---- fog cells: run-length encoding by row ----
@@ -129,6 +132,7 @@ export function toSaveFile(s: GameState, now = new Date()): SaveFile {
     fight: s.fight ? { ...s.fight, home: [s.fight.home[0], s.fight.home[1]] } : null, gone: { ...s.gone },
     work: s.work ? { ...s.work } : null,
     carcasses: s.carcasses.map((c) => ({ ...c })),
+    food: s.food, camp: s.camp ? { ...s.camp } : null,
   };
 }
 
@@ -188,7 +192,12 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> |
     save.carcasses = [];
     save.v = 7;
   }
-  // next: if (save.v === 7) { ...; save.v = 8; }
+  if (save.v === 7) {
+    // v8: survival: a belly to fill (full to start with), campfires
+    Object.assign(save, { food: 100, camp: null });
+    save.v = 8;
+  }
+  // next: if (save.v === 8) { ...; save.v = 9; }
   return save;
 }
 
@@ -221,8 +230,11 @@ export function fromSaveFile(json: string): GameState {
     || !(work.left === null || isNum(work.left)) || !(work.res === null || typeof work.res === 'string'))) throw new Error('bad work');
   const carcasses = f.carcasses as Carcass[];
   if (!Array.isArray(carcasses) || !carcasses.every((c) => c && typeof c === 'object' && !!speciesById(c.species) && [c.x, c.y, c.dir, c.t].every(isNum))) throw new Error('bad carcasses');
+  const camp = f.camp as Camp | null;
+  if (!isNum(f.food) || (camp !== null && (typeof camp !== 'object' || ![camp.x, camp.y, camp.until].every(isNum)))) throw new Error('bad survival');
   return {
-    version: 7, work: work ? { ...work } : null, carcasses: carcasses.map((c) => ({ ...c })),
+    version: 8, work: work ? { ...work } : null, carcasses: carcasses.map((c) => ({ ...c })),
+    food: Math.max(0, Math.min(100, f.food as number)), camp: camp ? { ...camp } : null,
     hp: Math.max(1, f.hp as number), maxHp: f.maxHp as number, gold: f.gold as number,
     items: items as Record<string, number>, seed: (f.seed as number) >>> 0, calmUntil: f.calmUntil as number,
     rest: [rest[0] as number, rest[1] as number],

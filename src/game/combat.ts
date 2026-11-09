@@ -9,7 +9,9 @@ import { TILE } from '../world/terrain';
 import { walkable } from './route';
 import type { Fight, GameState } from './state';
 
-import { ITEMS, itemById, weaponOf } from './craft';
+import { ITEMS, has, itemById, weaponOf } from './craft';
+import { CAMP_SAFE, nearCamp } from './camp';
+import { HUNGRY, eat } from './survival';
 import { between, roll } from './dice';
 export { ITEMS, itemById, roll };
 export const speciesById = (id: string): Species | undefined => SPECIES.find((s) => s.id === id);
@@ -87,7 +89,7 @@ export type FightEvent =
   | { kind: 'charge'; species: string }
   | { kind: 'hit'; who: 'you' | 'foe'; damage: number; x: number; y: number }
   | { kind: 'miss'; who: 'you' | 'foe'; x: number; y: number }
-  | { kind: 'killed'; species: string; meat: number; x: number; y: number }
+  | { kind: 'killed'; species: string; meat: number; hide: number; bone: number; x: number; y: number }
   | { kind: 'escaped'; species: string }
   | { kind: 'gaveUp'; species: string }
   | { kind: 'lost'; goldLost: number };
@@ -139,9 +141,9 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
   for (const k in s.gone) if (s.gone[k] <= t) delete s.gone[k];
   if (!s.fight) {
     // life comes back, little by little
-    if (s.hp < s.maxHp && roll(s) < dt / REGEN) s.hp += 1;
+    if (s.hp < s.maxHp && s.food >= HUNGRY && roll(s) < dt / REGEN) s.hp += 1; // not on an empty belly
     // a dangerous animal near, and the explorer not in the safety of a town: it charges
-    if (t >= s.calmUntil && !nearTown(s.x, s.y)) {
+    if (t >= s.calmUntil && !nearTown(s.x, s.y) && !nearCamp(s, s.x, s.y, t, CAMP_SAFE)) { // none comes near a fire
       const threats = beastsNear(s, s.x, s.y, AGGRO, t).filter((b) => b.species.danger >= 2);
       if (threats.length) {
         threats.sort((a, b) => Math.hypot(a.x - s.x, a.y - s.y) - Math.hypot(b.x - s.x, b.y - s.y));
@@ -175,12 +177,17 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
       f.hp = Math.max(0, f.hp - dmg);
       out.push({ kind: 'hit', who: 'you', damage: dmg, x: f.x, y: f.y });
       if (f.hp <= 0) {
-        const meat = Math.max(1, Math.min(6, Math.round(sp.food / 2)));
+        // with a knife, the explorer cuts more meat, and takes the hide and a bone
+        const knife = has(s, 'couteau');
+        const meat = Math.max(1, Math.min(6, Math.round(sp.food / 2))) + (knife ? 1 : 0);
         s.items.viande = (s.items.viande ?? 0) + meat;
+        const hide = knife && sp.size !== 'small' ? (sp.size === 'large' ? 2 : 1) : 0, bone = knife ? 1 : 0;
+        if (hide) s.items.peau = (s.items.peau ?? 0) + hide;
+        if (bone) s.items.os = (s.items.os ?? 0) + bone;
         // it lies where it fell, facing away from the explorer
         s.carcasses.push({ species: f.species, x: f.x, y: f.y, dir: f.x >= s.x ? 1 : -1, t });
         if (s.carcasses.length > CARCASSES) s.carcasses.splice(0, s.carcasses.length - CARCASSES);
-        out.push({ kind: 'killed', species: f.species, meat, x: f.x, y: f.y });
+        out.push({ kind: 'killed', species: f.species, meat, hide, bone, x: f.x, y: f.y });
         end(s, t, RESPAWN);
         return out;
       }
@@ -189,7 +196,7 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
   if (close && back && f.cdFoe === 0) {
     f.cdFoe = FOE_PACE;
     if (roll(s) < FOE_HIT) {
-      const dmg = between(s, sp.damage ?? [1, 2]);
+      const dmg = Math.max(1, between(s, sp.damage ?? [1, 2]) - (has(s, 'veste') ? 1 : 0)); // a leather jacket takes the edge off
       s.hp = Math.max(0, s.hp - dmg);
       out.push({ kind: 'hit', who: 'foe', damage: dmg, x: s.x, y: s.y });
       if (s.hp <= 0) defeat(s, t, out);
@@ -198,15 +205,9 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
   return out;
 }
 
-/** Eat or drink something from the pack: life comes back. Returns what it gave (0 if nothing). */
+/** Eat or drink something from the pack: life back (see survival.ts). Returns the life it gave (0 if nothing). */
 export function useItem(s: GameState, id: string): number {
-  const it = itemById(id);
-  if (!it || it.heal <= 0 || !(s.items[id] > 0) || s.hp >= s.maxHp) return 0;
-  s.items[id] -= 1;
-  if (s.items[id] <= 0) delete s.items[id];
-  const amount = Math.min(it.heal, s.maxHp - s.hp);
-  s.hp += amount;
-  return amount;
+  return eat(s, id)?.heal ?? 0;
 }
 
 /** Go after this animal (a tap and "Hunt"): the fight starts, the explorer walks to it. */

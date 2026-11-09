@@ -11,6 +11,7 @@ const CSS = `
 .hud-header .t .coords, .hud-header .t .sky { font: italic 13px "IM Fell English", serif; letter-spacing: 0; }
 .hud-header .t .life { font: 700 12px "Old Standard TT", serif; letter-spacing: .04em; }
 .hud-header .t .life b { color: #a83428; font-weight: 700; }
+.hud-header .t .life.hungry { color: #a83428; }
 .hud-header .c { text-align: center; flex: none; }
 .hud-header .c canvas { display: block; width: 92px; height: 46px; }
 .hud-header .c .time { font: 700 13px/1.2 "Old Standard TT", serif; letter-spacing: .04em; }
@@ -135,13 +136,14 @@ export class Hud {
     if (this.coords.textContent !== text) this.coords.textContent = text;
   }
 
-  /** The explorer's life and purse, under the weather. */
-  setLife(hp: number, max: number, gold: number): void {
-    const key = hp + '/' + max + '/' + gold;
+  /** The explorer's life, belly and purse, under the weather (the belly in red when hungry). */
+  setLife(hp: number, max: number, gold: number, food = 100): void {
+    const f = Math.round(food), key = hp + '/' + max + '/' + gold + '/' + f;
     if (this.life.dataset.v === key) return;
     this.life.dataset.v = key;
     const heart = document.createElement('b'); heart.textContent = '♥ ';
-    this.life.replaceChildren(heart, t('hud.life', { hp, max, n: gold }));
+    this.life.replaceChildren(heart, t('hud.life', { hp, max, n: gold, f }));
+    this.life.classList.toggle('hungry', f < 30);
   }
 
   /** The local hour (and its moment of the day) under the dial. */

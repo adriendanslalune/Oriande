@@ -92,13 +92,13 @@ describe('making things', () => {
 
   it('every recipe asks for gathered things only, and has names; tools cannot be eaten', () => {
     for (const r of RECIPES) {
-      expect(ITEMS.find((i) => i.id === r.id)?.kind).toBe('tool');
-      for (const k of Object.keys(r.needs)) expect(ITEMS.find((i) => i.id === k)?.kind).toBe('material');
+      expect(r.id === 'feu' || !!ITEMS.find((i) => i.id === r.id)).toBe(true); // a tool, a remedy, or the fire
+      for (const k of Object.keys(r.needs)) expect(['material', 'food']).toContain(ITEMS.find((i) => i.id === k)?.kind);
     }
     for (const lang of ['fr', 'en'] as const) {
       setLang(lang);
       for (const it of ITEMS) expect(t('item.' + it.id + '.name')).not.toBe('item.' + it.id + '.name');
-      for (const k of ['pack.make', 'pack.tools', 'pack.materials', 'pack.food', 'work.harvest', 'work.fish', 'work.needRod']) expect(t(k)).not.toBe(k);
+      for (const k of ['pack.make', 'pack.tools', 'pack.materials', 'pack.food', 'work.harvest', 'work.fish', 'work.needRod', 'item.feu.name', 'pack.fire', 'pack.cook', 'pack.sleep', 'hunger.title', 'sick.title', 'fire.title']) expect(t(k)).not.toBe(k);
     }
     setLang('fr');
     const s = game(); s.hp = 5; s.items.bois = 2;

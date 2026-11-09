@@ -1,29 +1,74 @@
 {
-  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made or bought once, kept). heal: life given back when eaten. price: in écus at a merchant (who buys back food and gathered things for less, see towns.json). Meat comes from hunting, fish from fishing; the cutlass and the sabre from a city's smith.",
+  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made or bought once, kept). heal: life given back when eaten. food: how much it fills the belly (out of 100). sick: chance that it upsets the stomach eaten as it is (raw), which costs life. cooks: what a campfire makes of it. price: in écus at a merchant (who buys back food and gathered things for less, see towns.json).",
   "items": [
     {
       "id": "remede",
       "kind": "food",
       "heal": 8,
+      "food": 0,
       "price": 8
     },
     {
       "id": "biscuit",
       "kind": "food",
-      "heal": 3,
+      "heal": 2,
+      "food": 20,
       "price": 3
     },
     {
       "id": "viande",
       "kind": "food",
+      "heal": 0,
+      "food": 15,
+      "sick": 0.25,
+      "cooks": "viande_cuite",
+      "price": 2
+    },
+    {
+      "id": "viande_cuite",
+      "kind": "food",
       "heal": 4,
-      "price": 3
+      "food": 35,
+      "price": 4
     },
     {
       "id": "poisson",
       "kind": "food",
+      "heal": 0,
+      "food": 10,
+      "sick": 0.15,
+      "cooks": "poisson_cuit",
+      "price": 2
+    },
+    {
+      "id": "poisson_cuit",
+      "kind": "food",
       "heal": 3,
+      "food": 25,
       "price": 3
+    },
+    {
+      "id": "baies",
+      "kind": "food",
+      "heal": 1,
+      "food": 8,
+      "price": 1
+    },
+    {
+      "id": "champignon",
+      "kind": "food",
+      "heal": 0,
+      "food": 8,
+      "sick": 0.2,
+      "cooks": "champignon_grille",
+      "price": 1
+    },
+    {
+      "id": "champignon_grille",
+      "kind": "food",
+      "heal": 1,
+      "food": 14,
+      "price": 2
     },
     {
       "id": "bois",
@@ -39,6 +84,24 @@
     },
     {
       "id": "fibre",
+      "kind": "material",
+      "heal": 0,
+      "price": 1
+    },
+    {
+      "id": "herbes",
+      "kind": "material",
+      "heal": 0,
+      "price": 2
+    },
+    {
+      "id": "peau",
+      "kind": "material",
+      "heal": 0,
+      "price": 4
+    },
+    {
+      "id": "os",
       "kind": "material",
       "heal": 0,
       "price": 1
@@ -66,6 +129,36 @@
       "kind": "tool",
       "heal": 0,
       "price": 10
+    },
+    {
+      "id": "hachette",
+      "kind": "tool",
+      "heal": 0,
+      "price": 8
+    },
+    {
+      "id": "pioche",
+      "kind": "tool",
+      "heal": 0,
+      "price": 8
+    },
+    {
+      "id": "couteau",
+      "kind": "tool",
+      "heal": 0,
+      "price": 6
+    },
+    {
+      "id": "hamecon",
+      "kind": "tool",
+      "heal": 0,
+      "price": 5
+    },
+    {
+      "id": "veste",
+      "kind": "tool",
+      "heal": 0,
+      "price": 20
     },
     {
       "id": "coutelas",

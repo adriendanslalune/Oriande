@@ -253,7 +253,7 @@ export class WeatherLayer {
   }
 
   /** The lights of the night, in screen space: [x, y, radius, kind (0 torch, 1 window, 2 no torch)]. */
-  lights(v: View, screen: Screen, world: World, seen: (x: number, y: number) => boolean, explorer: [number, number], now: number, torch = true): [number, number, number, number][] {
+  lights(v: View, screen: Screen, world: World, seen: (x: number, y: number) => boolean, explorer: [number, number], now: number, torch = true, fire: [number, number] | null = null): [number, number, number, number][] {
     const d = sky(v.x).darkness, out: [number, number, number, number][] = [];
     if (d < 0.12) return out;
     const t = now / 1000, z = v.zoom;
@@ -261,6 +261,7 @@ export class WeatherLayer {
     // the torch's light; without one, only the eyes grown used to the dark
     if (torch) out.push([ex, ey - 22 * z / 1.3, (62 + Math.sin(t * 11) * 2 + Math.sin(t * 17) * 1.5) * z, 0]);
     else out.push([ex, ey - 12 * z / 1.3, 20 * z, 2]);
+    if (fire) { const [fx, fy] = screen(fire[0], fire[1]); out.push([fx, fy - 6 * z, (80 + Math.sin(t * 9) * 3) * z, 0]); } // the campfire's glow
     const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
     for (let tj = Math.floor(ay / TILE) - 1; tj <= Math.floor(by / TILE) + 1; tj++) for (let ti = Math.floor(ax / TILE) - 1; ti <= Math.floor(bx / TILE) + 1; ti++) {
       const b = settlement(ti, tj);

@@ -49,7 +49,7 @@ export interface Work {
 }
 
 export interface GameState {
-  version: 7;
+  version: 8;
   x: number;
   y: number;
   /** leagues walked */
@@ -84,7 +84,14 @@ export interface GameState {
   work: Work | null;
   /** the last animals killed, lying where they fell (the most recent last; only a few are kept) */
   carcasses: Carcass[];
+  /** how full the belly is, 0 (starving) to 100 */
+  food: number;
+  /** the campfire the explorer laid, if any: where, and until when it burns (world seconds) */
+  camp: Camp | null;
 }
+
+/** A campfire on the map. */
+export interface Camp { x: number; y: number; until: number }
 
 /** A killed animal left on the map. */
 export interface Carcass { species: string; x: number; y: number; dir: number; t: number }

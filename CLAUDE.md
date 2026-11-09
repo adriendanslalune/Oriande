@@ -48,7 +48,7 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v7 (v3 à v6 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses) ; les sauvegardes v1/v2
+- Échelle des sauvegardes : v8 (v3 à v7 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses, faim et feu) ; les sauvegardes v1/v2
   (monde plat) sont mises de côté.
 
 Règles qui restent :
@@ -304,7 +304,20 @@ sur le téléphone de Doudou via GitLab Pages.
    qui part en cloche jusqu'à 26 du bord et tombe avec une éclaboussure et des ronds ; puis bouchon qui flotte), 7 s, 65 % de chances : un poisson saute au bout de la ligne, +1 poisson
    (rend 3). Le dessin de l'explorateur suit : mains vides / bâton / lance à pointe de silex, torche la nuit
    seulement s'il en a une. Travail en cours dans `GameState.work` (sauvegarde **v6**, v5 migrée en gardant
-   le sac). Les vies et coups des animaux
+   le sac).
+   **Survie** (demande d'Adrien, priorité avant donjons et lore ; climat — froid, chaleur, soif — plus tard) :
+   **faim** (`game/survival.ts`) : `food` 0-100, −1 toutes les 18 s (×1,6 en marche ou en combat : plein → vide en
+   ~30 min) ; sous 30, alerte et la vie ne remonte plus seule ; à 0, −1 PV de temps en temps, puis évanoui et
+   ramené au dernier bourg (moitié des écus). En-tête : « ventre 72 % », en rouge quand on a faim. Chaque
+   nourriture a `food` (ventre), `heal`, et `sick` si crue (viande 25 %, poisson 15 %, champignons 20 % : −3 PV).
+   **Feu de camp** (`game/camp.ts`, recette 3 bois + 2 pierres, posé là où l'on est, brûle 15 min, dessiné avec
+   fumée, éclaire la nuit) : on y **cuit** (viande → grillée, poisson, champignons ; bien plus nourrissant et sans
+   risque), on y **dort** (toute la vie, coûte 20 de ventre), aucune bête ne charge à moins de 140. **Outils** :
+   hachette (bois), pioche (pierres), couteau de silex (fibres ; à la chasse +1 viande, peaux, os) : +2 et 40 % plus
+   vite ; hameçon d'os (le poisson mord à 85 %) ; veste de cuir (4 peaux : −1 par coup reçu). **Ressources** :
+   baies et herbes dans l'herbe, champignons sous les arbres humides (en plus de la récolte, par chance) ;
+   remède à fabriquer (3 herbes + 1 baies). Un seul billet par récolte (« +3 bois · +1 champignons »).
+   Sauvegarde **v8** (`food`, `camp`). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).
@@ -317,7 +330,8 @@ sur le téléphone de Doudou via GitLab Pages.
    (coutelas 4-8, sabre 5-10 : mieux que ce qu'on fabrique) et une **taverne** (une rumeur sur Oriande parmi 12,
    `rumor.<id>` en i18n, qui change toutes les demi-heures). Les écus viennent de la vente de ce qu'on chasse,
    pêche et récolte.
-6. **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),
+6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).
+   **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),
    un monstre par salle, un coffre, un indice sur Oriande à la fin.
 7. **Découvertes** : 5 découvertes illustrées (placeholders), fiche avec texte
    fr/en, ajoutées au carnet de l'explorateur.

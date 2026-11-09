@@ -138,8 +138,9 @@ describe('fights on the map', () => {
     s.hp = 5; s.items = { remede: 1, viande: 2 };
     expect(useItem(s, 'remede')).toBe(8);
     expect(s.items.remede).toBeUndefined();
-    expect(useItem(s, 'viande')).toBe(4);
-    expect(s.items.viande).toBe(1);
+    s.items.viande_cuite = 2; delete s.items.viande;
+    expect(useItem(s, 'viande_cuite')).toBe(4);
+    expect(s.items.viande_cuite).toBe(1);
     s.hp = 10; s.calmUntil = 1e12; // no charge in this test
     for (let k = 0; k < 1200; k++) stepFight(s, 0.5, T + k * 0.5);
     expect(s.hp).toBeGreaterThan(10);
@@ -170,12 +171,14 @@ describe('saving', () => {
 
   it('older saves are carried over: v3 gets life and an empty pack, v4 drops its monster fight', () => {
     const v3 = { v: 3, at: '', x: 10, y: 20, leagues: 5, zoom: 1, named: [], journey: null, seen: '', trace: [10, 20] };
-    expect(migrate(v3)!.v).toBe(7);
+    expect(migrate(v3)!.v).toBe(8);
     const s = fromSaveFile(JSON.stringify(v3));
     expect(s.hp).toBe(START_HP);
     expect(s.items).toEqual({}); // nothing at all, as a new game
     expect(s.work).toBeNull();
     expect(s.carcasses).toEqual([]);
+    expect(s.food).toBe(100);
+    expect(s.camp).toBeNull();
     expect(s.fight).toBeNull();
     const v4 = { ...v3, v: 4, hp: 7, maxHp: 20, gold: 3, items: {}, seed: 1, calmUntil: 9, rest: [1, 2], battle: { monster: 'rodeur', hp: 4 } };
     const s4 = fromSaveFile(JSON.stringify(v4));

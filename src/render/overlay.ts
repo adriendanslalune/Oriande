@@ -11,7 +11,8 @@ import { monumentsNear } from '../world/monuments';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, lifeOf, presence, type Animal, type Look } from '../world/fauna';
 import { CONTACT, speciesById } from '../game/combat';
-import { FISH_SECONDS, HARVEST_SECONDS, has, weaponOf } from '../game/craft';
+import { FISH_SECONDS, has, weaponOf, workSeconds } from '../game/craft';
+import { campLit } from '../game/camp';
 import { drawAnimal, drawSkeleton } from './animals';
 import { DPR } from '../ui/screen';
 import { isGL } from './glPainter';
@@ -175,7 +176,7 @@ export class Overlay {
     }
 
     this.animate(s, v, screen, world, tiles, now, dt);
-    if (v.zoom >= 0.45) { this.stainsAndCarcasses(s, v, screen, now); this.animals(s, v, screen, ax, ay, bx, by, now, false); }
+    if (v.zoom >= 0.45) { this.stainsAndCarcasses(s, v, screen, now); this.campfire(s, v, screen, now); this.animals(s, v, screen, ax, ay, bx, by, now, false); }
 
     // The sky: clouds, rain, snow, sand, fog, lightning, dawn, dusk and night.
     this.weather.draw(ctx, v, screen, world, now, dt, (X, Y) => isSeen(s, X, Y));
@@ -200,7 +201,8 @@ export class Overlay {
     }
     fg.globalAlpha = 1;
     // the night over everything (paper included), with the lights punched out of it
-    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now, has(s, 'torche'));
+    const fire = campLit(s, worldTime()) ? [s.camp!.x, s.camp!.y] as [number, number] : null;
+    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now, has(s, 'torche'), fire);
     fg.globalCompositeOperation = 'source-over';
     this.weather.paintNight(fg, v, 4, lights);
     ctx.imageSmoothingEnabled = true; ctx.drawImage(fog, 0, 0, v.W, v.H);
@@ -324,7 +326,7 @@ export class Overlay {
     const [wx, wy] = w ? screen(w.x, w.y) : [0, 0];
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12 && has(s, 'torche'), {
       weapon: weaponOf(s).id,
-      work: w ? { kind: w.kind, res: w.res, at: [wx, wy], done: 1 - (w.left ?? 0) / (w.kind === 'fish' ? FISH_SECONDS : HARVEST_SECONDS) } : null,
+      work: w ? { kind: w.kind, res: w.res, at: [wx, wy], done: 1 - (w.left ?? 0) / (w.kind === 'fish' ? FISH_SECONDS : workSeconds(s, w.res)) } : null,
     });
     // the animal's bite or claws on the explorer: red slashes, for a moment
     const cp = (now - this.blows.hurt) / 320;
@@ -678,6 +680,25 @@ export class Overlay {
       ctx.beginPath(); ctx.ellipse(x + c.dir * L * 0.05, y + L * 0.04, L * (0.35 + spread * 0.3), L * (0.09 + spread * 0.08), 0, 0, Math.PI * 2); ctx.fill();
       drawSkeleton(ctx, sp.look, x, y, scale, c.dir, sky(c.x).darkness > 0.5);
     }
+  }
+
+  /** The campfire, while it burns: a ring of stones, logs, flames that flicker, smoke drifting off. */
+  private campfire(s: GameState, v: View, screen: (x: number, y: number) => [number, number], now: number): void {
+    if (!s.camp || !campLit(s, worldTime()) || !isSeen(s, s.camp.x, s.camp.y)) return;
+    const { ctx } = this, [x, y] = screen(s.camp.x, s.camp.y), k = v.zoom / START_ZOOM * 1.6, T = now / 1000;
+    const left = (s.camp.until - worldTime()) / 900; // dies down at the end
+    ctx.fillStyle = 'rgba(42,36,29,.25)'; ctx.beginPath(); ctx.ellipse(x, y, 7 * k, 2.6 * k, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = INK; ctx.lineWidth = 0.8; ctx.fillStyle = 'rgb(150,144,132)';
+    for (let a = 0; a < 8; a++) { const an = a / 8 * Math.PI * 2; ctx.beginPath(); ctx.ellipse(x + Math.cos(an) * 6 * k, y + Math.sin(an) * 2.4 * k, 1.5 * k, 1 * k, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle = 'rgb(90,62,38)'; ctx.lineWidth = 1.6 * k; ctx.beginPath(); ctx.moveTo(x - 4 * k, y + 1 * k); ctx.lineTo(x + 4 * k, y - 1 * k); ctx.moveTo(x - 4 * k, y - 1 * k); ctx.lineTo(x + 4 * k, y + 1 * k); ctx.stroke();
+    const h = (6 + Math.min(1, left * 4) * 4) * k, fl = Math.sin(T * 11) * 0.8 + Math.sin(T * 17) * 0.5;
+    ctx.fillStyle = 'rgba(232,120,40,.95)'; ctx.beginPath(); ctx.moveTo(x - 3.2 * k, y); ctx.quadraticCurveTo(x - 2.5 * k + fl * k, y - h * 0.6, x + fl * k * 0.6, y - h); ctx.quadraticCurveTo(x + 2.6 * k + fl * k, y - h * 0.5, x + 3.2 * k, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,214,110,.95)'; ctx.beginPath(); ctx.moveTo(x - 1.6 * k, y); ctx.quadraticCurveTo(x - 1 * k - fl * k * 0.4, y - h * 0.4, x - fl * k * 0.3, y - h * 0.6); ctx.quadraticCurveTo(x + 1.4 * k, y - h * 0.3, x + 1.6 * k, y); ctx.closePath(); ctx.fill();
+    for (let n = 0; n < 4; n++) { // smoke
+      const u = ((T * 0.35 + n / 4) % 1), sx = x + Math.sin(T * 0.8 + n * 2) * 3 * k + u * 8 * k, sy = y - h - u * 26 * k;
+      ctx.globalAlpha = (1 - u) * 0.35; ctx.fillStyle = 'rgb(120,116,110)'; ctx.beginPath(); ctx.arc(sx, sy, (1.5 + u * 4) * k, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** How the last fighting animal strikes (for the mark its blow leaves). */

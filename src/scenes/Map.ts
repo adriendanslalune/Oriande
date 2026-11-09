@@ -11,7 +11,7 @@ import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, equip, f
 import { resourceAt } from '../world/resources';
 import { iconOfResource } from '../ui/icons';
 import { Sheet, type RecipeCard, type Slot } from '../ui/sheet';
-import { DISHES, buy, eatDish, flavourOf, goods, kindOf, regionOf, rumor, sell, sellPrice, sellable, sleep, townAt, weaponDamage } from '../game/town';
+import { DISHES, bedHelps, buy, eatDish, flavourOf, goods, kindOf, regionOf, rumor, sell, sellPrice, sellable, settleAt, sleep, townAt, weaponDamage } from '../game/town';
 import type { Settlement } from '../world/settlements';
 import { settlement } from '../world/settlements';
 import { landmark } from '../world/landmarks';
@@ -330,12 +330,15 @@ export class MapScene extends Phaser.Scene {
     const back = { label: t(b.city ? 'town.backCity' : 'town.backVillage'), go: () => this.openTown(b) };
     const kind = b.city ? 'city' : 'village';
     if (view === 'square') {
+      // arriving here makes it the explorer's refuge: where they wake up after a fall (asked by Adrien: say so)
+      const restNew = settleAt(s, b); if (restNew) saveGame(s);
       const place = (key: string, open: boolean, line: string) => { const own = key === 'inn' || key === 'shop' ? key + '-' + kind : key; return { key, title: t('town.place.' + own), line, picture: own, open, go: () => this.openTown(b, key) }; };
       this.sheet.showTownSquare({
         name: b.name, kind: t('town.kind.' + kind) + ' · ' + t('town.region.' + regionOf(b)), flavour: t(`town.flavour.${kind}.${flavourOf(b)}`), purse,
-        picture: kind, pictureWhat: t('town.pic.' + kind, { n: b.name }), placesTitle: t('town.places'), leave: t('town.leave'),
+        picture: kind, pictureWhat: t('town.pic.' + kind, { n: b.name }), placesTitle: t('town.places'), leave: t('town.leave'), restNew,
+        rest: t(restNew ? 'town.rest.new' : 'town.rest.here'),
         places: [
-          place('inn', true, t('town.line.inn', { p: ecus(k.inn) })),
+          place('inn', true, t('town.line.inn', { p: ecus(Math.min(...k.inn.map((x) => x.price))) })),
           place('shop', true, t('town.line.shop')),
           // a village has no smithy nor tavern: they are not shown at all (asked by Adrien)
           ...(k.forge.length ? [place('smith', true, t('town.line.smith'))] : []),
@@ -349,10 +352,15 @@ export class MapScene extends Phaser.Scene {
     const own = view === 'inn' || view === 'shop' ? view + '-' + kind : view;
     const common = { key: view, title: t('town.place.' + own), picture: own, pictureWhat: t('town.pic.' + own), back, purse };
     if (view === 'inn') {
-      const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
+      // two beds to choose from (asked by Adrien): straw or a bed in a village, a room with or without breakfast in a city
+      const helps = k.inn.some((x) => bedHelps(s, x)), rich = k.inn.some((x) => bedHelps(s, x) && s.gold >= x.price);
       this.sheet.showTownPlace({ ...common, say: t('town.say.' + own),
-        actions: [{ label: t('town.sleep', { p: ecus(k.inn) }), use: tired && rich ? () => { sleep(s, b); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); again(); } : null }],
-        note: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor') });
+        actions: k.inn.map((x) => ({ label: t('town.sleep', { b: t('town.bed.' + x.id), p: ecus(x.price) }), sub: t('town.bed.' + x.id + '.sub'),
+          use: bedHelps(s, x) && s.gold >= x.price ? () => {
+            sleep(s, b, x.id); const half = s.hp < s.maxHp;
+            this.hud.showNote(t(half ? 'town.slept.half' : 'town.slept'), t(half ? 'town.slept.half.text' : 'town.slept.text'), 3000); again();
+          } : null })),
+        note: !helps ? t('town.sleep.full') : rich ? undefined : t('town.sleep.poor') });
       return;
     }
     if (view === 'shop' || view === 'smith') {

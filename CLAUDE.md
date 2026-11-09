@@ -276,7 +276,7 @@ sur le téléphone de Doudou via GitLab Pages.
    court (×1,5) ; `danger` 1 (sanglier, éléphant) se défend ; abattu = **viande** (`food`/2, 1 à 6),
    l’animal disparaît 30 min (`gone`), celui qui s’échappe 3 min. **Sac** (bouton « Sac ») : remède,
    biscuit, viande se mangent à tout moment ; la vie remonte seule hors combat (1 PV / 30 s).
-   Défaite = réveil au dernier bourg vu (`rest`), moitié de vie et d’écus. Pas d’attaque à moins de
+   Défaite = réveil au **dernier bourg où l'on est entré** (`rest`, `settleAt` ; la place du bourg le dit : « Nouveau point de chute », demande d'Adrien), moitié de vie et d’écus. Pas d’attaque à moins de
    180 d’un bourg ni pendant 20 s après un combat. Jauges de vie et dégâts flottants sur la carte.
    **Animations** (demande d’Adrien) : l’explorateur lève son bâton et l’abat (`STRIKE_MS`), éclat
    d’encre à l’impact ; l’animal bondit en se cabrant (`LUNGE_MS`), griffures rouges sur l’explorateur ;
@@ -352,9 +352,9 @@ sur le téléphone de Doudou via GitLab Pages.
    PAS de plan de ville à parcourir pour l'instant.
    **Fait** (`game/town.ts`, `data/towns.json`, `Map.openTown`) : une marche qui finit dans un bourg (à moins de
    40 du centre d'un village, 60 d'une ville, `townAt`) ouvre sa page ; un tap sur le bourg où l'on est propose
-   « Entrer ». **Village ≠ ville** (demande d'Adrien) : le village a une auberge (3 écus la nuit, toute la vie)
+   « Entrer ». **Village ≠ ville** (demande d'Adrien) : le village a une auberge (**deux couchages**, demande d'Adrien : la paille du grenier 1 écu, la moitié de la vie ; un lit 3 écus, toute la vie ; `inn` dans `towns.json`)
    et un petit marchand (biscuit, remède, viande ; rachète la nourriture et les récoltes à 50 %) ; la ville a
-   l'auberge (5 écus), un grand marchand (aussi poisson, torche, canne ; rachète à 75 %), un **forgeron**
+   l'hôtel (une chambre 5 écus ; chambre et petit-déjeuner 8 écus, ventre plein aussi), un grand marchand (aussi poisson, torche, canne ; rachète à 75 %), un **forgeron**
    (coutelas 4-8, sabre 5-10 : mieux que ce qu'on fabrique) et une **taverne** (une rumeur sur Oriande parmi 12,
    `rumor.<id>` en i18n, qui change toutes les demi-heures). Les écus viennent de la vente de ce qu'on chasse,
    pêche et récolte.

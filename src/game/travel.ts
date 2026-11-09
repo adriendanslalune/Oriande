@@ -174,7 +174,6 @@ export function discover(s: GameState, x: number, y: number, out: TravelEvent[])
     const b = settlement(ti + di, tj + dj);
     if (b && !s.named.includes('b' + b.key) && Math.hypot(b.x - x, b.y - y) < 110) {
       s.named.push('b' + b.key);
-      s.rest = [b.x, b.y]; // where the explorer wakes up after a lost fight
       out.push({ type: 'settlement', settlement: b });
     }
   }

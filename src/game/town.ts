@@ -11,7 +11,8 @@ import { ITEMS, has, itemById, takeUp, WEAPONS } from './craft';
 import type { GameState } from './state';
 import { FOOD_MAX } from './survival';
 
-export interface TownKind { inn: number; sells: string[]; buys: number; forge: string[]; tavern: boolean }
+export interface Bed { id: string; price: number; heal: number; food?: number }
+export interface TownKind { inn: Bed[]; sells: string[]; buys: number; forge: string[]; tavern: boolean }
 export const VILLAGE = townsData.village as TownKind;
 export const CITY = townsData.city as TownKind;
 export const RUMORS = townsData.rumors as string[];
@@ -33,12 +34,27 @@ export function townAt(x: number, y: number): Settlement | null {
   return null;
 }
 
-/** A night at the inn: life back in full, for its price. Returns false if it cannot be paid (or is not needed). */
-export function sleep(s: GameState, b: Settlement): boolean {
-  const cost = kindOf(b).inn;
-  if (s.gold < cost || s.hp >= s.maxHp) return false;
-  s.gold -= cost;
-  s.hp = s.maxHp;
+/** Whether a bed would do the explorer any good (life to get back, or a belly to fill). */
+export const bedHelps = (s: GameState, bed: Bed): boolean => s.hp < s.maxHp || (bed.food !== undefined && s.food < bed.food);
+
+/**
+ * A night at the inn, in the bed chosen (straw in the loft or a bed in a village; a room, with or
+ * without breakfast, in a city): some or all of the life back, for its price. Returns false if it
+ * cannot be paid, is not offered here, or would do no good.
+ */
+export function sleep(s: GameState, b: Settlement, id: string): boolean {
+  const bed = kindOf(b).inn.find((x) => x.id === id);
+  if (!bed || s.gold < bed.price || !bedHelps(s, bed)) return false;
+  s.gold -= bed.price;
+  s.hp = Math.min(s.maxHp, s.hp + Math.ceil(s.maxHp * bed.heal));
+  if (bed.food !== undefined) s.food = Math.max(s.food, Math.min(FOOD_MAX, bed.food));
+  return true;
+}
+
+/** Arriving in a town: it becomes the place the explorer wakes up after falling. True if it is new. */
+export function settleAt(s: GameState, b: Settlement): boolean {
+  if (s.rest[0] === b.x && s.rest[1] === b.y) return false;
+  s.rest = [b.x, b.y];
   return true;
 }
 

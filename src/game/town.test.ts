@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CITY, DISHES, RUMORS, VILLAGE, buy, eatDish, flavourOf, goods, regionOf, rumor, sell, sellPrice, sleep, townAt } from './town';
+import { CITY, DISHES, RUMORS, VILLAGE, buy, eatDish, flavourOf, goods, regionOf, rumor, sell, sellPrice, settleAt, sleep, townAt } from './town';
 import { newGame } from './travel';
 import { weaponOf } from './craft';
 import { settlement } from '../world/settlements';
@@ -39,14 +39,30 @@ describe('towns', () => {
     expect(sellPrice(city, 'viande')).toBeGreaterThanOrEqual(sellPrice(village, 'viande'));
   });
 
-  it('a night at the inn: paid, life back in full', () => {
-    const s = newGame(); s.hp = 5; s.gold = 0;
-    expect(sleep(s, village)).toBe(false);
+  it('a night at the inn: straw for half the life, a bed for all of it, breakfast fills the belly', () => {
+    const s = newGame(); s.hp = 4; s.gold = 0;
+    expect(sleep(s, village, 'straw')).toBe(false); // no money
     s.gold = 10;
-    expect(sleep(s, village)).toBe(true);
+    expect(sleep(s, village, 'room')).toBe(false); // not in a village
+    expect(sleep(s, village, 'straw')).toBe(true);
+    expect(s.hp).toBe(4 + Math.ceil(s.maxHp / 2));
+    expect(s.gold).toBe(9);
+    expect(sleep(s, village, 'bed')).toBe(true);
     expect(s.hp).toBe(s.maxHp);
-    expect(s.gold).toBe(10 - VILLAGE.inn);
-    expect(sleep(s, village)).toBe(false); // not needed
+    expect(sleep(s, village, 'bed')).toBe(false); // not needed
+    s.food = 30; s.gold = 20;
+    expect(sleep(s, city, 'room')).toBe(false); // life is full: a room alone does nothing
+    expect(sleep(s, city, 'breakfast')).toBe(true);
+    expect(s.food).toBe(100);
+    expect(s.gold).toBe(12);
+  });
+
+  it('entering a town makes it the place to wake up after a fall', () => {
+    const s = newGame();
+    expect(settleAt(s, village)).toBe(true);
+    expect(s.rest).toEqual([village.x, village.y]);
+    expect(settleAt(s, village)).toBe(false);
+    expect(settleAt(s, city)).toBe(true);
   });
 
   it('selling what was gathered and hunted, buying what is needed', () => {

@@ -125,6 +125,10 @@ body.sheet-open .hud-buttons { display: none; }
 .sheet .dish .txt i { display: block; font-size: 13px; color: #5a4a36; }
 .sheet .dish:disabled { opacity: .5; cursor: default; }
 .sheet .innbed { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 14px; }
+.sheet .innbed .acts { flex-direction: column; align-items: stretch; width: 78%; gap: 10px; }
+.sheet .acts button small { display: block; font: italic 13px "IM Fell English", serif; letter-spacing: 0; text-transform: none; opacity: .9; margin-top: 1px; }
+.sheet .rest { margin: 8px 10px 0; padding: 5px 8px; border: 1px dashed ${INK}; font: italic 13px/1.3 "IM Fell English", serif; text-align: center; color: #3a3024; background: #f6edd2; }
+.sheet .rest.new { background: #e7efd2; border-style: solid; }
 .sheet .rec .box { width: 56px; height: 56px; flex: none; align-self: flex-start; }
 .sheet .rec .what { flex: 1; min-width: 0; }
 .sheet .rec b { display: block; font: 16px "IM Fell English SC", serif; letter-spacing: .05em; }
@@ -226,10 +230,11 @@ export class Sheet {
     const h = document.createElement('h3'); const sp = document.createElement('span'); sp.textContent = title; h.append(sp); body.append(h);
   }
 
-  private buttons(actions: { label: string; use: (() => void) | null }[]): HTMLElement {
+  private buttons(actions: { label: string; sub?: string; use: (() => void) | null }[]): HTMLElement {
     const acts = document.createElement('div'); acts.className = 'acts';
     for (const a of actions) {
       const b = document.createElement('button'); b.textContent = a.label; b.disabled = !a.use;
+      if (a.sub) { const sm = document.createElement('small'); sm.textContent = a.sub; b.append(sm); }
       if (a.use) b.addEventListener('click', a.use);
       acts.append(b);
     }
@@ -421,7 +426,8 @@ export class Sheet {
     const k = document.createElement('div'); k.className = 'kind'; k.textContent = m.kind;
     const f = document.createElement('div'); f.className = 'flav'; f.textContent = m.flavour;
     const p = document.createElement('div'); p.className = 'purse'; p.textContent = m.purse;
-    body.append(k, f, p);
+    const r = document.createElement('div'); r.className = 'rest' + (m.restNew ? ' new' : ''); r.textContent = '⚑ ' + m.rest;
+    body.append(k, f, p, r);
     this.section(body, m.placesTitle);
     const grid = document.createElement('div'); grid.className = 'places';
     for (const pl of m.places) {
@@ -498,7 +504,7 @@ export class Sheet {
 /** The square of a town, on arrival. */
 export interface TownSquare {
   name: string; kind: string; flavour: string; purse: string; picture: string; pictureWhat: string;
-  placesTitle: string; leave: string;
+  placesTitle: string; leave: string; rest: string; restNew: boolean;
   places: { key: string; title: string; line: string; picture: string; open: boolean; go: () => void }[];
 }
 /** A place in a town (inn, merchant, smith, tavern). */
@@ -506,7 +512,7 @@ export interface TownPlace {
   key: string; title: string; picture: string; pictureWhat: string; say: string;
   back: { label: string; go: () => void };
   rumor?: string;
-  actions?: { label: string; use: (() => void) | null }[]; note?: string;
+  actions?: { label: string; sub?: string; use: (() => void) | null }[]; note?: string;
   tabs?: { key: string; label: string }[]; tab?: string; setTab?: (key: string) => void;
   wares?: { id: string; name: string; price: string; count?: number; poor?: boolean }[]; empty?: string;
   selected?: string | null; select?: (id: string) => void;

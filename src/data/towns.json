@@ -1,7 +1,10 @@
 {
-  "_comment": "What a village and a city offer (asked by Adrien: a village is small, a city has everything). inn: écus for a night (life back in full). sells: what the merchant has. buys: share of an item's price paid when the explorer sells it (food and what was gathered). forge: weapons sold by the smith. tavern: rumours heard there (ids, texts in i18n: rumor.<id>), one at a time, changing every half hour. dishes: what the tavern serves (food: how much it fills the belly, heal: life, price in écus; names in i18n: dish.<id>). flavour: how many lines of welcome there are for each (i18n town.flavour.<village|city>.<n>).",
+  "_comment": "What a village and a city offer (asked by Adrien: a village is small, a city has everything). inn: the beds on offer (asked by Adrien: a choice when short of money): price in écus, heal = share of full life given back, food = belly filled up to (breakfast); names in i18n town.bed.<id>. sells: what the merchant has. buys: share of an item's price paid when the explorer sells it (food and what was gathered). forge: weapons sold by the smith. tavern: rumours heard there (ids, texts in i18n: rumor.<id>), one at a time, changing every half hour. dishes: what the tavern serves (food: how much it fills the belly, heal: life, price in écus; names in i18n: dish.<id>). flavour: how many lines of welcome there are for each (i18n town.flavour.<village|city>.<n>).",
   "village": {
-    "inn": 3,
+    "inn": [
+      { "id": "straw", "price": 1, "heal": 0.5 },
+      { "id": "bed", "price": 3, "heal": 1 }
+    ],
     "sells": [
       "biscuit",
       "remede",
@@ -12,7 +15,10 @@
     "tavern": false
   },
   "city": {
-    "inn": 5,
+    "inn": [
+      { "id": "room", "price": 5, "heal": 1 },
+      { "id": "breakfast", "price": 8, "heal": 1, "food": 100 }
+    ],
     "sells": [
       "biscuit",
       "remede",

@@ -330,7 +330,7 @@ export class MapScene extends Phaser.Scene {
     const back = { label: t(b.city ? 'town.backCity' : 'town.backVillage'), go: () => this.openTown(b) };
     const kind = b.city ? 'city' : 'village';
     if (view === 'square') {
-      const place = (key: string, open: boolean, line: string) => ({ key, title: t('town.place.' + key), line, picture: key, open, go: () => this.openTown(b, key) });
+      const place = (key: string, open: boolean, line: string) => { const own = key === 'inn' || key === 'shop' ? key + '-' + kind : key; return { key, title: t('town.place.' + own), line, picture: own, open, go: () => this.openTown(b, key) }; };
       this.sheet.showTownSquare({
         name: b.name, kind: t('town.kind.' + kind) + ' · ' + t('town.region.' + regionOf(b)), flavour: t(`town.flavour.${kind}.${flavourOf(b)}`), purse,
         picture: kind, pictureWhat: t('town.pic.' + kind, { n: b.name }), placesTitle: t('town.places'), leave: t('town.leave'),
@@ -343,10 +343,13 @@ export class MapScene extends Phaser.Scene {
       });
       return;
     }
-    const common = { key: view, title: t('town.place.' + view), picture: view, pictureWhat: t('town.pic.' + view), face: 'keeper-' + view, back, purse };
+    // the inn and the merchant are not the same in a village (rustic) and in a city (cleaner):
+    // their own pictures, keepers and words; the smith and the tavern are only in cities
+    const own = view === 'inn' || view === 'shop' ? view + '-' + kind : view;
+    const common = { key: view, title: t('town.place.' + own), picture: own, pictureWhat: t('town.pic.' + own), face: 'keeper-' + own, back, purse };
     if (view === 'inn') {
       const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
-      this.sheet.showTownPlace({ ...common, say: t('town.say.inn'),
+      this.sheet.showTownPlace({ ...common, say: t('town.say.' + own),
         actions: [{ label: t('town.sleep', { p: ecus(k.inn) }), use: tired && rich ? () => { sleep(s, b); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); again(); } : null }],
         note: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor') });
       return;
@@ -370,7 +373,7 @@ export class MapScene extends Phaser.Scene {
           detail = { id: it.id, name: name(it.id), lines, actions: [{ label: t('town.buyOne', { p: ecus(g.price) }), use: s.gold >= g.price ? () => { buy(s, b, it.id); this.hud.pulsePack(); again(view, tab, goods(s, b).some((x) => x.id === it.id) ? it.id : null); } : null }] };
         }
       }
-      this.sheet.showTownPlace({ ...common, say: t('town.say.' + view),
+      this.sheet.showTownPlace({ ...common, say: t('town.say.' + own),
         tabs: view === 'shop' ? [{ key: 'buy', label: t('town.tab.buy') }, { key: 'sell', label: t('town.tab.sell') }] : undefined,
         tab, setTab: (key) => this.openTown(b, view, key),
         wares: list, empty: selling ? t('town.nothingToSell') : t('town.smith.done'),

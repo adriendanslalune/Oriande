@@ -366,8 +366,11 @@ sur le téléphone de Doudou via GitLab Pages.
    celui qui le tient dans un médaillon avec sa réplique, puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**
    (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur
-   place, `eatDish`, `dishes` dans `towns.json`). **Illustrations** à faire avec ChatGPT (`docs/towns.md`, 10
-   images : vues de village et de ville, quatre lieux, quatre visages) dans `src/assets/towns/<clé>.webp`
+   place, `eatDish`, `dishes` dans `towns.json`). **Village ≠ ville aussi à l'image** (demande d'Adrien :
+   rustique et boueux au village, plus propre en ville) : auberge et marchand ont leur version de village (`inn-village`,
+   `shop-village` : « L'Auberge », la carriole du marchand) et de ville (`inn-city` « L'Hôtel des Voyageurs », `shop-city`
+   « La Boutique »), avec leur visage et leur réplique. **Illustrations** à faire avec ChatGPT (`docs/towns.md`, 14
+   images) dans `src/assets/towns/<clé>.webp`
    (`ui/townArt.ts`) ; un « ? » en attendant.
 6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).
    **Donjon** : une scène Dungeon de 3 salles (grille simple, vue du dessus),

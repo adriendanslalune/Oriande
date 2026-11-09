@@ -9,7 +9,8 @@ import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
 import { monumentsNear } from '../world/monuments';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
-import { animalsOf, herdsNear, type Animal, type Look } from '../world/fauna';
+import { animalsOf, herdsNear, lifeOf, presence, type Animal, type Look } from '../world/fauna';
+import { CONTACT, speciesById } from '../game/combat';
 import { drawAnimal } from './animals';
 import { DPR } from '../ui/screen';
 import { isGL } from './glPainter';
@@ -216,7 +217,20 @@ export class Overlay {
       ctx.moveTo(tx - 5, ty - 5); ctx.lineTo(tx + 5, ty + 5); ctx.moveTo(tx + 5, ty - 5); ctx.lineTo(tx - 5, ty + 5); ctx.stroke();
       if (Math.abs(ahead.dx) > 0.5) this.facing = ahead.dx > 0 ? 1 : -1;
     }
+    // a fight: the animal (out of its herd now), facing the explorer, and the explorer facing it
+    const f = s.fight;
+    if (f) {
+      const sp = speciesById(f.species)!, [fx, fy] = screen(f.x, f.y), dist = Math.hypot(s.x - f.x, s.y - f.y);
+      const flees = sp.danger === 0 || (sp.danger === 1 && !f.hunt);
+      const dir = (flees ? f.x - s.x : s.x - f.x) >= 0 ? 1 : -1;
+      const moving = dist > CONTACT || flees;
+      drawAnimal(ctx, sp.look, { x: f.x, y: f.y, dir, pace: moving ? 1 : 0, phase: 0.3 }, fx, fy, 2 * v.zoom / START_ZOOM, now / 1000, DPR, sky(f.x).darkness > 0.5);
+      if (dist < CONTACT * 3) this.facing = f.x >= s.x ? 1 : -1;
+      this.lifeBar(fx, fy - (sp.look.height ?? sp.look.len) * 2.2 * v.zoom / START_ZOOM - 8, f.hp / lifeOf(sp), 'foe');
+    }
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
+    if (f) this.lifeBar(ex, ey - 40 * v.zoom / START_ZOOM, s.hp / s.maxHp, 'you');
+    this.drawFloats(screen, now);
     // the clouds pass over the explorer (they fade out as the view zooms in under them)
     this.weather.drawClouds(ctx, v, screen, (X, Y) => isSeen(s, X, Y));
     this.compass(v.W - 44, (v.top ?? 70) + 40);
@@ -244,20 +258,17 @@ export class Overlay {
   private animals(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number, now: number, night: boolean): void {
     const t = worldTime(), time = now / 1000, scale = 2 * v.zoom / START_ZOOM, ctx = this.ctx;
     const lakes = lakesNear(ax, ay, bx, by);
-    // how much of the night has fallen there (by longitude)
-    const nightness = (x: number): number => Math.max(0, Math.min(1, (sky(x).darkness - 0.25) / 0.5));
     const list: { a: Animal; look: Look; x: number; y: number; alpha: number }[] = [];
     for (const h of herdsNear(ax - 40, ay - 40, bx + 40, by + 40, 320, night)) {
       const look = h.species.look;
       if (look.len * scale < 4) continue; // too small to make out at this zoom
-      // At dawn and dusk the herds do not fade (they looked like ghosts, said Adrien): each one
-      // goes to rest or comes out at its own moment of the twilight, in a few seconds.
-      const turn = 0.12 + hash2(Math.floor(h.x), Math.floor(h.y)) * 0.76, n = nightness(h.x);
-      const out = Math.max(0, Math.min(1, (n - turn) / 0.03 + 0.5)), alpha = night ? out : 1 - out;
+      const alpha = presence(h, night, t); // out, or resting (see world/fauna)
       if (alpha < 0.03) continue;
       const water = h.species.biomes.includes('sea') || h.species.biomes.includes('ice');
       const flies = look.kind === 'bat' || look.kind === 'owl';
-      for (const a of animalsOf(h, t)) {
+      for (const [k, a] of animalsOf(h, t).entries()) {
+        const key = h.key + ':' + k;
+        if (s.fight?.key === key || (s.gone[key] ?? 0) > t) continue; // fighting (drawn apart), killed, or run off
         if (a.x < ax - 40 || a.x > bx + 40 || a.y < ay - 40 || a.y > by + 40 || !isSeen(s, a.x, a.y)) continue;
         if (!water && !flies && lakes.some((l) => inLake(l, a.x, a.y))) continue;
         const [x, y] = screen(a.x, a.y);
@@ -480,6 +491,37 @@ export class Overlay {
    * planet they jump by its circumference, so each point is unwrapped next to the previous one,
    * and the whole path is placed so that it ends at the explorer.
    */
+  /** Numbers and words rising over a fight: damage, misses, meat. */
+  private floats: { x: number; y: number; text: string; kind: 'you' | 'foe' | 'loot'; t0: number }[] = [];
+
+  /** Show a word rising from a world point for a moment (`kind`: whose damage, or loot). */
+  float(x: number, y: number, text: string, kind: 'you' | 'foe' | 'loot'): void {
+    this.floats.push({ x, y, text, kind, t0: performance.now() });
+    if (this.floats.length > 20) this.floats.shift();
+  }
+
+  private drawFloats(screen: (x: number, y: number) => [number, number], now: number): void {
+    const { ctx } = this;
+    this.floats = this.floats.filter((f) => now - f.t0 < 1000);
+    ctx.textAlign = 'center';
+    for (const f of this.floats) {
+      const u = (now - f.t0) / 1000, [x, y] = screen(f.x, f.y);
+      ctx.globalAlpha = Math.min(1, (1 - u) * 2.5);
+      ctx.font = (f.kind === 'loot' ? 'italic 14px' : '700 16px') + " 'Old Standard TT', serif";
+      ctx.fillStyle = f.kind === 'foe' ? 'rgb(168,52,40)' : f.kind === 'loot' ? 'rgb(70,96,50)' : INK;
+      this.label(f.text, x, y - 30 - u * 26);
+    }
+    ctx.globalAlpha = 1; ctx.fillStyle = INK;
+  }
+
+  /** A small engraved gauge of life over a fighter. */
+  private lifeBar(x: number, y: number, frac: number, who: 'you' | 'foe'): void {
+    const { ctx } = this, w = 30, h = 4;
+    ctx.fillStyle = 'rgba(236,227,203,.9)'; ctx.fillRect(x - w / 2, y, w, h);
+    ctx.fillStyle = who === 'foe' ? 'rgb(168,52,40)' : 'rgb(88,120,70)'; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, frac)), h);
+    ctx.strokeStyle = INK; ctx.lineWidth = 0.8; ctx.strokeRect(x - w / 2, y, w, h);
+  }
+
   /** A name on the map, with a paper halo so it stays readable over forests and mountains. */
   private label(text: string, x: number, y: number): void {
     const { ctx } = this;

@@ -3,6 +3,7 @@ import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
 import { newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type TravelEvent } from '../game/travel';
 import { pathLength, planRoute, prefetchWays } from '../game/route';
+import { CONTACT, HUNT_RUN, ITEMS, REGROUP, beastsNear, end, hunt, stepFight, useItem, type Beast } from '../game/combat';
 import { isSeen } from '../game/travel';
 import { settlement } from '../world/settlements';
 import { landmark } from '../world/landmarks';
@@ -10,7 +11,7 @@ import { wondersNear } from '../world/wonders';
 import { monumentsNear } from '../world/monuments';
 import { latitude, longitude } from '../world/planet';
 import { prefetchRivers } from '../world/rivers';
-import { sky, weatherAt } from '../world/weather';
+import { sky, weatherAt, worldTime } from '../world/weather';
 import { loadGame, saveGame } from '../game/save';
 import type { GameState } from '../game/state';
 import type { TileArt } from '../render/tiles';
@@ -18,7 +19,6 @@ import { TileSource, type ReadyTile } from '../render/tileSource';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { GLPainter } from '../render/glPainter';
 import { Hud } from '../ui/hud';
-import type { BattleData } from './Battle';
 import { DPR, DPR_FORCED, setDPR } from '../ui/screen';
 
 const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
@@ -70,6 +70,8 @@ export class MapScene extends Phaser.Scene {
   private follow = true;
   private readonly tiles = new Map<string, CachedTile>();
   private tileSource!: TileSource;
+  /** ms until a hunting explorer's route is redrawn towards the prey */
+  private chaseTimer = 0;
   /** frame times being measured, and how many measures in a row were too slow */
   private qualityFrames: number[] = [];
   private qualitySlow = 0;
@@ -118,11 +120,10 @@ export class MapScene extends Phaser.Scene {
       zoomIn: () => this.setZoom(this.view.zoom * 1.6),
       zoomOut: () => this.setZoom(this.view.zoom / 1.6),
       center: () => { this.follow = true; if (this.view.zoom < Z_ATLAS) this.setZoom(START_ZOOM); },
+      pack: () => this.openPack(),
     });
     this.game.canvas.setAttribute('aria-label', t('ui.map'));
     this.setupInput();
-    // a fight left unfinished when the game was closed: back to it
-    if (this.state.battle) this.time.delayedCall(600, () => this.openBattle());
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     // Phones kill background tabs without warning: save the moment the game is hidden.
     const saveNow = (): void => { saveGame(this.state); };
@@ -199,6 +200,21 @@ export class MapScene extends Phaser.Scene {
    * ("Walk to"), so that sliding or checking the map never sends the explorer off by mistake.
    */
   private propose(tx: number, ty: number): void {
+    // a tap on an animal: hunt it (or, a dangerous one, attack it)
+    const beast = this.beastAt(tx, ty, Math.max(10, 22 / this.view.zoom));
+    if (beast) {
+      const d = Math.hypot(beast.x - this.state.x, beast.y - this.state.y);
+      this.overlay.plan = [[this.state.x, this.state.y], [beast.x, beast.y]];
+      const verb = beast.species.danger >= 1 ? 'hunt.attack' : 'hunt.go';
+      this.hud.showWalk(tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), null, () => {
+        this.cancelPlan();
+        this.follow = true;
+        if (this.state.fight?.hunt) end(this.state, worldTime(), REGROUP);
+        if (!this.state.fight) hunt(this.state, beast);
+        this.chaseTimer = 0;
+      }, () => this.cancelPlan(), t(verb, { a: t('animal.' + beast.species.id) }));
+      return;
+    }
     // a tap on (or near) a place already seen goes to that place, by its name
     const place = this.placeAt(tx, ty, Math.max(18, 26 / this.view.zoom));
     const x = place ? place.x : tx, y = place ? place.y : ty;
@@ -211,8 +227,58 @@ export class MapScene extends Phaser.Scene {
     this.hud.showWalk(detail, place?.name ?? null, () => {
       this.cancelPlan();
       this.follow = true;
+      // walking off during a hunt gives it up (walking away from a charging animal is fleeing)
+      if (s.fight?.hunt) end(s, worldTime(), REGROUP);
       if (!startJourney(s, x, y)) this.onEvent({ type: 'shore' });
     }, () => this.cancelPlan());
+  }
+
+  /** The pack, to eat or drink from (in a fight too: the blows go on meanwhile). */
+  private openPack(): void {
+    const s = this.state;
+    const entries = ITEMS.filter((it) => (s.items[it.id] ?? 0) > 0).map((it) => ({
+      label: `${t('item.' + it.id + '.name')} × ${s.items[it.id]}`,
+      sub: t('pack.heals', { n: it.heal }),
+      use: s.hp < s.maxHp ? () => { useItem(s, it.id); saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold); this.openPack(); } : null,
+    }));
+    this.hud.showPack(entries, t('pack.title', { hp: s.hp, max: s.maxHp }), t('pack.empty'));
+  }
+
+  /** The animal under a tap, if any (only where the explorer has seen). */
+  private beastAt(x: number, y: number, r: number): Beast | null {
+    const s = this.state;
+    if (this.view.zoom < 0.45) return null; // too small to make out
+    let best: Beast | null = null, bd = r;
+    for (const b of beastsNear(s, x, y, r + 20, worldTime())) {
+      const d = Math.hypot(b.x - x, b.y - y - 4); // the tap lands on its body, a little above its feet
+      if (d < bd && isSeen(s, b.x, b.y)) { bd = d; best = b; }
+    }
+    return best;
+  }
+
+  /** Dangers of the world this frame: charges, blows, kills, and what to show of them. */
+  private fightStep(dt: number, delta: number): void {
+    const s = this.state;
+    const evs = stepFight(s, dt, worldTime());
+    const f = s.fight;
+    // a hunt: the explorer goes after the prey, the route redrawn as it moves
+    this.chaseTimer -= delta;
+    if (f?.hunt && this.chaseTimer <= 0) {
+      this.chaseTimer = 400;
+      const d = Math.hypot(f.x - s.x, f.y - s.y);
+      if (d > CONTACT * 0.7) startJourney(s, f.x + (s.x - f.x) / d * CONTACT * 0.6, f.y + (s.y - f.y) / d * CONTACT * 0.6, HUNT_RUN);
+      else s.journey = null;
+    }
+    for (const e of evs) {
+      const name = (sp: string): string => t('animal.' + sp);
+      if (e.kind === 'hit' || e.kind === 'miss') this.overlay.float(e.x, e.y, e.kind === 'hit' ? '−' + e.damage : t('fight.miss'), e.who === 'foe' ? 'foe' : 'you');
+      else if (e.kind === 'charge') { this.cancelPlan(); this.follow = true; this.hud.showNote(t('fight.charge.title', { a: name(e.species) }), t('fight.charge.text'), 5000); }
+      else if (e.kind === 'killed') { this.overlay.float(e.x, e.y - 12, t('fight.meat', { n: e.meat }), 'loot'); this.hud.showNote(t('fight.killed', { a: name(e.species) }), t('fight.killed.text', { n: e.meat }), 4000); }
+      else if (e.kind === 'escaped') this.hud.showNote(t('fight.escaped', { a: name(e.species) }), '', 3000);
+      else if (e.kind === 'gaveUp') this.hud.showNote(t('fight.gaveUp', { a: name(e.species) }), '', 3000);
+      else if (e.kind === 'lost') { this.view.x = s.x; this.view.y = s.y; this.follow = true; this.hud.showNote(t('fight.wake.title'), t('fight.wake.text', { n: e.goldLost }), 8000); }
+    }
+    if (evs.length) saveGame(s);
   }
 
   /** The nearest place already seen within r of (x, y): a town, a strange place, a wonder. */
@@ -240,31 +306,10 @@ export class MapScene extends Phaser.Scene {
     this.hud.hideWalk();
   }
 
-  /** A monster: the map holds still under the battle page until the fight is over. */
-  private openBattle(): void {
-    if (!this.state.battle || this.scene.isActive('Battle')) return;
-    this.cancelPlan();
-    this.hud.hideNote();
-    saveGame(this.state);
-    const data: BattleData = {
-      state: this.state,
-      changed: (hp) => this.hud.setLife(hp, this.state.maxHp, this.state.gold),
-      done: (outcome) => {
-        saveGame(this.state);
-        this.scene.resume();
-        this.follow = true;
-        if (outcome === 'lost') { this.view.x = this.state.x; this.view.y = this.state.y; this.hud.showNote(t('battle.wake.title'), t('battle.wake.text'), 8000); }
-      },
-    };
-    this.scene.launch('Battle', data);
-    this.scene.pause();
-  }
-
   private onEvent(e: TravelEvent): void {
     if (e.type === 'shore') this.hud.showNote(t('shore.title'), t('shore.text'));
     else if (e.type === 'wonder') this.hud.showNote(t('wonder.heading') + ' · ' + t(`wonder.${e.wonder.kind}.name`, { n: e.wonder.name }), t(`wonder.${e.wonder.kind}.text`), 14000, true);
     else if (e.type === 'monument') this.hud.showNote(t('monument.heading') + ' · ' + t(`monument.${e.monument.kind}.name`, { n: e.monument.name }), t(`monument.${e.monument.kind}.text`), 10000, true);
-    else if (e.type === 'encounter') this.openBattle();
     else if (e.type === 'landmark') this.hud.showNote(t(`landmark.${e.landmark.kind}.name`, { n: e.landmark.name }), t(`landmark.${e.landmark.kind}.text`));
     else {
       const b = e.settlement;
@@ -397,6 +442,7 @@ export class MapScene extends Phaser.Scene {
     this.now = time;
     const events: TravelEvent[] = [];
     const walking = advance(s, dt, events);
+    this.fightStep(dt, delta);
     // crossing longitude 180°: the explorer comes back around the planet, the view follows
     v.x += wrapPosition(s);
     for (const e of events) this.onEvent(e);

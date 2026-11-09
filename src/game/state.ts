@@ -15,16 +15,29 @@ export interface Journey {
   shore: boolean;
 }
 
-/** A fight in progress (kept in the save: quitting mid-fight comes back to it). */
-export interface Battle {
-  /** the monster's id in data/monsters.json */
-  monster: string;
-  /** its life left */
+/**
+ * A fight in progress, on the map: one animal has left its herd and is charging the explorer,
+ * or is being hunted (and runs, or turns and fights). Its position is its own from then on.
+ */
+export interface Fight {
+  /** the animal: its herd's key and its index in the herd ("wi,cj[n]:k") */
+  key: string;
+  /** its species' id in data/animals.json */
+  species: string;
   hp: number;
+  x: number;
+  y: number;
+  /** where it set off from: it does not follow the explorer forever */
+  home: [number, number];
+  /** the explorer went after it (a hunt) rather than the other way round */
+  hunt: boolean;
+  /** seconds until the next blow, the explorer's and the animal's */
+  cdYou: number;
+  cdFoe: number;
 }
 
 export interface GameState {
-  version: 4;
+  version: 5;
   x: number;
   y: number;
   /** leagues walked */
@@ -47,10 +60,12 @@ export interface GameState {
   items: Record<string, number>;
   /** the dice: a random state, saved, so that every throw is reproducible */
   seed: number;
-  /** leagues walked when the last fight ended: a short calm follows */
+  /** world time (s) until which no animal attacks: the calm after a fight */
   calmUntil: number;
-  /** where the explorer wakes up after a lost fight: the last town found (or the start) */
+  /** where the explorer wakes up after losing a fight: the last town found (or the start) */
   rest: [number, number];
-  /** a fight in progress, if any */
-  battle: Battle | null;
+  /** the fight in progress, if any */
+  fight: Fight | null;
+  /** animals killed or lost from sight lately, by key: the world time (s) when they come back */
+  gone: Record<string, number>;
 }

@@ -1,7 +1,20 @@
 {
-  "_comment": "Things the explorer carries. heal: life given back when used. price: in écus (the merchant, later).",
+  "_comment": "Things the explorer carries. heal: life given back when eaten or drunk. price: in écus (the merchant, later). Meat comes from hunting.",
   "items": [
-    { "id": "remede", "heal": 8, "price": 6 },
-    { "id": "biscuit", "heal": 3, "price": 2 }
+    {
+      "id": "remede",
+      "heal": 8,
+      "price": 6
+    },
+    {
+      "id": "biscuit",
+      "heal": 3,
+      "price": 2
+    },
+    {
+      "id": "viande",
+      "heal": 4,
+      "price": 1
+    }
   ]
 }

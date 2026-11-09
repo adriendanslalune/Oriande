@@ -10,7 +10,7 @@ import { WONDER_SIGHT, wondersNear, type Wonder } from '../world/wonders';
 import { MONUMENT_SIGHT, monumentsNear, type Monument } from '../world/monuments';
 import type { GameState } from './state';
 import { alongPath, pathLength, planRoute } from './route';
-import { CALM_LEAGUES, START_HP, START_ITEMS, maybeEncounter, startBattle } from './combat';
+import { START_HP, START_ITEMS } from './combat';
 
 /** Radius revealed around the explorer on open plains, world units. */
 export const VIEW_RADIUS = 200;
@@ -108,13 +108,13 @@ export function wrapPosition(s: GameState): number {
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 4, x, y, leagues: 0,
+    version: 5, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
     hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },
     // the dice of a new game: different for each player (the world itself is the same for all)
     seed: (Math.random() * 4294967296) >>> 0,
-    calmUntil: CALM_LEAGUES, rest: [x, y], battle: null,
+    calmUntil: 0, rest: [x, y], fight: null, gone: {},
   };
   reveal(s, x, y);
   return s;
@@ -125,12 +125,12 @@ export function newGame(): GameState {
  * Start walking towards (x, y), around lakes and seas. A target in the water or on an island
  * brings the explorer to the nearest shore. Returns false when they cannot move at all.
  */
-export function startJourney(s: GameState, x: number, y: number): boolean {
+export function startJourney(s: GameState, x: number, y: number, pace = 1): boolean {
   const route = planRoute(s.x, s.y, x, y);
   if (!route) return false;
   const L = pathLength(route.path);
   if (L < 1) return false;
-  s.journey = { path: route.path, elapsed: 0, duration: (L / SPEED) * 1000, revealed: 0, shore: !route.reached };
+  s.journey = { path: route.path, elapsed: 0, duration: (L / (SPEED * pace)) * 1000, revealed: 0, shore: !route.reached };
   return true;
 }
 
@@ -139,8 +139,7 @@ export type TravelEvent =
   | { type: 'monument'; monument: Monument }
   | { type: 'landmark'; landmark: Landmark }
   | { type: 'settlement'; settlement: Settlement }
-  | { type: 'shore' }
-  | { type: 'encounter'; monster: string };
+  | { type: 'shore' };
 
 /** Places newly discovered from (x, y). */
 export function discover(s: GameState, x: number, y: number, out: TravelEvent[]): void {
@@ -189,28 +188,15 @@ export function advance(s: GameState, dt: number, out: TravelEvent[] = []): bool
   const L = pathLength(v.path);
   // One footstep every STEP_LENGTH units, plus the arrival. (The proto advanced this by the
   // distance of one frame, which left a footstep per frame and only ~100 s of trace.)
-  let met: string | null = null;
   const step = (d: number): void => {
-    const was = v.revealed;
     v.revealed = d;
     const { x, y } = alongPath(v.path, d);
     reveal(s, x, y);
     s.trace.push([Math.round(x) + 0, Math.round(y) + 0]); // + 0 turns -0 into 0
     discover(s, x, y, out);
-    // a monster on the way: the walk stops here
-    const m = maybeEncounter(s, x, y, (d - was) / LEAGUE);
-    if (m) met = m.id;
   };
-  while (!met && v.revealed + STEP_LENGTH <= u * L) step(v.revealed + STEP_LENGTH);
-  if (!met && u >= 1 && v.revealed < L) step(L);
-  if (met) {
-    const at = alongPath(v.path, v.revealed);
-    s.leagues += Math.hypot(at.x - s.x, at.y - s.y) / LEAGUE;
-    s.x = at.x; s.y = at.y;
-    startBattle(s, met);
-    out.push({ type: 'encounter', monster: met });
-    return false;
-  }
+  while (v.revealed + STEP_LENGTH <= u * L) step(v.revealed + STEP_LENGTH);
+  if (u >= 1 && v.revealed < L) step(L);
   const ax = s.x, ay = s.y, at = alongPath(v.path, u * L);
   s.x = at.x;
   s.y = at.y;

@@ -48,7 +48,7 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v4 (v3 migrée : vie, écus, sac, dés, combat) ; les sauvegardes v1/v2
+- Échelle des sauvegardes : v5 (v3 et v4 migrées : vie, écus, sac, dés, combat sur la carte) ; les sauvegardes v1/v2
   (monde plat) sont mises de côté.
 
 Règles qui restent :
@@ -158,7 +158,7 @@ Règles qui restent :
    lavis, hachures d'ombre qui s'effacent sur les petites figures, pattes articulées qui marchent,
    pâture où le cou descend, lièvres qui sautent, marmottes qui se dressent, baleines qui soufflent
    et plongent. Chaque pose est quantifiée et mise en cache (bitmap par pose et par taille) :
-   < 1 ms par image. Invisibles quand ils feraient moins de 4 px. Champs `food` et `danger` prêts pour la chasse et le combat (plus tard).
+   < 1 ms par image. Invisibles quand ils feraient moins de 4 px. Champs `food` (viande) et `danger` servent à la chasse et au combat (étape 4).
    **Nuit** (demande d'Adrien) : chaque case a aussi un troupeau de nuit (`herd(ci, cj, true)`,
    tirage séparé, poids `night` dans le JSON) ; les animaux de jour s'effacent à la tombée de la
    nuit, ceux de la nuit (chauves-souris, chouettes, hérissons, renards, loups, sangliers...)
@@ -240,13 +240,20 @@ sur le téléphone de Doudou via GitLab Pages.
 4. **Combat** : une scène Battle au tour par tour, simple et lisible
    (attaquer / objet / fuir), 2 monstres dans `monsters.json`. Rencontres
    aléatoires sur la carte, fréquence dépendant du terrain.
-   (Fait : `game/combat.ts` règles pures et testées, dés à graine sauvegardée `seed`/`roll` ;
-   `data/monsters.json` rôdeur des brumes et gardien d’airain, `data/items.json` remède et
-   biscuit ; rencontres pendant la marche, `encounterRate` par lieue : forêt et jungle ~0,1,
-   collines 0,09, plaine 0,05, ×0,2 sur une route, 0 à moins de 180 d’un bourg, 4 lieues de calme
-   après un combat ; scène `Battle` = page d’atlas DOM par-dessus la carte figée, illustrations
-   provisoires gravées dans `render/monsterArt.ts` ; défaite = réveil au dernier bourg vu (`rest`)
-   avec la moitié de la vie et des écus ; combat en cours sauvegardé ; sauvegarde **v4**.)
+   **Revu à la demande d’Adrien** : pas de monstres, pas de fenêtre de combat ni de rencontres
+   surprises. Le combat se passe **sur la carte, en temps réel** (`game/combat.ts`, `stepFight` appelé
+   à chaque image) : les animaux `danger` 2 (loup, ours, ours blanc, lion, jaguar) chargent quand on
+   passe à moins de `AGGRO` = 100 (2,5 lieues), l’explorateur s’arrête, coups échangés seuls (~1/s,
+   `PLAYER_PACE`/`FOE_PACE`) au contact ; ils renoncent à 320 de leur point de départ ; on fuit en
+   marchant ailleurs. **Chasse** : un tap sur un animal propose « Chasser · Cerf » (ou « Attaquer »
+   pour les dangereux) ; le gibier broute jusqu’à 45 puis fuit (×0,6 de sa vitesse), l’explorateur
+   court (×1,5) ; `danger` 1 (sanglier, éléphant) se défend ; abattu = **viande** (`food`/2, 1 à 6),
+   l’animal disparaît 30 min (`gone`), celui qui s’échappe 3 min. **Sac** (bouton « Sac ») : remède,
+   biscuit, viande se mangent à tout moment ; la vie remonte seule hors combat (1 PV / 30 s).
+   Défaite = réveil au dernier bourg vu (`rest`), moitié de vie et d’écus. Pas d’attaque à moins de
+   180 d’un bourg ni pendant 20 s après un combat. Jauges de vie et dégâts flottants sur la carte.
+   Combat en cours sauvegardé (sauvegarde **v5**, v4 migrée). Les vies et coups des animaux
+   combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).
    PAS de plan de ville à parcourir pour l'instant.

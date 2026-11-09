@@ -1,13 +1,13 @@
 // Save and load the GameState in localStorage: small, versioned, robust.
 // What is saved: position, leagues, zoom, discovered places, the walk in progress, revealed fog
 // cells (run-length encoded) and footsteps (delta encoded). Never anything drawn.
-import type { Battle, GameState, Journey } from './state';
-import { CALM_LEAGUES, START_HP, START_ITEMS, monsterById } from './combat';
+import type { Fight, GameState, Journey } from './state';
+import { START_HP, START_ITEMS, speciesById } from './combat';
 
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -32,7 +32,9 @@ export interface SaveFile {
   seed: number;
   calmUntil: number;
   rest: [number, number];
-  battle: Battle | null;
+  // v5: fights on the map
+  fight: Fight | null;
+  gone: Record<string, number>;
 }
 
 // ---- fog cells: run-length encoding by row ----
@@ -119,7 +121,8 @@ export function toSaveFile(s: GameState, now = new Date()): SaveFile {
     seen: encodeCells(s.seen),
     trace: encodeTrace(s.trace),
     hp: s.hp, maxHp: s.maxHp, gold: s.gold, items: { ...s.items }, seed: s.seed,
-    calmUntil: s.calmUntil, rest: [s.rest[0], s.rest[1]], battle: s.battle ? { ...s.battle } : null,
+    calmUntil: s.calmUntil, rest: [s.rest[0], s.rest[1]],
+    fight: s.fight ? { ...s.fight, home: [s.fight.home[0], s.fight.home[1]] } : null, gone: { ...s.gone },
   };
 }
 
@@ -158,11 +161,18 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> |
     Object.assign(save, {
       hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },
       seed: (Math.random() * 4294967296) >>> 0,
-      calmUntil: (save.leagues as number) + CALM_LEAGUES, rest: [save.x, save.y], battle: null,
+      calmUntil: 0, rest: [save.x, save.y], battle: null,
     });
     save.v = 4;
   }
-  // next: if (save.v === 4) { ...; save.v = 5; }
+  if (save.v === 4) {
+    // v5: the fights moved onto the map (no monsters, no battle window): a fight with a monster
+    // in progress is simply dropped; the calm is now counted in world time
+    delete save.battle;
+    Object.assign(save, { fight: null, gone: {}, calmUntil: 0 });
+    save.v = 5;
+  }
+  // next: if (save.v === 5) { ...; save.v = 6; }
   return save;
 }
 
@@ -185,13 +195,17 @@ export function fromSaveFile(json: string): GameState {
   if (!items || typeof items !== 'object' || !Object.values(items).every(isNum)) throw new Error('bad items');
   const rest = f.rest as unknown[];
   if (!Array.isArray(rest) || rest.length !== 2 || !rest.every(isNum)) throw new Error('bad rest');
-  const battle = f.battle as Battle | null;
-  if (battle !== null && (typeof battle !== 'object' || !isNum(battle.hp) || !monsterById(battle.monster))) throw new Error('bad battle');
+  const fight = f.fight as Fight | null;
+  if (fight !== null && (typeof fight !== 'object' || typeof fight.key !== 'string' || !speciesById(fight.species)
+    || ![fight.hp, fight.x, fight.y, fight.cdYou, fight.cdFoe].every(isNum) || !Array.isArray(fight.home) || !fight.home.every(isNum))) throw new Error('bad fight');
+  const gone = f.gone as Record<string, unknown>;
+  if (!gone || typeof gone !== 'object' || !Object.values(gone).every(isNum)) throw new Error('bad gone');
   return {
-    version: 4,
+    version: 5,
     hp: Math.max(1, f.hp as number), maxHp: f.maxHp as number, gold: f.gold as number,
     items: items as Record<string, number>, seed: (f.seed as number) >>> 0, calmUntil: f.calmUntil as number,
-    rest: [rest[0] as number, rest[1] as number], battle: battle ? { ...battle } : null,
+    rest: [rest[0] as number, rest[1] as number],
+    fight: fight ? { ...fight, hunt: !!fight.hunt, home: [fight.home[0], fight.home[1]] } : null, gone: { ...(gone as Record<string, number>) },
     x: f.x as number, y: f.y as number, leagues: f.leagues as number, zoom: f.zoom as number,
     named: f.named as string[],
     journey: f.journey as Journey | null,

@@ -7,6 +7,7 @@ import { TILE, MOUNTAIN_ALTITUDE, altitude, humidity } from './terrain';
 import { biome } from './climate';
 import { settlement } from './settlements';
 import { CIRCUMFERENCE, beyondIce, wrapIndex } from './planet';
+import { sky } from './weather';
 
 export type Habitat = 'temperate' | 'savanna' | 'tundra' | 'jungle' | 'desert' | 'mountain' | 'sea' | 'ice';
 
@@ -51,6 +52,10 @@ export interface Species {
   range: number;
   food: number;
   danger: number;
+  /** life, for those that fight (otherwise by size, see lifeOf) */
+  hp?: number;
+  /** damage of a blow, [min, max], for those that fight */
+  damage?: [number, number];
   look: Look;
 }
 
@@ -235,4 +240,19 @@ function flyers(hd: Herd, t: number): Animal[] {
     out.push({ x, y, dir: x2 >= x ? 1 : -1, pace: 1, phase: seed, alt: bat ? 14 + Math.sin(t * 3 + seed) * 4 : 22 });
   }
   return out;
+}
+
+/** An animal's life: its own if it fights, otherwise by size. */
+export const lifeOf = (s: Species): number => s.hp ?? (s.size === 'small' ? 3 : s.size === 'medium' ? 8 : 18);
+
+/**
+ * Whether a herd is out at time t (1) or resting (0): day herds rest at night and night herds by
+ * day. At dawn and dusk each herd changes at its own moment of the twilight, in a few seconds
+ * (no ghostly half-faded animals). Shared by the drawing and by the fights.
+ */
+export function presence(h: Herd, night: boolean, t: number): number {
+  const n = Math.max(0, Math.min(1, (sky(h.x, t).darkness - 0.25) / 0.5));
+  const turn = 0.12 + hash2(Math.floor(h.x), Math.floor(h.y)) * 0.76;
+  const out = Math.max(0, Math.min(1, (n - turn) / 0.03 + 0.5));
+  return night ? out : 1 - out;
 }

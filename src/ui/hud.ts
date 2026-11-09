@@ -22,6 +22,11 @@ const CSS = `
 .hud-walk .go { flex: 1; text-transform: uppercase; letter-spacing: .05em; text-align: left; }
 .hud-walk .go i { display: block; font: italic 400 13px "IM Fell English", serif; text-transform: none; letter-spacing: 0; color: #6a5f4f; }
 .hud-walk .no { width: 46px; font-size: 20px; padding: 0; }
+.hud-buttons button.word { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.hud-walk.pack { flex-direction: column; }
+.hud-walk.pack .row { display: flex; gap: 8px; }
+.hud-walk.pack .title { font: 13px "IM Fell English SC", serif; letter-spacing: .08em; background: #ece3cb; border: 1.5px solid #2a241d; padding: 6px 10px; }
+.hud-walk.pack button:disabled { opacity: .45; }
 .hud-walk button:focus-visible { outline: 2px dashed #2a241d; }
 .hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
   color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
@@ -52,7 +57,7 @@ export class Hud {
   private readonly queue: [string, string, number][] = [];
   private readonly root: HTMLElement[] = [];
 
-  constructor(handlers: { zoomIn(): void; zoomOut(): void; center(): void }) {
+  constructor(handlers: { zoomIn(): void; zoomOut(): void; center(): void; pack(): void }) {
     const style = document.createElement('style');
     style.textContent = CSS;
     const header = document.createElement('header');
@@ -73,9 +78,10 @@ export class Hud {
     this.note.setAttribute('role', 'status');
     const buttons = document.createElement('div');
     buttons.className = 'hud-buttons';
-    for (const [label, aria, fn] of [['+', 'ui.zoomIn', handlers.zoomIn], ['−', 'ui.zoomOut', handlers.zoomOut], ['⌖', 'ui.center', handlers.center]] as const) {
+    for (const [label, aria, fn] of [[t('ui.packShort'), 'ui.pack', handlers.pack], ['+', 'ui.zoomIn', handlers.zoomIn], ['−', 'ui.zoomOut', handlers.zoomOut], ['⌖', 'ui.center', handlers.center]] as const) {
       const b = document.createElement('button');
       b.textContent = label;
+      if (label.length > 2) b.className = 'word';
       b.setAttribute('aria-label', t(aria));
       b.addEventListener('click', fn);
       buttons.append(b);
@@ -129,10 +135,10 @@ export class Hud {
   }
 
   /** Offer to walk to the spot tapped: a button to go, one to give up. */
-  showWalk(detail: string, place: string | null, go: () => void, cancel: () => void): void {
+  showWalk(detail: string, place: string | null, go: () => void, cancel: () => void, label?: string): void {
     this.hideNote();
     const b = document.createElement('button'), no = document.createElement('button');
-    b.className = 'go'; b.textContent = t('walk.go') + (place ? ' ' + place : '') + ' ›';
+    b.className = 'go'; b.textContent = (label ?? t('walk.go') + (place ? ' ' + place : '')) + ' ›';
     const i = document.createElement('i'); i.textContent = detail; b.append(i);
     no.className = 'no'; no.textContent = '×'; no.setAttribute('aria-label', t('walk.cancel'));
     b.addEventListener('click', go); no.addEventListener('click', cancel);
@@ -140,7 +146,31 @@ export class Hud {
     this.walk.classList.add('on');
   }
 
-  hideWalk(): void { this.walk.classList.remove('on'); }
+  hideWalk(): void { this.walk.classList.remove('on', 'pack'); }
+
+  /** The pack: what the explorer carries, each a button to eat or drink it. */
+  showPack(entries: { label: string; sub: string; use: (() => void) | null }[], title: string, empty: string): void {
+    this.hideNote();
+    const rows: HTMLElement[] = [];
+    const head = document.createElement('div'); head.className = 'title'; head.textContent = title;
+    rows.push(head);
+    if (!entries.length) { const e = document.createElement('div'); e.className = 'title'; e.style.fontStyle = 'italic'; e.textContent = empty; rows.push(e); }
+    for (const en of entries) {
+      const b = document.createElement('button');
+      b.className = 'go'; b.textContent = en.label;
+      const i = document.createElement('i'); i.textContent = en.sub; b.append(i);
+      b.disabled = !en.use;
+      if (en.use) b.addEventListener('click', en.use);
+      rows.push(b);
+    }
+    const close = document.createElement('button');
+    close.className = 'no'; close.textContent = '×'; close.setAttribute('aria-label', t('walk.cancel'));
+    close.style.width = '100%'; close.style.padding = '8px';
+    close.addEventListener('click', () => this.hideWalk());
+    rows.push(close);
+    this.walk.replaceChildren(...rows);
+    this.walk.classList.add('on', 'pack');
+  }
 
   /**
    * Show a cartouche. An important one (a wonder) stays up for its whole time: ordinary notes

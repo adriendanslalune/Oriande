@@ -57,5 +57,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     setupFiles: ['src/test-setup.ts'],
+    // the world is generated in the tests: some take 2-3 s here, more on a shared CI runner
+    testTimeout: 30_000,
   },
 });

@@ -276,10 +276,16 @@ export function riversOfCell(ci: number, cj: number): River[] {
   return out;
 }
 
+/** How far a lake reaches from its centre at most (its radius is at most 70, its shore up to ×1.36). */
+const LAKE_REACH = 100;
+
 /** Lakes that may reach into the box [x0, x1] x [y0, y1]. */
 export function lakesNear(x0: number, y0: number, x1: number, y1: number): Lake[] {
   const out: Lake[] = [];
-  for (const r of riversNear(x0, y0, x1, y1)) for (const l of r.lakes) if (l.x + l.r * 1.4 > x0 && l.x - l.r * 1.4 < x1 && l.y + l.r > y0 && l.y - l.r < y1 && !out.includes(l)) out.push(l);
+  // a lake reaches past the river that made it (one at a river's end lies beyond its last points):
+  // look for rivers as far around as the largest lake reaches
+  const R = LAKE_REACH;
+  for (const r of riversNear(x0 - R, y0 - R, x1 + R, y1 + R)) for (const l of r.lakes) if (l.x + l.r * 1.4 > x0 && l.x - l.r * 1.4 < x1 && l.y + l.r > y0 && l.y - l.r < y1 && !out.includes(l)) out.push(l);
   return out;
 }
 

@@ -127,7 +127,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
 
   // Rivers and lakes first: plants are drawn after them (never in the water), so trees on the
   // banks lean over the water.
-  const rivers = riversNear(x0 - 40, y0 - 40, x0 + T + 40, y0 + T + 60);
+  // wide enough for the lakes too: a lake can reach a tile ~100 units away from the river that made it
+  const rivers = riversNear(x0 - 110, y0 - 110, x0 + T + 110, y0 + T + 110);
   drawRivers(g, x0, y0, rivers);
   const water = waterMask(x0, y0, rivers);
 

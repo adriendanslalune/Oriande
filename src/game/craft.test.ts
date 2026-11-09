@@ -124,6 +124,21 @@ describe('fishing', () => {
   });
 });
 
+describe('every lake can be fished', () => {
+  it('every point of a lake is water to fish in (a lake reaches past the river that made it)', async () => {
+    const { lakesNear, inLake } = await import('../world/rivers');
+    const s = game();
+    let n = 0;
+    for (const l of lakesNear(s.x - 6000, s.y - 6000, s.x + 6000, s.y + 6000)) for (let k = 0; k < 30; k++) {
+      const a = k * 2.4, rr = l.r * ((k % 6) / 6), px = l.x + Math.cos(a) * rr, py = l.y + Math.sin(a) * rr * 0.75;
+      if (!inLake(l, px, py)) continue;
+      n++;
+      expect(fishable(px, py)).toBe(true);
+    }
+    expect(n).toBeGreaterThan(100);
+  });
+});
+
 describe('fishing from the near side', () => {
   it('the line goes to the first water on the way, the explorer stands just before it', () => {
     const s = game();

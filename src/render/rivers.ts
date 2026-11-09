@@ -182,7 +182,7 @@ export function drawRivers(g: CanvasRenderingContext2D, x0: number, y0: number, 
     }
   }
   // 5. lakes over the rivers: a river crossing a lake disappears into it
-  const lakes = near.flatMap((r) => r.lakes).filter((l, k, all) => all.indexOf(l) === k && inView(l.x, l.y, x0, y0, l.r * 1.3 + 4));
+  const lakes = rivers.flatMap((r) => r.lakes).filter((l, k, all) => all.indexOf(l) === k && inView(l.x, l.y, x0, y0, l.r * 1.3 + 4));
   for (const l of lakes) drawLake(g, l, x0, y0);
   // where a river meets a lake, the shore opens: redraw the river's water over the shore line,
   // and its banks up to the water's edge

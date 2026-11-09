@@ -13,16 +13,16 @@ const T = worldTime();
 const game = (): GameState => { const s = newGame(); s.seed = 4; s.calmUntil = 1e12; return s; };
 
 describe('hunger', () => {
-  it('the belly empties with time, faster on the move', () => {
+  it('the belly empties on the move only: standing still, it does not move', () => {
     const a = game(), b = game();
     for (let k = 0; k < 600; k++) { stepHunger(a, 0.5, false); stepHunger(b, 0.5, true); }
-    expect(a.food).toBeCloseTo(FOOD_MAX - 300 / HUNGER_SECONDS, 0);
-    expect(b.food).toBeLessThan(a.food);
+    expect(a.food).toBe(FOOD_MAX);
+    expect(b.food).toBeCloseTo(FOOD_MAX - 300 / HUNGER_SECONDS, 0);
   });
 
   it('hungry: a warning, and life no longer comes back by itself', () => {
     const s = game(); s.food = HUNGRY + 0.01; s.hp = 10;
-    expect(stepHunger(s, 1, false).some((e) => e.kind === 'hungry')).toBe(true);
+    expect(stepHunger(s, 1, true).some((e) => e.kind === 'hungry')).toBe(true);
     for (let k = 0; k < 400; k++) stepFight(s, 0.5, T + k * 0.5);
     expect(s.hp).toBe(10);
   });

@@ -324,5 +324,8 @@
   "fire.title": "A campfire",
   "fire.text": "It will burn a quarter of an hour. Stay close: cook, sleep, and the beasts keep away.",
   "fire.slept": "A night by the fire",
-  "fight.spoils": "+{n} {a}"
+  "fight.spoils": "+{n} {a}",
+  "hud.lifeLabel": "Life",
+  "hud.bellyLabel": "Belly",
+  "hud.goldLabel": "Crowns"
 }

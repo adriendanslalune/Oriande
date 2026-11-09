@@ -9,6 +9,7 @@ import { campLit } from '../game/camp';
 import { isSeen } from '../game/travel';
 import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, castFrom, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
 import { resourceAt } from '../world/resources';
+import { iconOfResource } from '../ui/icons';
 import { buy, goods, kindOf, rumor, sell, sellable, sleep, townAt, weaponDamage } from '../game/town';
 import type { Settlement } from '../world/settlements';
 import { settlement } from '../world/settlements';
@@ -69,6 +70,9 @@ function windName(w: { dx: number; dy: number; speed: number }): string {
 }
 
 /** The world map: tiles as Phaser textures under a screen-space overlay. */
+/** Pictograms of what is gathered, in the pack. */
+const MAT_ICON: Record<string, string> = { bois: 'wood', pierre: 'stone', fibre: 'fibre', herbes: 'fibre', peau: 'bag', os: 'tools' };
+
 export class MapScene extends Phaser.Scene {
   private state!: GameState;
   /** camera centre (world) and zoom (CSS px per world unit) */
@@ -225,7 +229,7 @@ export class MapScene extends Phaser.Scene {
       const d = Math.hypot(beast.x - this.state.x, beast.y - this.state.y);
       this.overlay.plan = [[this.state.x, this.state.y], [beast.x, beast.y]];
       const verb = beast.species.danger >= 1 ? 'hunt.attack' : 'hunt.go';
-      this.actions(beast.x, beast.y - beast.species.look.len * 0.6, [{ label: t(verb, { a: t('animal.' + beast.species.id) }), detail: tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), go: () => this.goHunt(beast) }]);
+      this.actions(beast.x, beast.y - beast.species.look.len * 0.6, [{ label: t(verb, { a: t('animal.' + beast.species.id) }), detail: tn('walk.leagues', d / LEAGUE, { n: num(d / LEAGUE, 1) }), go: () => this.goHunt(beast), icon: 'hunt' }]);
       return;
     }
     // a tap on (or near) a place already seen goes to that place, by its name
@@ -235,7 +239,7 @@ export class MapScene extends Phaser.Scene {
     if (place?.town && here && here.key === place.town.key && !this.state.fight) {
       const b = place.town;
       this.overlay.plan = null;
-      this.actions(b.x, b.y, [{ label: t('town.enter', { n: b.name }), go: () => this.openTown(b) }]);
+      this.actions(b.x, b.y, [{ label: t('town.enter', { n: b.name }), go: () => this.openTown(b), icon: 'enter' }]);
       return;
     }
     const x = place ? place.x : tx, y = place ? place.y : ty;
@@ -255,10 +259,10 @@ export class MapScene extends Phaser.Scene {
       if (!startJourney(s, x, y)) this.onEvent({ type: 'shore' });
     };
     // the second action: gather what grows there, or fish in that water (with a rod)
-    let alt: { label: string; detail: string; go: () => void } | undefined;
+    let alt: { label: string; detail: string; go: () => void; icon?: string } | undefined;
     const res = place || water || !isSeen(s, tx, ty) ? null : resourceAt(tx, ty);
     if (res && !s.fight) alt = {
-      label: t('work.harvest', { r: t('item.' + res + '.name') }), detail: L >= 1 ? detail : '',
+      label: t('work.harvest', { r: t('item.' + res + '.name') }), detail: L >= 1 ? detail : '', icon: iconOfResource(res),
       go: () => {
         this.cancelPlan(); this.follow = true;
         startWork(s, 'harvest', tx, ty);
@@ -274,7 +278,7 @@ export class MapScene extends Phaser.Scene {
       if (cast && (here || LF >= 1)) {
         if (way) this.overlay.plan = way.path;
         alt = {
-          label: t('work.fish'), detail: here ? '' : tn('walk.leagues', LF / LEAGUE, { n: num(LF / LEAGUE, 1) }) + (has(s, 'canne') ? '' : ' · ' + t('work.needRod')),
+          icon: 'fish', label: t('work.fish'), detail: here ? '' : tn('walk.leagues', LF / LEAGUE, { n: num(LF / LEAGUE, 1) }) + (has(s, 'canne') ? '' : ' · ' + t('work.needRod')),
           go: () => {
             this.cancelPlan();
             if (!has(s, 'canne')) { this.hud.showNote(t('work.needRod'), t('work.needRod.text'), 6000); return; }
@@ -287,9 +291,9 @@ export class MapScene extends Phaser.Scene {
     }
     if (L < 1 && !alt) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
     // the likely action first: gathering or fishing where something can be had, then walking there
-    const items: { label: string; detail?: string; go: () => void }[] = [];
+    const items: { label: string; detail?: string; go: () => void; icon?: string }[] = [];
     if (alt) items.push(alt);
-    if (L >= 1) items.push({ label: t('walk.go') + (place ? ' ' + place.name : ''), detail, go: walk });
+    if (L >= 1) items.push({ label: t('walk.go') + (place ? ' ' + place.name : ''), detail, go: walk, icon: place?.town ? 'enter' : 'walk' });
     this.actions(x, y, items);
   }
 
@@ -297,7 +301,7 @@ export class MapScene extends Phaser.Scene {
   private actAt: [number, number] | null = null;
 
   /** Show the menu of actions beside world point (x, y). */
-  private actions(x: number, y: number, items: { label: string; detail?: string; go: () => void }[]): void {
+  private actions(x: number, y: number, items: { label: string; detail?: string; go: () => void; icon?: string }[]): void {
     this.actAt = [x, y];
     this.hud.showActions(items, () => this.cancelPlan());
     this.placeActions();
@@ -317,43 +321,43 @@ export class MapScene extends Phaser.Scene {
     this.actAt = null;
     const s = this.state, k = kindOf(b), name = (id: string): string => t('item.' + id + '.name');
     const ecus = (n: number): string => tn('town.ecus', n, { n });
-    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean };
+    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean; icon?: string };
     const done = (): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openTown(b); };
     const e: Entry[] = [];
     // the inn
-    e.push({ label: t('town.inn'), sub: '', use: null, head: true });
+    e.push({ label: t('town.inn'), sub: '', use: null, head: true, icon: 'inn' });
     const tired = s.hp < s.maxHp, rich = s.gold >= k.inn;
     e.push({
-      label: t('town.sleep', { p: ecus(k.inn) }), sub: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor'),
+      icon: 'sleep', label: t('town.sleep', { p: ecus(k.inn) }), sub: !tired ? t('town.sleep.full') : rich ? t('town.sleep.sub') : t('town.sleep.poor'),
       use: tired && rich ? () => { sleep(s, b); done(); this.hud.showNote(t('town.slept'), t('town.slept.text'), 3000); } : null,
     });
     // the merchant: buying, then selling
-    e.push({ label: t('town.shop'), sub: '', use: null, head: true });
+    e.push({ label: t('town.shop'), sub: '', use: null, head: true, icon: 'shop' });
     for (const g of goods(s, b).filter((x) => !x.smith)) {
       const it = ITEMS.find((i) => i.id === g.id)!;
       e.push({
-        label: t('town.buy', { a: name(g.id), p: ecus(g.price) }),
+        icon: it.kind === 'food' ? 'food' : 'tools', label: t('town.buy', { a: name(g.id), p: ecus(g.price) }),
         sub: it.kind === 'food' ? t('town.buy.food', { n: it.heal, k: s.items[g.id] ?? 0 }) : t('item.' + g.id + '.text'),
         use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null,
       });
     }
-    e.push({ label: t('town.sellHead'), sub: '', use: null, head: true });
+    e.push({ label: t('town.sellHead'), sub: '', use: null, head: true, icon: 'sell' });
     const wares = sellable(s, b);
     if (!wares.length) e.push({ label: '', sub: t('town.nothingToSell'), use: null, info: true });
-    for (const w of wares) e.push({ label: t('town.sell', { a: name(w.id), n: w.n }), sub: t('town.sell.sub', { p: ecus(w.price) }), use: () => { sell(s, b, w.id); done(); } });
+    for (const w of wares) e.push({ icon: 'coin', label: t('town.sell', { a: name(w.id), n: w.n }), sub: t('town.sell.sub', { p: ecus(w.price) }), use: () => { sell(s, b, w.id); done(); } });
     // the smith, in a city
     const arms = goods(s, b).filter((x) => x.smith);
     if (k.forge.length) {
-      e.push({ label: t('town.smith'), sub: '', use: null, head: true });
+      e.push({ label: t('town.smith'), sub: '', use: null, head: true, icon: 'smith' });
       if (!arms.length) e.push({ label: '', sub: t('town.smith.done'), use: null, info: true });
       for (const g of arms) {
         const [lo, hi] = weaponDamage(g.id) ?? [0, 0];
-        e.push({ label: t('town.buy', { a: name(g.id), p: ecus(g.price) }), sub: t('town.weapon.sub', { a: lo, b: hi }) + ' · ' + t('item.' + g.id + '.text'), use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null });
+        e.push({ icon: 'hunt', label: t('town.buy', { a: name(g.id), p: ecus(g.price) }), sub: t('town.weapon.sub', { a: lo, b: hi }) + ' · ' + t('item.' + g.id + '.text'), use: s.gold >= g.price ? () => { buy(s, b, g.id); done(); } : null });
       }
     }
     // the tavern, in a city: what is being said tonight
     const r = rumor(b, worldTime());
-    if (r) e.push({ label: t('town.tavern'), sub: '', use: null, head: true }, { label: '', sub: t('rumor.' + r), use: null, info: true });
+    if (r) e.push({ label: t('town.tavern'), sub: '', use: null, head: true, icon: 'tavern' }, { label: '', sub: t('rumor.' + r), use: null, info: true, icon: 'rumor' });
     this.overlay.plan = null;
     this.hud.showPack(e, t(b.city ? 'town.page.city' : 'town.page.village', { n: b.name }) + ' · ' + t('town.purse', { hp: s.hp, max: s.maxHp, g: ecus(s.gold) }), '');
   }
@@ -408,22 +412,23 @@ export class MapScene extends Phaser.Scene {
   private openPack(): void {
     this.actAt = null;
     const s = this.state, now = worldTime(), name = (id: string): string => t('item.' + id + '.name');
-    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean };
+    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean; icon?: string };
     const entries: Entry[] = [];
     const again = (): void => { saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold, s.food); this.openPack(); };
     const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0);
     const food = owned('food'), mats = owned('material'), tools = owned('tool');
     // by the campfire: cook what is raw, sleep
     if (campLit(s, now) && Math.hypot(s.camp!.x - s.x, s.camp!.y - s.y) < 40) {
-      entries.push({ label: t('pack.fire'), sub: '', use: null, head: true });
+      entries.push({ label: t('pack.fire'), sub: '', use: null, head: true, icon: 'fire' });
       for (const it of food.filter((i) => canCook(s, i.id, now))) entries.push({
-        label: t('pack.cook', { a: name(it.id), n: s.items[it.id] }), sub: t('pack.cook.sub', { b: name(it.cooks!) }),
+        icon: 'cook', label: t('pack.cook', { a: name(it.id), n: s.items[it.id] }), sub: t('pack.cook.sub', { b: name(it.cooks!) }),
         use: () => { cook(s, it.id, now); this.overlay.float(s.x, s.y - 30, '+1 ' + name(it.cooks!).toLowerCase(), 'loot'); again(); },
       });
       const can = canSleepByFire(s, now);
-      entries.push({ label: t('pack.sleep'), sub: can ? t('pack.sleep.sub', { n: SLEEP_FOOD }) : t('pack.sleep.no'), use: can ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(); } : null });
+      entries.push({ icon: 'sleep', label: t('pack.sleep'), sub: can ? t('pack.sleep.sub', { n: SLEEP_FOOD }) : t('pack.sleep.no'), use: can ? () => { sleepByFire(s, now); this.hud.showNote(t('fire.slept'), t('town.slept.text'), 3000); again(); } : null });
     }
-    if (food.length) entries.push({ label: t('pack.food'), sub: '', use: null, head: true }, ...food.map((it) => ({
+    if (food.length) entries.push({ label: t('pack.food'), sub: '', use: null, head: true, icon: 'food' }, ...food.map((it) => ({
+      icon: 'food',
       label: `${name(it.id)} × ${s.items[it.id]}`,
       sub: t('pack.eat.sub', { f: it.food ?? 0, h: it.heal }) + (it.sick ? t('pack.raw') : ''),
       use: () => {
@@ -432,12 +437,13 @@ export class MapScene extends Phaser.Scene {
         again();
       },
     })));
-    if (mats.length) entries.push({ label: t('pack.materials'), sub: '', use: null, head: true }, ...mats.map((it) => ({ label: `${name(it.id)} × ${s.items[it.id]}`, sub: '', use: null, info: true })));
-    entries.push({ label: t('pack.tools'), sub: '', use: null, head: true });
+    if (mats.length) entries.push({ label: t('pack.materials'), sub: '', use: null, head: true, icon: 'wood' }, ...mats.map((it) => ({ label: `${name(it.id)} × ${s.items[it.id]}`, sub: '', use: null, info: true, icon: MAT_ICON[it.id] })));
+    entries.push({ label: t('pack.tools'), sub: '', use: null, head: true, icon: 'tools' });
     if (weaponOf(s).id === 'poings') entries.push({ label: t('pack.fists'), sub: '', use: null, info: true });
     for (const it of tools) entries.push({ label: name(it.id), sub: t('item.' + it.id + '.text'), use: null, info: true });
     const todo = RECIPES.filter((r) => !(ITEMS.find((i) => i.id === r.id)?.kind === 'tool' && has(s, r.id)));
-    if (todo.length) entries.push({ label: t('pack.make'), sub: '', use: null, head: true }, ...todo.map((r) => ({
+    if (todo.length) entries.push({ label: t('pack.make'), sub: '', use: null, head: true, icon: 'make' }, ...todo.map((r) => ({
+      icon: r.id === 'feu' ? 'fire' : undefined,
       label: name(r.id) + (canCraft(s, r.id) ? ' ›' : ''),
       sub: t('pack.needs', { n: Object.entries(r.needs).map(([k, n]) => `${n} ${name(k).toLowerCase()}${(s.items[k] ?? 0) < n ? ' (' + (s.items[k] ?? 0) + ')' : ''}`).join(', ') })
         + (r.id === 'feu' ? ' · ' + t('pack.lay') : ''),
@@ -673,7 +679,7 @@ export class MapScene extends Phaser.Scene {
     const walking = advance(s, dt, events);
     this.fightStep(dt, delta);
     this.workStep(dt);
-    for (const e of stepHunger(s, dt, walking || !!s.fight)) {
+    for (const e of stepHunger(s, dt, walking)) {
       if (e.kind === 'hungry') this.hud.showNote(t('hunger.title'), t('hunger.text'), 6000);
       else if (e.kind === 'starving') this.overlay.float(s.x, s.y - 30, '−1', 'foe');
       else { this.view.x = s.x; this.view.y = s.y; this.follow = true; this.hud.showNote(t('hunger.fainted.title'), t('hunger.fainted.text', { n: e.goldLost }), 8000); saveGame(s); }

@@ -306,9 +306,12 @@ sur le téléphone de Doudou via GitLab Pages.
    seulement s'il en a une. Travail en cours dans `GameState.work` (sauvegarde **v6**, v5 migrée en gardant
    le sac).
    **Survie** (demande d'Adrien, priorité avant donjons et lore ; climat — froid, chaleur, soif — plus tard) :
-   **faim** (`game/survival.ts`) : `food` 0-100, −1 toutes les 18 s (×1,6 en marche ou en combat : plein → vide en
-   ~30 min) ; sous 30, alerte et la vie ne remonte plus seule ; à 0, −1 PV de temps en temps, puis évanoui et
-   ramené au dernier bourg (moitié des écus). En-tête : « ventre 72 % », en rouge quand on a faim. Chaque
+   **faim** (`game/survival.ts`) : `food` 0-100, ne baisse **qu'en se déplaçant** (demande d'Adrien ; −1 toutes
+   les 12 s de marche : plein → vide en ~20 min de marche ; immobile, rien) ; sous 30, alerte et la vie ne remonte plus seule ; à 0, −1 PV de temps en temps, puis évanoui et
+   ramené au dernier bourg (moitié des écus). En-tête en **pictogrammes** (`ui/icons.ts`, demande d'Adrien) : cœur 17/20, estomac 72 % (rouge quand
+   on a faim), pièce 12 ; bouton Sac = un sac ; pictos aussi dans le menu d'actions (chasse, bois/pierre/herbe,
+   poisson, pas, maison) et les sections du sac et des bourgs (flamme, marmite, lune, outils, lit, balance,
+   enclume, chope). SVG inline au trait d'encre avec un lavis. Chaque
    nourriture a `food` (ventre), `heal`, et `sick` si crue (viande 25 %, poisson 15 %, champignons 20 % : −3 PV).
    **Feu de camp** (`game/camp.ts`, recette 3 bois + 2 pierres, posé là où l'on est, brûle 15 min, dessiné avec
    fumée, éclaire la nuit) : on y **cuit** (viande → grillée, poisson, champignons ; bien plus nourrissant et sans

@@ -1,4 +1,4 @@
-// Survival (asked by Adrien): a belly that empties as time goes, faster on the move; food that
+// Survival (asked by Adrien): a belly that empties on the move (not standing still); food that
 // fills it, better cooked than raw; a campfire to cook by and to sleep by. Pure rules, no Phaser:
 // the map scene calls `stepHunger` every frame and shows what it reports.
 import { itemById } from './craft';
@@ -7,10 +7,9 @@ import { roll } from './dice';
 import type { GameState } from './state';
 
 export const FOOD_MAX = 100;
-/** Seconds for the belly to lose a point at rest: full to empty in about half an hour. */
-export const HUNGER_SECONDS = 18;
-/** Walking (or running after game) empties it faster. */
-export const WALK_HUNGER = 1.6;
+/** Seconds on the move for the belly to lose a point: full to empty in about twenty minutes of
+ * walking. Standing still, it does not move (asked by Adrien). */
+export const HUNGER_SECONDS = 12;
 /** Under this, the explorer is hungry: life no longer comes back by itself. */
 export const HUNGRY = 30;
 /** Starving (an empty belly): a point of life lost every so often (seconds). */
@@ -22,11 +21,11 @@ export const SLEEP_FOOD = 20;
 
 export type HungerEvent = { kind: 'hungry' } | { kind: 'starving' } | { kind: 'fainted'; goldLost: number };
 
-/** dt seconds of hunger (walking or not). Returns what happened. */
+/** dt seconds of hunger: the belly empties only on the move. Returns what happened. */
 export function stepHunger(s: GameState, dt: number, walking: boolean): HungerEvent[] {
   const out: HungerEvent[] = [];
   const before = s.food;
-  s.food = Math.max(0, s.food - (dt / HUNGER_SECONDS) * (walking ? WALK_HUNGER : 1));
+  if (walking) s.food = Math.max(0, s.food - dt / HUNGER_SECONDS);
   if (before >= HUNGRY && s.food < HUNGRY) out.push({ kind: 'hungry' });
   if (s.food <= 0 && roll(s) < dt / STARVE_SECONDS) {
     s.hp -= 1;

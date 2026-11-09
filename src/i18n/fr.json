@@ -324,5 +324,8 @@
   "fire.title": "Un feu de camp",
   "fire.text": "Il brûlera un quart d’heure. Restez près : on y cuit, on y dort, et les bêtes n’approchent pas.",
   "fire.slept": "Une nuit au coin du feu",
-  "fight.spoils": "+{n} {a}"
+  "fight.spoils": "+{n} {a}",
+  "hud.lifeLabel": "Vie",
+  "hud.bellyLabel": "Ventre",
+  "hud.goldLabel": "Écus"
 }

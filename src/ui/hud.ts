@@ -1,6 +1,7 @@
 // Minimal DOM HUD styled as an old atlas: header with counters, a cartouche for notes,
 // and the zoom buttons. Same look as the proto. All text goes through i18n.
 import { t } from '../i18n';
+import { icon } from './icons';
 import type { WeatherKind } from '../world/weather';
 
 const CSS = `
@@ -49,6 +50,15 @@ const CSS = `
   color: #6a5f4f !important; font: 16px/24px serif; text-align: center; min-height: 0; z-index: 1; }
 .hud-buttons button.got { animation: got .6s ease-out; }
 @keyframes got { 0% { background: #ece3cb; } 30% { background: #cfe0b0; transform: scale(1.12); } 100% { background: #ece3cb; transform: none; } }
+.ico { flex: none; vertical-align: -4px; }
+.hud-header .t .life { display: flex; gap: 10px; align-items: center; }
+.hud-header .t .life span { display: inline-flex; align-items: center; gap: 3px; }
+.hud-header .t .life.hungry .belly { color: #a83428; }
+.hud-act button, .hud-walk.pack button.go, .hud-walk.pack .info { display: flex; align-items: center; gap: 8px; }
+.hud-act button .txt, .hud-walk.pack .txt { flex: 1; }
+.hud-walk.pack .head { display: flex; align-items: center; gap: 6px; }
+.hud-buttons button.bag { color: #2a241d; }
+.hud-buttons button.bag .ico { vertical-align: middle; }
 .hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
   color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
 .hud-buttons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; z-index: 2; }
@@ -108,7 +118,8 @@ export class Hud {
     for (const [label, aria, fn] of [[t('ui.packShort'), 'ui.pack', handlers.pack], ['+', 'ui.zoomIn', handlers.zoomIn], ['−', 'ui.zoomOut', handlers.zoomOut], ['⌖', 'ui.center', handlers.center]] as const) {
       const b = document.createElement('button');
       b.textContent = label;
-      if (label.length > 2) b.className = 'word';
+      if (fn === handlers.pack) { b.className = 'bag'; b.innerHTML = icon('bag', 26); }
+      else if (label.length > 2) b.className = 'word';
       b.setAttribute('aria-label', t(aria));
       b.addEventListener('click', fn);
       if (fn === handlers.pack) this.packButton = b;
@@ -136,13 +147,21 @@ export class Hud {
     if (this.coords.textContent !== text) this.coords.textContent = text;
   }
 
-  /** The explorer's life, belly and purse, under the weather (the belly in red when hungry). */
+  /** The explorer's life, belly and purse, under the weather, as pictograms (the belly in red when hungry). */
   setLife(hp: number, max: number, gold: number, food = 100): void {
     const f = Math.round(food), key = hp + '/' + max + '/' + gold + '/' + f;
     if (this.life.dataset.v === key) return;
     this.life.dataset.v = key;
-    const heart = document.createElement('b'); heart.textContent = '♥ ';
-    this.life.replaceChildren(heart, t('hud.life', { hp, max, n: gold, f }));
+    const part = (cls: string, ico: string, text: string, label: string): HTMLElement => {
+      const sp = document.createElement('span'); sp.className = cls; sp.title = label; sp.setAttribute('aria-label', label + ' ' + text);
+      sp.innerHTML = icon(ico, 16); sp.append(text);
+      return sp;
+    };
+    this.life.replaceChildren(
+      part('hp', 'heart', `${hp}/${max}`, t('hud.lifeLabel')),
+      part('belly', 'belly', `${f} %`, t('hud.bellyLabel')),
+      part('gold', 'coin', `${gold}`, t('hud.goldLabel')),
+    );
     this.life.classList.toggle('hungry', f < 30);
   }
 
@@ -194,15 +213,17 @@ export class Hud {
    * A small menu beside what was tapped on the map: chase, gather, fish, walk, go in... The first
    * action (the likely one) stands out. Place it with `placeActions` (it follows the map).
    */
-  showActions(items: { label: string; detail?: string; go: () => void }[], cancel: () => void): void {
+  showActions(items: { label: string; detail?: string; go: () => void; icon?: string }[], cancel: () => void): void {
     this.hideNote();
     this.walk.classList.remove('on', 'pack', 'two');
     const rows: HTMLElement[] = items.map((it, k) => {
       const b = document.createElement('button');
       if (k === 0) b.className = 'main';
       b.setAttribute('role', 'menuitem');
-      b.textContent = it.label;
-      if (it.detail) { const i = document.createElement('i'); i.textContent = it.detail; b.append(i); }
+      if (it.icon) b.innerHTML = icon(it.icon, 20);
+      const txt = document.createElement('span'); txt.className = 'txt'; txt.textContent = it.label;
+      if (it.detail) { const i = document.createElement('i'); i.textContent = it.detail; txt.append(i); }
+      b.append(txt);
       b.addEventListener('click', it.go);
       return b;
     });
@@ -232,22 +253,27 @@ export class Hud {
   }
 
   /** The pack: what the explorer carries, each a button to eat or drink it. */
-  showPack(entries: { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean }[], title: string, empty: string): void {
+  showPack(entries: { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean; icon?: string }[], title: string, empty: string): void {
     this.hideNote();
     const rows: HTMLElement[] = [];
     const head = document.createElement('div'); head.className = 'title'; head.textContent = title;
     rows.push(head);
     if (!entries.length) { const e = document.createElement('div'); e.className = 'title'; e.style.fontStyle = 'italic'; e.textContent = empty; rows.push(e); }
     for (const en of entries) {
-      if (en.head) { const h = document.createElement('div'); h.className = 'head'; h.textContent = en.label; rows.push(h); continue; }
+      if (en.head) { const h = document.createElement('div'); h.className = 'head'; h.innerHTML = icon(en.icon ?? '', 18); h.append(en.label); rows.push(h); continue; }
+      // a row's text: the label, and under it the detail in italics; a pictogram before them
+      const body = (el: HTMLElement): void => {
+        if (en.icon) el.innerHTML = icon(en.icon, 22);
+        const txt = document.createElement('span'); txt.className = 'txt'; txt.textContent = en.label;
+        if (en.sub) { const i = document.createElement('i'); i.textContent = en.sub; txt.append(i); }
+        el.append(txt);
+      };
       if (en.info) { // something carried, nothing to do with it here
-        const d = document.createElement('div'); d.className = 'info'; d.textContent = en.label;
-        if (en.sub) { const i = document.createElement('i'); i.textContent = en.sub; d.append(i); }
+        const d = document.createElement('div'); d.className = 'info'; body(d);
         rows.push(d); continue;
       }
       const b = document.createElement('button');
-      b.className = 'go'; b.textContent = en.label;
-      const i = document.createElement('i'); i.textContent = en.sub; b.append(i);
+      b.className = 'go'; body(b);
       b.disabled = !en.use;
       if (en.use) b.addEventListener('click', en.use);
       rows.push(b);

@@ -16,6 +16,10 @@ function rng(seed: string): () => number {
   };
 }
 
+// the outlines of towns drawn with ChatGPT, in src/assets/skylines/<village|city>-<n>.webp
+const lineUrls = import.meta.glob('../assets/skylines/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const LINES = new Map(Object.entries(lineUrls).map(([path, url]) => [path.split('/').pop()!.replace('.webp', ''), url]));
+
 const f = (n: number): string => (Math.round(n * 10) / 10).toString();
 
 /**
@@ -23,6 +27,12 @@ const f = (n: number): string => (Math.round(n * 10) / 10).toString();
  * chapel (a village), or of its tall houses, walls, towers and steeples (a city).
  */
 export function skyline(seed: string, city: boolean, w = 360, h = 96): string {
+  // drawn with ChatGPT (docs/emblems.md): village-1, village-2... city-1...; each town takes one by its key
+  const kind = city ? 'city' : 'village', own = [...LINES.keys()].filter((k) => k.startsWith(kind + '-')).sort();
+  if (own.length) {
+    const url = LINES.get(own[Math.floor(rng(seed)() * own.length)]);
+    return `<img class="skyline art" src="${url}" alt="">`;
+  }
   const r = rng(seed + (city ? ':city' : ':village')), base = h - 6, pts: string[] = [`M0 ${base}`];
   const to = (x: number, y: number): void => { pts.push(`L${f(x)} ${f(y)}`); };
   const between = (lo: number, hi: number): number => lo + r() * (hi - lo);

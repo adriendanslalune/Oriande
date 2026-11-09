@@ -31,7 +31,7 @@ export function skyline(seed: string, city: boolean, w = 360, h = 96): string {
   const kind = city ? 'city' : 'village', own = [...LINES.keys()].filter((k) => k.startsWith(kind + '-')).sort();
   if (own.length) {
     const url = LINES.get(own[Math.floor(rng(seed)() * own.length)]);
-    return `<img class="skyline art" src="${url}" alt="">`;
+    return `<img class="skyline art" src="${url}" alt="">`; // transparent around its line
   }
   const r = rng(seed + (city ? ':city' : ':village')), base = h - 6, pts: string[] = [`M0 ${base}`];
   const to = (x: number, y: number): void => { pts.push(`L${f(x)} ${f(y)}`); };
@@ -154,11 +154,19 @@ const SIGNS = new Map(Object.entries(urls).map(([path, url]) => [path.split('/')
 export const emblem = (key: string, size = 64): string =>
   `<svg class="emblem" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">${EMBLEMS[key] ?? ''}</svg>`;
 
+/** Where the empty band lies on each board (height of its middle, share of the picture), and its width. */
+const BAND: Record<string, [number, number]> = {
+  'inn-village': [0.385, 0.66], 'inn-city': [0.39, 0.66], 'shop-village': [0.405, 0.66],
+  'shop-city': [0.39, 0.66], smith: [0.395, 0.62], tavern: [0.405, 0.6],
+};
+
 /** A place's sign with its name: the hanging board if drawn, else the emblem over a ribbon. */
 export function shopSign(sign: string, key: string, title: string, size: number): string {
   const url = SIGNS.get(sign);
   if (!url) return emblem(key, size) + ribbon(title);
-  return `<div class="shopsign" style="width:${Math.round(size * 2.6)}px"><img src="${url}" alt=""><span>${esc(title)}</span></div>`;
+  const w = Math.round(size * 2.9), [y, bw] = BAND[sign] ?? [0.39, 0.62];
+  const px = Math.min(Math.round(w * 0.085), Math.floor((w * bw) / (title.length * 0.5))); // a long name, smaller
+  return `<div class="shopsign" style="width:${w}px"><img src="${url}" alt=""><span style="top:${y * 100}%;font-size:${px}px;width:${Math.round(bw * 100)}%">${esc(title)}</span></div>`;
 }
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

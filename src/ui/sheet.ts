@@ -90,11 +90,10 @@ body.sheet-open .hud-buttons { display: none; }
 .sheet .townhead { position: relative; flex: none; margin: 4px 4px 0; padding: 14px 0 0; display: flex; flex-direction: column; align-items: center; }
 .sheet .townhead .skyline { display: block; width: 100%; height: 96px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); }
 .sheet .townhead .emblem { margin-top: 18px; }
-.sheet .skyline.art { mix-blend-mode: multiply; object-fit: contain; }
+.sheet .townhead img.skyline { height: auto; max-height: 96px; object-fit: contain; object-position: 50% 100%; }
 .sheet .shopsign { position: relative; max-width: 100%; }
-.sheet .shopsign img { display: block; width: 100%; height: auto; mix-blend-mode: multiply; }
-.sheet .shopsign span { position: absolute; left: 22%; right: 12%; top: var(--band, 30%); transform: translateY(-50%); text-align: center; font: 15px/1.05 "IM Fell English SC", serif; letter-spacing: .04em; color: #2b2117; }
-.sheet .townhead .shopsign span { font-size: 21px; }
+.sheet .shopsign img { display: block; width: 100%; height: auto; }
+.sheet .shopsign span { position: absolute; left: 53%; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; font-family: "IM Fell English SC", serif; letter-spacing: .03em; color: #3a2a1a; }
 .sheet .townhead img.skyline { object-fit: contain; object-position: 50% 100%; }
 .sheet .townhead .ribbon { width: min(86%, 330px); height: auto; margin-top: -6px; }
 .sheet .townhead .close, .sheet .townhead .back { position: absolute; top: 6px; z-index: 3; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: ${INK}; background: #f3e9cf; border: 1.5px solid ${INK}; padding: 3px 9px; cursor: pointer; }

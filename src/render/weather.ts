@@ -252,13 +252,15 @@ export class WeatherLayer {
     }
   }
 
-  /** The lights of the night, in screen space: [x, y, radius, kind (0 torch, 1 window)]. */
-  lights(v: View, screen: Screen, world: World, seen: (x: number, y: number) => boolean, explorer: [number, number], now: number): [number, number, number, number][] {
+  /** The lights of the night, in screen space: [x, y, radius, kind (0 torch, 1 window, 2 no torch)]. */
+  lights(v: View, screen: Screen, world: World, seen: (x: number, y: number) => boolean, explorer: [number, number], now: number, torch = true): [number, number, number, number][] {
     const d = sky(v.x).darkness, out: [number, number, number, number][] = [];
     if (d < 0.12) return out;
     const t = now / 1000, z = v.zoom;
     const [ex, ey] = screen(explorer[0], explorer[1]);
-    out.push([ex, ey - 22 * z / 1.3, (62 + Math.sin(t * 11) * 2 + Math.sin(t * 17) * 1.5) * z, 0]);
+    // the torch's light; without one, only the eyes grown used to the dark
+    if (torch) out.push([ex, ey - 22 * z / 1.3, (62 + Math.sin(t * 11) * 2 + Math.sin(t * 17) * 1.5) * z, 0]);
+    else out.push([ex, ey - 12 * z / 1.3, 20 * z, 2]);
     const [ax, ay] = world(0, 0), [bx, by] = world(v.W, v.H);
     for (let tj = Math.floor(ay / TILE) - 1; tj <= Math.floor(by / TILE) + 1; tj++) for (let ti = Math.floor(ax / TILE) - 1; ti <= Math.floor(bx / TILE) + 1; ti++) {
       const b = settlement(ti, tj);
@@ -286,8 +288,9 @@ export class WeatherLayer {
     ng.fillStyle = `rgba(14,30,78,${d * 0.66})`; ng.fillRect(0, 0, W, H);
     ng.globalCompositeOperation = 'destination-out';
     for (const [x, y, r, kind] of lights) {
-      const R = (kind ? r * 9 : r) / scale, gr = ng.createRadialGradient(x / scale, y / scale, 0, x / scale, y / scale, R);
-      gr.addColorStop(0, `rgba(0,0,0,${kind ? 0.55 : 0.92})`); gr.addColorStop(kind ? 1 : 0.7, `rgba(0,0,0,${kind ? 0 : 0.35})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      // 0 the torch, 1 a window (its glow spreads), 2 no torch: a little clearer round the explorer
+      const win = kind === 1, R = (win ? r * 9 : r) / scale, gr = ng.createRadialGradient(x / scale, y / scale, 0, x / scale, y / scale, R);
+      gr.addColorStop(0, `rgba(0,0,0,${win ? 0.55 : kind === 2 ? 0.5 : 0.92})`); gr.addColorStop(win ? 1 : 0.7, `rgba(0,0,0,${win ? 0 : kind === 2 ? 0.15 : 0.35})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
       ng.fillStyle = gr; ng.fillRect(x / scale - R, y / scale - R, R * 2, R * 2);
     }
     ng.globalCompositeOperation = 'source-over';
@@ -299,6 +302,7 @@ export class WeatherLayer {
     const d = sky(v.x).darkness;
     if (d < 0.12) return;
     for (const [x, y, r, kind] of lights) {
+      if (kind === 2) continue; // no torch, no glow
       if (kind === 0) {
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
         g.addColorStop(0, `rgba(255,196,96,${0.32 * d})`); g.addColorStop(0.5, `rgba(255,170,70,${0.14 * d})`); g.addColorStop(1, 'rgba(255,160,60,0)');

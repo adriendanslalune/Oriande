@@ -5,6 +5,8 @@ import { newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type 
 import { pathLength, planRoute, prefetchWays } from '../game/route';
 import { CONTACT, HUNT_RUN, ITEMS, REGROUP, beastsNear, end, hunt, stepFight, useItem, type Beast } from '../game/combat';
 import { isSeen } from '../game/travel';
+import { FISH_REACH, HARVEST_REACH, RECIPES, canCraft, craft, fishable, has, startWork, stepWork, weaponOf } from '../game/craft';
+import { resourceAt } from '../world/resources';
 import { settlement } from '../world/settlements';
 import { landmark } from '../world/landmarks';
 import { wondersNear } from '../world/wonders';
@@ -220,27 +222,85 @@ export class MapScene extends Phaser.Scene {
     const x = place ? place.x : tx, y = place ? place.y : ty;
     const s = this.state, route = planRoute(s.x, s.y, x, y);
     const L = route ? pathLength(route.path) : 0;
-    if (!route || L < 1) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
-    this.overlay.plan = route.path;
-    const stop = route.reached ? '' : ' · ' + t(route.blocked === 'mountain' ? 'walk.foot' : 'walk.shore');
+    const water = !place && isSeen(s, tx, ty) && fishable(tx, ty);
+    if ((!route || L < 1) && !(water && has(s, 'canne'))) { this.cancelPlan(); this.onEvent({ type: 'shore' }); return; }
+    this.overlay.plan = route && L >= 1 ? route.path : null;
+    const stop = !route || route.reached ? '' : ' · ' + t(route.blocked === 'mountain' ? 'walk.foot' : 'walk.shore');
     const detail = tn('walk.leagues', L / LEAGUE, { n: num(L / LEAGUE, 1) }) + stop;
-    this.hud.showWalk(detail, place?.name ?? null, () => {
+    const walk = (): void => {
       this.cancelPlan();
       this.follow = true;
       // walking off during a hunt gives it up (walking away from a charging animal is fleeing)
       if (s.fight?.hunt) end(s, worldTime(), REGROUP);
+      s.work = null;
       if (!startJourney(s, x, y)) this.onEvent({ type: 'shore' });
-    }, () => this.cancelPlan());
+    };
+    // the second action: gather what grows there, or fish in that water (with a rod)
+    let alt: { label: string; detail: string; go: () => void } | undefined;
+    const res = place || water || !isSeen(s, tx, ty) ? null : resourceAt(tx, ty);
+    if (res && !s.fight) alt = {
+      label: t('work.harvest', { r: t('item.' + res + '.name') }), detail,
+      go: () => {
+        this.cancelPlan(); this.follow = true;
+        startWork(s, 'harvest', tx, ty);
+        if (Math.hypot(tx - s.x, ty - s.y) > HARVEST_REACH * 0.6) startJourney(s, tx, ty);
+      },
+    };
+    if (water && !s.fight) {
+      if (has(s, 'canne')) alt = {
+        label: t('work.fish'), detail: L >= 1 ? detail : '',
+        go: () => {
+          this.cancelPlan(); this.follow = true;
+          // the explorer goes to the shore (or stays there), the line is cast towards the tap
+          const end0 = route && L >= 1 ? route.path[route.path.length - 1] : [s.x, s.y];
+          const d = Math.hypot(tx - end0[0], ty - end0[1]), k = d > 1 ? Math.min(d, FISH_REACH * 0.6) / d : 0;
+          if (route && L >= 1 && Math.hypot(tx - s.x, ty - s.y) > FISH_REACH * 0.6) startJourney(s, tx, ty);
+          startWork(s, 'fish', end0[0] + (tx - end0[0]) * k, end0[1] + (ty - end0[1]) * k);
+        },
+      };
+      else if (L < 1) { this.cancelPlan(); this.hud.showNote(t('work.needRod'), t('work.needRod.text'), 5000); return; }
+    }
+    if (L < 1 && alt) { this.overlay.plan = null; this.hud.showWalk('', null, alt.go, () => this.cancelPlan(), alt.label); return; }
+    this.hud.showWalk(detail, place?.name ?? null, walk, () => this.cancelPlan(), undefined, alt);
   }
 
-  /** The pack, to eat or drink from (in a fight too: the blows go on meanwhile). */
-  private openPack(): void {
+  /** Work in hand this frame: gathering, fishing; what it gives. */
+  private workStep(dt: number): void {
     const s = this.state;
-    const entries = ITEMS.filter((it) => (s.items[it.id] ?? 0) > 0).map((it) => ({
-      label: `${t('item.' + it.id + '.name')} × ${s.items[it.id]}`,
+    for (const e of stepWork(s, dt)) {
+      if (e.kind === 'gathered') this.overlay.float(e.x, e.y - 30, t('work.gathered', { n: e.n, r: t('item.' + e.res + '.name').toLowerCase() }), 'loot');
+      else if (e.kind === 'caught') { this.overlay.float(e.x, e.y - 10, t('work.caught'), 'loot'); this.overlay.catchFish(e.x, e.y); }
+      else if (e.kind === 'nothing') this.overlay.float(s.x, s.y - 30, t('work.nothing'), 'you');
+      else if (e.kind === 'tooFar') this.hud.showNote(t('work.tooFar'), t('work.tooFar.text'), 3000);
+      saveGame(s);
+    }
+  }
+
+  /**
+   * The pack (in a fight too: the blows go on meanwhile): food to eat, what was gathered, the
+   * tools made, and what can be made from it.
+   */
+  private openPack(): void {
+    const s = this.state, name = (id: string): string => t('item.' + id + '.name');
+    type Entry = { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean };
+    const entries: Entry[] = [];
+    const owned = (kind: string) => ITEMS.filter((it) => it.kind === kind && (s.items[it.id] ?? 0) > 0);
+    const food = owned('food'), mats = owned('material'), tools = owned('tool');
+    if (food.length) entries.push({ label: t('pack.food'), sub: '', use: null, head: true }, ...food.map((it) => ({
+      label: `${name(it.id)} × ${s.items[it.id]}`,
       sub: t('pack.heals', { n: it.heal }),
       use: s.hp < s.maxHp ? () => { useItem(s, it.id); saveGame(s); this.hud.setLife(s.hp, s.maxHp, s.gold); this.openPack(); } : null,
-    }));
+    })));
+    if (mats.length) entries.push({ label: t('pack.materials'), sub: '', use: null, head: true }, ...mats.map((it) => ({ label: `${name(it.id)} × ${s.items[it.id]}`, sub: '', use: null, info: true })));
+    entries.push({ label: t('pack.tools'), sub: '', use: null, head: true });
+    if (weaponOf(s).id === 'poings') entries.push({ label: t('pack.fists'), sub: '', use: null, info: true });
+    for (const it of tools) entries.push({ label: name(it.id), sub: t('item.' + it.id + '.text'), use: null, info: true });
+    const todo = RECIPES.filter((r) => !has(s, r.id));
+    if (todo.length) entries.push({ label: t('pack.make'), sub: '', use: null, head: true }, ...todo.map((r) => ({
+      label: name(r.id) + (canCraft(s, r.id) ? ' ›' : ''),
+      sub: t('pack.needs', { n: Object.entries(r.needs).map(([k, n]) => `${n} ${name(k).toLowerCase()}${(s.items[k] ?? 0) < n ? ' (' + (s.items[k] ?? 0) + ')' : ''}`).join(', ') }),
+      use: canCraft(s, r.id) ? () => { craft(s, r.id); saveGame(s); this.openPack(); } : null,
+    })));
     this.hud.showPack(entries, t('pack.title', { hp: s.hp, max: s.maxHp }), t('pack.empty'));
   }
 
@@ -443,6 +503,7 @@ export class MapScene extends Phaser.Scene {
     const events: TravelEvent[] = [];
     const walking = advance(s, dt, events);
     this.fightStep(dt, delta);
+    this.workStep(dt);
     // crossing longitude 180°: the explorer comes back around the planet, the view follows
     v.x += wrapPosition(s);
     for (const e of events) this.onEvent(e);

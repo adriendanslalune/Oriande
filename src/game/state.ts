@@ -36,8 +36,20 @@ export interface Fight {
   cdFoe: number;
 }
 
+/** A piece of work: gathering wood, stones or fibres, or fishing, once the explorer is there. */
+export interface Work {
+  kind: 'harvest' | 'fish';
+  /** what is gathered (harvest) */
+  res: string | null;
+  /** where: the tree, the rock, the grass; the water the line is cast into */
+  x: number;
+  y: number;
+  /** seconds of work left; null while still walking there */
+  left: number | null;
+}
+
 export interface GameState {
-  version: 5;
+  version: 6;
   x: number;
   y: number;
   /** leagues walked */
@@ -68,4 +80,6 @@ export interface GameState {
   fight: Fight | null;
   /** animals killed or lost from sight lately, by key: the world time (s) when they come back */
   gone: Record<string, number>;
+  /** the work in hand, if any */
+  work: Work | null;
 }

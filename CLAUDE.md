@@ -48,7 +48,7 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
 - Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
   continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
   Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v5 (v3 et v4 migrées : vie, écus, sac, dés, combat sur la carte) ; les sauvegardes v1/v2
+- Échelle des sauvegardes : v6 (v3, v4, v5 migrées : vie, écus, sac, dés, combat sur la carte, travail) ; les sauvegardes v1/v2
   (monde plat) sont mises de côté.
 
 Règles qui restent :
@@ -263,7 +263,21 @@ sur le téléphone de Doudou via GitLab Pages.
    tigre, hyène, crocodile, hippo), `swipe` (se dresse puis frappe de la patte, griffures : ours), `ram` (recule
    puis charge tête basse, étoile de choc : sanglier, rhino, bison, yack, morse, éléphant), `kick` (se retourne
    et rue : girafe, élan, autruche). Contact à 22 (côte à côte).
-   Combat en cours sauvegardé (sauvegarde **v5**, v4 migrée). Les vies et coups des animaux
+   Combat en cours sauvegardé (sauvegarde **v5**, v4 migrée).
+   **Départ démuni, récolte, fabrication, pêche** (demande d'Adrien : l'explorateur n'a RIEN au départ, tout se
+   fabrique). Nouvelle partie : sac vide, **à mains nues** (coups de poing, 1-3), **pas de torche** (la nuit, vue
+   réduite de moitié par l'obscurité, `NO_TORCH`, et pas de halo). **Récolte** (`world/resources.ts`,
+   `resourceAt`, d'après le même terrain que le dessin) : bois (forêts, jungle, conifères de toundra), pierres
+   (collines ≥ 0,45, désert, sables secs, toundra nue), fibres (herbe, savane) ; un tap sur la terre propose
+   « Récolter · Bois » au-dessus de « Marcher vers » ; l'explorateur y va, se penche 4 s (anneau de progression),
+   gagne 1 à 3. **Fabrication** dans le sac (`game/craft.ts`, `data/recipes.json`) : bâton (2 bois, coups 2-5),
+   torche (1 bois, 2 fibres), canne à pêche (2 bois, 3 fibres), lance de silex (2 bois, 2 pierres, 2 fibres,
+   coups 3-7) ; un outil se fabrique une fois et se garde. `items.json` : `kind` food / material / tool.
+   **Pêche** (avec la canne) : un tap sur la mer ou un lac propose « Pêcher » ; l'explorateur va au bord, lance
+   la ligne (bouchon qui flotte), 7 s, 65 % de chances : un poisson saute au bout de la ligne, +1 poisson
+   (rend 3). Le dessin de l'explorateur suit : mains vides / bâton / lance à pointe de silex, torche la nuit
+   seulement s'il en a une. Travail en cours dans `GameState.work` (sauvegarde **v6**, v5 migrée en gardant
+   le sac). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).

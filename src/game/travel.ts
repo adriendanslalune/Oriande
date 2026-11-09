@@ -2,7 +2,7 @@
 import { altitude, continent, humidity, TILE } from '../world/terrain';
 import { CIRCUMFERENCE, wrapIndex } from '../world/planet';
 import { biome } from '../world/climate';
-import { visibilityAt } from '../world/weather';
+import { sky, visibilityAt } from '../world/weather';
 import { settlement, type Settlement } from '../world/settlements';
 import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
@@ -11,6 +11,7 @@ import { MONUMENT_SIGHT, monumentsNear, type Monument } from '../world/monuments
 import type { GameState } from './state';
 import { alongPath, pathLength, planRoute } from './route';
 import { START_HP, START_ITEMS } from './combat';
+import { has } from './craft';
 
 /** Radius revealed around the explorer on open plains, world units. */
 export const VIEW_RADIUS = 200;
@@ -50,10 +51,14 @@ const CELLS_AROUND = CIRCUMFERENCE / CELL;
 export const cellKey = (x: number, y: number): string => wrapIndex(Math.round(x / CELL), CELLS_AROUND) + ',' + Math.round(y / CELL);
 export const isSeen = (s: GameState, x: number, y: number): boolean => s.seen.has(cellKey(x, y));
 
+/** Share of the sight lost in the dark of the night when the explorer has no torch. */
+export const NO_TORCH = 0.5;
+
 /** Reveal every fog cell the explorer can see from (x, y). */
 export function reveal(s: GameState, x: number, y: number): void {
-  // rain, snow, fog, sand and the night shorten the view
-  revealCircle(s, x, y, sightRadius(x, y) * visibilityAt(x, y));
+  // rain, snow, fog, sand and the night shorten the view; without a torch, the night far more
+  const dark = has(s, 'torche') ? 1 : 1 - sky(x).darkness * NO_TORCH;
+  revealCircle(s, x, y, sightRadius(x, y) * visibilityAt(x, y) * dark);
 }
 
 /** Reveal every fog cell within `sight` of (x, y). */
@@ -108,13 +113,13 @@ export function wrapPosition(s: GameState): number {
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 5, x, y, leagues: 0,
+    version: 6, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
     hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },
     // the dice of a new game: different for each player (the world itself is the same for all)
     seed: (Math.random() * 4294967296) >>> 0,
-    calmUntil: 0, rest: [x, y], fight: null, gone: {},
+    calmUntil: 0, rest: [x, y], fight: null, gone: {}, work: null,
   };
   reveal(s, x, y);
   return s;

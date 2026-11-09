@@ -11,6 +11,7 @@ import { monumentsNear } from '../world/monuments';
 import { inLake, lakesNear, riversNear } from '../world/rivers';
 import { animalsOf, herdsNear, lifeOf, presence, type Animal, type Look } from '../world/fauna';
 import { CONTACT, speciesById } from '../game/combat';
+import { FISH_SECONDS, HARVEST_SECONDS, has, weaponOf } from '../game/craft';
 import { drawAnimal } from './animals';
 import { DPR } from '../ui/screen';
 import { isGL } from './glPainter';
@@ -34,6 +35,13 @@ import { INK, PAPER } from './palette';
 const STRIKE_MS = 380, LUNGE_MS = 420, HURT_MS = 220;
 
 type Attack = 'bite' | 'swipe' | 'ram' | 'kick';
+
+/** What the explorer holds and does, for the drawing. */
+interface Gear {
+  weapon: 'poings' | 'baton' | 'lance';
+  /** work in hand: its kind, what is gathered, where on screen (the float), how far along (0..1) */
+  work: { kind: 'harvest' | 'fish'; res: string | null; at: [number, number]; done: number } | null;
+}
 
 /**
  * An animal's blow at progress p in [0, 1) (p < 0: no blow): how far it moves at the explorer
@@ -89,6 +97,11 @@ export class Overlay {
   readonly weather = new WeatherLayer();
   /** fish leaping out of the water: where, when it started, which way */
   private fish: { x: number; y: number; t0: number; dir: number; size: number }[] = [];
+  /** fish caught, to leap out of the water at the end of the line */
+  private caught: [number, number][] = [];
+
+  /** A fish caught at (x, y): it leaps out of the water there. */
+  catchFish(x: number, y: number): void { this.caught.push([x, y]); }
   private fishTimer = 0;
   /** the current flight of birds and the world point it crosses */
   private flightId = -1;
@@ -168,7 +181,7 @@ export class Overlay {
     }
     fg.globalAlpha = 1;
     // the night over everything (paper included), with the lights punched out of it
-    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now);
+    const lights = this.weather.lights(v, screen, world, (X, Y) => isSeen(s, X, Y), [s.x, s.y], now, has(s, 'torche'));
     fg.globalCompositeOperation = 'source-over';
     this.weather.paintNight(fg, v, 4, lights);
     ctx.imageSmoothingEnabled = true; ctx.drawImage(fog, 0, 0, v.W, v.H);
@@ -279,7 +292,14 @@ export class Overlay {
       if (dist < CONTACT * 3) this.facing = f.x >= s.x ? 1 : -1;
       this.lifeBar(fx, fy - (sp.look.height ?? sp.look.len) * 2.2 * v.zoom / START_ZOOM - 8, f.hp / lifeOf(sp), 'foe');
     }
-    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
+    // what the explorer holds and does: a weapon or bare fists, a torch at night, work in hand
+    const w = s.work && s.work.left !== null && !s.journey ? s.work : null;
+    if (w && Math.abs(w.x - s.x) > 1) this.facing = w.x > s.x ? 1 : -1;
+    const [wx, wy] = w ? screen(w.x, w.y) : [0, 0];
+    this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12 && has(s, 'torche'), {
+      weapon: weaponOf(s).id,
+      work: w ? { kind: w.kind, res: w.res, at: [wx, wy], done: 1 - (w.left ?? 0) / (w.kind === 'fish' ? FISH_SECONDS : HARVEST_SECONDS) } : null,
+    });
     // the animal's bite or claws on the explorer: red slashes, for a moment
     const cp = (now - this.blows.hurt) / 320;
     if (cp >= 0 && cp < 1) this.wound(this.attackKind, ex, ey - 22 * v.zoom / START_ZOOM, cp, v.zoom);
@@ -485,8 +505,9 @@ export class Overlay {
    * with a ring of ripples where it leaves and where it dives back.
    */
   private leapingFish(s: GameState, v: View, screen: (x: number, y: number) => [number, number], world: (x: number, y: number) => [number, number], tiles: TileArt[], time: number, dt: number): void {
-    if (v.zoom < 0.5) { this.fish.length = 0; return; }
+    if (v.zoom < 0.5) { this.fish.length = 0; this.caught.length = 0; return; }
     const { ctx } = this, DUR = 1.1;
+    for (const [X, Y] of this.caught.splice(0)) this.fish.push({ x: X, y: Y, t0: time, dir: X > s.x ? -1 : 1, size: 1.6 });
     this.fishTimer -= dt;
     if (this.fishTimer <= 0 && this.fish.length < 4) {
       this.fishTimer = 0.6 + Math.random() * 1.2;
@@ -645,8 +666,9 @@ export class Overlay {
   }
 
   /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
-  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false): void {
+  private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false, gear: Gear = { weapon: 'baton', work: null }): void {
     const { ctx } = this;
+    const work = gear.work, armed = gear.weapon !== 'poings';
     // a blow of the staff: raised over the head, then brought down on the animal (STRIKE_MS);
     // and the flinch when the animal's blow lands
     const sp = (now - this.blows.you) / STRIKE_MS, striking = sp >= 0 && sp < 1;
@@ -678,15 +700,54 @@ export class Overlay {
     ctx.fillStyle = 'rgb(150,128,86)';
     ctx.beginPath(); ctx.moveTo(X(-1.7), Y(-13)); ctx.lineTo(X(1.7), Y(-13)); ctx.lineTo(X(2.4), Y(-5.6)); ctx.lineTo(X(-2.4), Y(-5.6)); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(X(-2), Y(-8.6)); ctx.lineTo(X(2.1), Y(-8.6)); ctx.stroke(); // belt
-    // staff, held ahead, and the arm holding it
-    if (striking) {
+    // what the hands do: work, a blow, or carrying the staff (or nothing) along
+    const wood = 'rgb(90,62,38)';
+    const spearTip = (px: number, py: number, dx: number, dy: number): void => { // a flint point at the end of the spear
+      if (gear.weapon !== 'lance') return;
+      const nx = -dy, ny = dx;
+      ctx.fillStyle = 'rgb(110,104,98)'; ctx.strokeStyle = INK; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.moveTo(px + dx * 3.2 * u, py + dy * 3.2 * u); ctx.lineTo(px + nx * 0.9 * u, py + ny * 0.9 * u); ctx.lineTo(px - nx * 0.9 * u, py - ny * 0.9 * u); ctx.closePath(); ctx.fill(); ctx.stroke();
+    };
+    if (work && work.kind === 'fish' && !striking) {
+      // the rod held out over the water, the line down to a float that bobs
+      const hx = X(2.4), hy = Y(-11), tx = X(11), ty = Y(-22);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.strokeStyle = wood; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X(0.6), Y(-8)); ctx.quadraticCurveTo(X(6), Y(-18), tx, ty); ctx.stroke();
+      const bx = (work.at[0] - atX) / scale, by = (work.at[1] - atY) / scale + Math.sin(now / 300) * 0.7 + (work.done > 0.85 ? Math.sin(now / 40) * 1.2 : 0);
+      ctx.strokeStyle = 'rgba(42,36,29,.7)'; ctx.lineWidth = 0.4; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + bx) / 2, Math.max(ty, by) + 2, bx, by); ctx.stroke();
+      ctx.fillStyle = 'rgb(176,48,36)'; ctx.beginPath(); ctx.arc(bx, by - 0.6, 1.1, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgb(240,236,226)'; ctx.beginPath(); ctx.arc(bx, by - 0.6, 1.1, 0, Math.PI); ctx.fill();
+      ctx.strokeStyle = 'rgba(250,252,252,.8)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.ellipse(bx, by + 0.4, 2 + (now / 600 % 1) * 2, 0.7, 0, 0, 6.3); ctx.stroke();
+    } else if (work && !striking) {
+      // gathering: bending to the ground and up again, bits flying off
+      const ph = (now / 520) % 1, down = Math.sin(ph * Math.PI * 2) * 0.5 + 0.5;
+      const hx = X(3.2 + down * 1.2), hy = Y(-11 + down * 9);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke();
+      const col = work.res === 'bois' ? 'rgb(120,84,50)' : work.res === 'pierre' ? 'rgb(120,116,108)' : 'rgb(120,140,70)';
+      ctx.fillStyle = col;
+      for (let k = 0; k < 3; k++) {
+        const q = (ph + k / 3) % 1, px = X(4.5 + q * 3 * (k - 1)), py = Y(-1 - Math.sin(q * Math.PI) * 5);
+        ctx.globalAlpha = 1 - q; ctx.fillRect(px - 0.8, py - 0.8, 1.6, work.res === 'fibre' ? 2.6 : 1.6);
+      }
+      ctx.globalAlpha = 1;
+      if (work.res === 'bois') { ctx.strokeStyle = wood; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + f * 3, hy - 3); ctx.stroke(); } // a branch broken off
+    } else if (striking && !armed) {
+      // a punch: the fist thrown forward, then drawn back
+      const ext = Math.sin(Math.PI * sp) * 7;
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(X(2 + ext), Y(-11.5)); ctx.stroke();
+      ctx.fillStyle = 'rgb(230,200,165)'; ctx.beginPath(); ctx.arc(X(2.4 + ext), Y(-11.5), 1.1 * u, 0, 6.3); ctx.fill(); ctx.lineWidth = 0.7; ctx.stroke();
+    } else if (!armed) {
+      // empty-handed: the arm swings with the walk
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(X(1.8) + j * 0.5 * f, Y(-7)); ctx.stroke();
+    } else if (striking) {
       // the swing: from upright, back over the shoulder, then down onto the animal
       const a = sp < 0.35 ? -90 - (sp / 0.35) * 70 : sp < 0.55 ? -160 + ((sp - 0.35) / 0.2) * 190 : 30 - ((sp - 0.55) / 0.45) * 120;
       const r = a * Math.PI / 180, dx = Math.cos(r) * f, dy = Math.sin(r), hx = X(2.2), hy = Y(-11);
       ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke(); // the arm, raised
-      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
+      ctx.lineWidth = 1.2; ctx.strokeStyle = wood;
       ctx.beginPath(); ctx.moveTo(hx - dx * 5 * u, hy - dy * 5 * u); ctx.lineTo(hx + dx * 11 * u, hy + dy * 11 * u); ctx.stroke();
+      spearTip(hx + dx * 11 * u, hy + dy * 11 * u, dx, dy);
       if (sp > 0.35 && sp < 0.6) { // the whoosh of the blow
         ctx.globalAlpha = 0.5; ctx.strokeStyle = INK; ctx.lineWidth = 0.6;
         ctx.beginPath();
@@ -698,11 +759,12 @@ export class Overlay {
       const sx = X(3.6) + j * 0.3 * f;
       ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
       ctx.beginPath(); ctx.moveTo(sx, Y(-16)); ctx.lineTo(sx + j * 0.15, y + 0.5); ctx.stroke();
+      spearTip(sx, Y(-16), 0, -1);
       ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(sx, Y(-9.5)); ctx.stroke();
     }
     // head
-    ctx.lineWidth = 0.9; ctx.fillStyle = 'rgb(230,200,165)';
+    ctx.strokeStyle = INK; ctx.lineWidth = 0.9; ctx.fillStyle = 'rgb(230,200,165)';
     ctx.beginPath(); ctx.arc(X(0.2), Y(-15), 1.7 * u, 0, 6.3); ctx.fill(); ctx.stroke();
     // wide-brimmed hat
     ctx.fillStyle = 'rgb(84,62,42)';
@@ -718,6 +780,11 @@ export class Overlay {
       ctx.beginPath(); ctx.ellipse(tx + fl * 0.6, ty - 1.2, 2.2, 3.6 + fl, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = 'rgba(255,236,150,.95)';
       ctx.beginPath(); ctx.ellipse(tx + fl * 0.3, ty - 0.4, 1.1, 2 + fl * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (work) { // how far the work has got: a ring filling up over the hat
+      const cy = Y(-25);
+      ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(236,227,203,.85)'; ctx.beginPath(); ctx.arc(x, cy, 3.2, 0, 6.3); ctx.stroke();
+      ctx.strokeStyle = 'rgb(70,96,50)'; ctx.beginPath(); ctx.arc(x, cy, 3.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, work.done)); ctx.stroke();
     }
     ctx.restore();
     ctx.restore();

@@ -3,24 +3,21 @@
 // traded on their own, about one a second each, while the two are close; the player walks away
 // to break off, or eats and drinks from the pack. Pure rules, no Phaser: the map scene calls
 // `stepFight` every frame and shows what it reports. The dice are seeded and saved.
-import itemsData from '../data/items.json';
 import { animalsOf, herdsNear, lifeOf, presence, SPECIES, type Herd, type Species } from '../world/fauna';
 import { settlement } from '../world/settlements';
 import { TILE } from '../world/terrain';
 import { walkable } from './route';
 import type { Fight, GameState } from './state';
 
-export interface Item { id: string; heal: number; price: number }
-export const ITEMS = itemsData.items as Item[];
-export const itemById = (id: string): Item | undefined => ITEMS.find((i) => i.id === id);
+import { ITEMS, itemById, weaponOf } from './craft';
+import { between, roll } from './dice';
+export { ITEMS, itemById, roll };
 export const speciesById = (id: string): Species | undefined => SPECIES.find((s) => s.id === id);
 
-/** The explorer at the start of a game. */
+/** The explorer at the start of a game: nothing in the pack, nothing in the hands (asked by Adrien). */
 export const START_HP = 20;
-export const START_ITEMS: Record<string, number> = { remede: 2, biscuit: 2 };
-/** The explorer's blows: one every PLAYER_PACE seconds, landing PLAYER_HIT of the time. */
-export const PLAYER_HIT = 0.85;
-export const PLAYER_DAMAGE: [number, number] = [3, 6];
+export const START_ITEMS: Record<string, number> = {};
+/** The explorer's blows: one every PLAYER_PACE seconds (how hard and how sure: their weapon, see craft.ts). */
 export const PLAYER_PACE = 1.0;
 /** An animal's blows. */
 export const FOE_HIT = 0.7;
@@ -49,16 +46,6 @@ export const PREY_RUN = 0.6;
 /** The explorer runs after a prey: this much faster than walking. */
 export const HUNT_RUN = 1.5;
 
-// ---- the dice ----
-
-/** A number in [0, 1), and the dice move on (mulberry32 on the saved seed). */
-export function roll(s: GameState): number {
-  let t = (s.seed = (s.seed + 0x6d2b79f5) >>> 0);
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-const between = (s: GameState, [a, b]: [number, number]): number => a + Math.floor(roll(s) * (b - a + 1));
 
 /** An animal standing on the map at time t: its herd, its key, where it is. */
 export interface Beast { herd: Herd; key: string; species: Species; x: number; y: number }
@@ -180,8 +167,9 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
   f.cdYou = Math.max(0, f.cdYou - dt); f.cdFoe = Math.max(0, f.cdFoe - dt);
   if (close && f.cdYou === 0) {
     f.cdYou = PLAYER_PACE;
-    if (roll(s) < PLAYER_HIT) {
-      const dmg = between(s, PLAYER_DAMAGE);
+    const wp = weaponOf(s);
+    if (roll(s) < wp.hit) {
+      const dmg = between(s, wp.damage);
       f.hp = Math.max(0, f.hp - dmg);
       out.push({ kind: 'hit', who: 'you', damage: dmg, x: f.x, y: f.y });
       if (f.hp <= 0) {
@@ -208,7 +196,7 @@ export function stepFight(s: GameState, dt: number, t: number): FightEvent[] {
 /** Eat or drink something from the pack: life comes back. Returns what it gave (0 if nothing). */
 export function useItem(s: GameState, id: string): number {
   const it = itemById(id);
-  if (!it || !(s.items[id] > 0) || s.hp >= s.maxHp) return 0;
+  if (!it || it.heal <= 0 || !(s.items[id] > 0) || s.hp >= s.maxHp) return 0;
   s.items[id] -= 1;
   if (s.items[id] <= 0) delete s.items[id];
   const amount = Math.min(it.heal, s.maxHp - s.hp);

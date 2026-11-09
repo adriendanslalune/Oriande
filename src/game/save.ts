@@ -1,13 +1,13 @@
 // Save and load the GameState in localStorage: small, versioned, robust.
 // What is saved: position, leagues, zoom, discovered places, the walk in progress, revealed fog
 // cells (run-length encoded) and footsteps (delta encoded). Never anything drawn.
-import type { Fight, GameState, Journey } from './state';
+import type { Fight, GameState, Journey, Work } from './state';
 import { START_HP, START_ITEMS, speciesById } from './combat';
 
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -35,6 +35,8 @@ export interface SaveFile {
   // v5: fights on the map
   fight: Fight | null;
   gone: Record<string, number>;
+  // v6: gathering and making
+  work: Work | null;
 }
 
 // ---- fog cells: run-length encoding by row ----
@@ -123,6 +125,7 @@ export function toSaveFile(s: GameState, now = new Date()): SaveFile {
     hp: s.hp, maxHp: s.maxHp, gold: s.gold, items: { ...s.items }, seed: s.seed,
     calmUntil: s.calmUntil, rest: [s.rest[0], s.rest[1]],
     fight: s.fight ? { ...s.fight, home: [s.fight.home[0], s.fight.home[1]] } : null, gone: { ...s.gone },
+    work: s.work ? { ...s.work } : null,
   };
 }
 
@@ -172,7 +175,12 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> |
     Object.assign(save, { fight: null, gone: {}, calmUntil: 0 });
     save.v = 5;
   }
-  // next: if (save.v === 5) { ...; save.v = 6; }
+  if (save.v === 5) {
+    // v6: gathering and making things; no work in hand yet (the pack is kept as it was)
+    save.work = null;
+    save.v = 6;
+  }
+  // next: if (save.v === 6) { ...; save.v = 7; }
   return save;
 }
 
@@ -200,8 +208,11 @@ export function fromSaveFile(json: string): GameState {
     || ![fight.hp, fight.x, fight.y, fight.cdYou, fight.cdFoe].every(isNum) || !Array.isArray(fight.home) || !fight.home.every(isNum))) throw new Error('bad fight');
   const gone = f.gone as Record<string, unknown>;
   if (!gone || typeof gone !== 'object' || !Object.values(gone).every(isNum)) throw new Error('bad gone');
+  const work = f.work as Work | null;
+  if (work !== null && (typeof work !== 'object' || (work.kind !== 'harvest' && work.kind !== 'fish') || ![work.x, work.y].every(isNum)
+    || !(work.left === null || isNum(work.left)) || !(work.res === null || typeof work.res === 'string'))) throw new Error('bad work');
   return {
-    version: 5,
+    version: 6, work: work ? { ...work } : null,
     hp: Math.max(1, f.hp as number), maxHp: f.maxHp as number, gold: f.gold as number,
     items: items as Record<string, number>, seed: (f.seed as number) >>> 0, calmUntil: f.calmUntil as number,
     rest: [rest[0] as number, rest[1] as number],

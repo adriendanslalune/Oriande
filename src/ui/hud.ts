@@ -23,10 +23,15 @@ const CSS = `
 .hud-walk .go i { display: block; font: italic 400 13px "IM Fell English", serif; text-transform: none; letter-spacing: 0; color: #6a5f4f; }
 .hud-walk .no { width: 46px; font-size: 20px; padding: 0; }
 .hud-buttons button.word { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
-.hud-walk.pack { flex-direction: column; }
+.hud-walk.pack { flex-direction: column; max-height: 66vh; overflow-y: auto; background: #ece3cb; border: 1.5px solid #2a241d; padding: 8px; gap: 6px; box-shadow: 0 2px 10px rgba(42,36,29,.25); }
+.hud-walk.pack .info { font: 700 14px/1.2 "Old Standard TT", serif; color: #2a241d; padding: 2px 4px; text-transform: uppercase; letter-spacing: .05em; }
+.hud-walk.pack .info i { display: block; font: italic 400 13px "IM Fell English", serif; text-transform: none; letter-spacing: 0; color: #6a5f4f; }
+.hud-walk.two { flex-wrap: wrap; }
+.hud-walk.two .alt { flex: 1 1 100%; order: -1; }
+.hud-walk.pack .head { font: 13px "IM Fell English SC", serif; letter-spacing: .08em; color: #6a5f4f; padding: 4px 2px 0; }
 .hud-walk.pack .row { display: flex; gap: 8px; }
 .hud-walk.pack .title { font: 13px "IM Fell English SC", serif; letter-spacing: .08em; background: #ece3cb; border: 1.5px solid #2a241d; padding: 6px 10px; }
-.hud-walk.pack button:disabled { opacity: .45; }
+.hud-walk.pack button:disabled { color: #9a8f7f; border-color: #9a8f7f; }
 .hud-walk button:focus-visible { outline: 2px dashed #2a241d; }
 .hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
   color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
@@ -135,27 +140,46 @@ export class Hud {
   }
 
   /** Offer to walk to the spot tapped: a button to go, one to give up. */
-  showWalk(detail: string, place: string | null, go: () => void, cancel: () => void, label?: string): void {
+  /**
+   * Propose to walk (or hunt...) there: a button with the distance, and a cross. `alt`: a second
+   * action offered above it (gather what grows there, fish in that water).
+   */
+  showWalk(detail: string, place: string | null, go: () => void, cancel: () => void, label?: string, alt?: { label: string; detail: string; go: () => void }): void {
     this.hideNote();
     const b = document.createElement('button'), no = document.createElement('button');
     b.className = 'go'; b.textContent = (label ?? t('walk.go') + (place ? ' ' + place : '')) + ' ›';
     const i = document.createElement('i'); i.textContent = detail; b.append(i);
     no.className = 'no'; no.textContent = '×'; no.setAttribute('aria-label', t('walk.cancel'));
     b.addEventListener('click', go); no.addEventListener('click', cancel);
-    this.walk.replaceChildren(b, no);
+    const row: HTMLElement[] = [b, no];
+    if (alt) {
+      const a = document.createElement('button');
+      a.className = 'go alt'; a.textContent = alt.label + ' ›';
+      const ai = document.createElement('i'); ai.textContent = alt.detail; a.append(ai);
+      a.addEventListener('click', alt.go);
+      row.unshift(a);
+    }
+    this.walk.replaceChildren(...row);
+    this.walk.classList.toggle('two', !!alt);
     this.walk.classList.add('on');
   }
 
-  hideWalk(): void { this.walk.classList.remove('on', 'pack'); }
+  hideWalk(): void { this.walk.classList.remove('on', 'pack', 'two'); }
 
   /** The pack: what the explorer carries, each a button to eat or drink it. */
-  showPack(entries: { label: string; sub: string; use: (() => void) | null }[], title: string, empty: string): void {
+  showPack(entries: { label: string; sub: string; use: (() => void) | null; head?: boolean; info?: boolean }[], title: string, empty: string): void {
     this.hideNote();
     const rows: HTMLElement[] = [];
     const head = document.createElement('div'); head.className = 'title'; head.textContent = title;
     rows.push(head);
     if (!entries.length) { const e = document.createElement('div'); e.className = 'title'; e.style.fontStyle = 'italic'; e.textContent = empty; rows.push(e); }
     for (const en of entries) {
+      if (en.head) { const h = document.createElement('div'); h.className = 'head'; h.textContent = en.label; rows.push(h); continue; }
+      if (en.info) { // something carried, nothing to do with it here
+        const d = document.createElement('div'); d.className = 'info'; d.textContent = en.label;
+        if (en.sub) { const i = document.createElement('i'); i.textContent = en.sub; d.append(i); }
+        rows.push(d); continue;
+      }
       const b = document.createElement('button');
       b.className = 'go'; b.textContent = en.label;
       const i = document.createElement('i'); i.textContent = en.sub; b.append(i);
@@ -169,7 +193,7 @@ export class Hud {
     close.addEventListener('click', () => this.hideWalk());
     rows.push(close);
     this.walk.replaceChildren(...rows);
-    this.walk.classList.add('on', 'pack');
+    this.walk.classList.remove('two'); this.walk.classList.add('on', 'pack');
   }
 
   /**

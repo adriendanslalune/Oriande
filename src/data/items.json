@@ -1,20 +1,16 @@
 {
-  "_comment": "Things the explorer carries. heal: life given back when eaten or drunk. price: in écus (the merchant, later). Meat comes from hunting.",
+  "_comment": "Things the explorer carries. kind: food (eaten from the pack), material (gathered, used to make things), tool (made once, kept). heal: life given back when eaten. price: in écus (the merchant, later). Meat comes from hunting, fish from fishing.",
   "items": [
-    {
-      "id": "remede",
-      "heal": 8,
-      "price": 6
-    },
-    {
-      "id": "biscuit",
-      "heal": 3,
-      "price": 2
-    },
-    {
-      "id": "viande",
-      "heal": 4,
-      "price": 1
-    }
+    { "id": "remede", "kind": "food", "heal": 8, "price": 6 },
+    { "id": "biscuit", "kind": "food", "heal": 3, "price": 2 },
+    { "id": "viande", "kind": "food", "heal": 4, "price": 1 },
+    { "id": "poisson", "kind": "food", "heal": 3, "price": 1 },
+    { "id": "bois", "kind": "material", "heal": 0, "price": 1 },
+    { "id": "pierre", "kind": "material", "heal": 0, "price": 1 },
+    { "id": "fibre", "kind": "material", "heal": 0, "price": 1 },
+    { "id": "baton", "kind": "tool", "heal": 0, "price": 3 },
+    { "id": "torche", "kind": "tool", "heal": 0, "price": 4 },
+    { "id": "canne", "kind": "tool", "heal": 0, "price": 5 },
+    { "id": "lance", "kind": "tool", "heal": 0, "price": 8 }
   ]
 }

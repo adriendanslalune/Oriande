@@ -1,0 +1,9 @@
+{
+  "_comment": "What the explorer can make from what they gather (asked by Adrien: they start with nothing, everything is made along the way). needs: item id -> how many. A tool is kept once made.",
+  "recipes": [
+    { "id": "baton", "needs": { "bois": 2 } },
+    { "id": "torche", "needs": { "bois": 1, "fibre": 2 } },
+    { "id": "canne", "needs": { "bois": 2, "fibre": 3 } },
+    { "id": "lance", "needs": { "bois": 2, "pierre": 2, "fibre": 2 } }
+  ]
+}

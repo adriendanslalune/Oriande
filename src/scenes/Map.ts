@@ -271,7 +271,7 @@ export class MapScene extends Phaser.Scene {
     }
     for (const e of evs) {
       const name = (sp: string): string => t('animal.' + sp);
-      if (e.kind === 'hit' || e.kind === 'miss') this.overlay.float(e.x, e.y, e.kind === 'hit' ? '−' + e.damage : t('fight.miss'), e.who === 'foe' ? 'foe' : 'you');
+      if (e.kind === 'hit' || e.kind === 'miss') { this.overlay.blow(e.who, e.kind === 'hit'); this.overlay.float(e.x, e.y, e.kind === 'hit' ? '−' + e.damage : t('fight.miss'), e.who === 'foe' ? 'foe' : 'you'); }
       else if (e.kind === 'charge') { this.cancelPlan(); this.follow = true; this.hud.showNote(t('fight.charge.title', { a: name(e.species) }), t('fight.charge.text'), 5000); }
       else if (e.kind === 'killed') { this.overlay.float(e.x, e.y - 12, t('fight.meat', { n: e.meat }), 'loot'); this.hud.showNote(t('fight.killed', { a: name(e.species) }), t('fight.killed.text', { n: e.meat }), 4000); }
       else if (e.kind === 'escaped') this.hud.showNote(t('fight.escaped', { a: name(e.species) }), '', 3000);

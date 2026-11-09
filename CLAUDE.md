@@ -252,6 +252,9 @@ sur le téléphone de Doudou via GitLab Pages.
    biscuit, viande se mangent à tout moment ; la vie remonte seule hors combat (1 PV / 30 s).
    Défaite = réveil au dernier bourg vu (`rest`), moitié de vie et d’écus. Pas d’attaque à moins de
    180 d’un bourg ni pendant 20 s après un combat. Jauges de vie et dégâts flottants sur la carte.
+   **Animations** (demande d’Adrien) : l’explorateur lève son bâton et l’abat (`STRIKE_MS`), éclat
+   d’encre à l’impact ; l’animal bondit en se cabrant (`LUNGE_MS`), griffures rouges sur l’explorateur ;
+   recul de celui qui est touché ; poussière derrière un animal qui charge. Contact à 22 (côte à côte).
    Combat en cours sauvegardé (sauvegarde **v5**, v4 migrée). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge

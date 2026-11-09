@@ -26,7 +26,7 @@ export const PLAYER_PACE = 1.0;
 export const FOE_HIT = 0.7;
 export const FOE_PACE = 1.25;
 /** Close enough to strike, world units. */
-export const CONTACT = 13;
+export const CONTACT = 22;
 /** A dangerous animal charges whoever comes this near (about 2.5 leagues). */
 export const AGGRO = 100;
 /** It gives up the chase this far from where it set off... */

@@ -30,6 +30,9 @@ import { sky } from '../world/weather';
 import { LANDMARK_ART, MONUMENT_ART, WONDER_ART, landmarkImage, monumentImage, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
 
+/** Durations of the fight's animations, ms: the explorer's swing, the animal's lunge, a flinch. */
+const STRIKE_MS = 380, LUNGE_MS = 420, HURT_MS = 220;
+
 /** Below this zoom the map turns into the atlas overview. */
 export const Z_ATLAS = 0.3;
 
@@ -223,12 +226,34 @@ export class Overlay {
       const sp = speciesById(f.species)!, [fx, fy] = screen(f.x, f.y), dist = Math.hypot(s.x - f.x, s.y - f.y);
       const flees = sp.danger === 0 || (sp.danger === 1 && !f.hunt);
       const dir = (flees ? f.x - s.x : s.x - f.x) >= 0 ? 1 : -1;
-      const moving = dist > CONTACT || flees;
-      drawAnimal(ctx, sp.look, { x: f.x, y: f.y, dir, pace: moving ? 1 : 0, phase: 0.3 }, fx, fy, 2 * v.zoom / START_ZOOM, now / 1000, DPR, sky(f.x).darkness > 0.5);
+      const moving = dist > CONTACT || flees, sc = 2 * v.zoom / START_ZOOM, toward = s.x >= f.x ? 1 : -1;
+      // its blow: a lunge at the explorer, rearing a little; and its flinch when struck
+      const lp = (now - this.blows.foe) / LUNGE_MS, lunge = lp >= 0 && lp < 1 ? Math.sin(Math.PI * lp) : 0;
+      const rp = (now - this.blows.struck) / HURT_MS, recoil = rp >= 0 && rp < 1 ? Math.sin(Math.PI * rp) : 0;
+      const ox = (toward * lunge * 9 - toward * recoil * 4) * v.zoom, rear = -toward * lunge * 0.28;
+      // a charge raises the dust behind it
+      if (!flees && dist > CONTACT * 1.2) {
+        ctx.fillStyle = 'rgba(150,130,100,.35)';
+        for (let k = 1; k <= 4; k++) {
+          const ph = ((now / 260 + k / 4) % 1), d = (6 + ph * 16) * v.zoom;
+          ctx.globalAlpha = (1 - ph) * 0.8;
+          ctx.beginPath(); ctx.arc(fx - toward * d, fy - 2 - ph * 6 * v.zoom + Math.sin(k * 3.1) * 3, (2 + ph * 4) * v.zoom, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.save(); ctx.translate(fx + ox, fy); ctx.rotate(rear);
+      drawAnimal(ctx, sp.look, { x: f.x, y: f.y, dir, pace: moving || lunge > 0.2 ? 1 : 0, phase: 0.3 }, 0, 0, sc, now / 1000, DPR, sky(f.x).darkness > 0.5);
+      ctx.restore();
+      // the staff's impact on it: a burst of ink strokes
+      const ip = (now - this.blows.struck) / 260;
+      if (ip >= 0 && ip < 1 && this.blows.landed) this.burst(fx + ox, fy - (sp.look.height ?? sp.look.len * 0.7) * sc * 0.6, ip, v.zoom);
       if (dist < CONTACT * 3) this.facing = f.x >= s.x ? 1 : -1;
       this.lifeBar(fx, fy - (sp.look.height ?? sp.look.len) * 2.2 * v.zoom / START_ZOOM - 8, f.hp / lifeOf(sp), 'foe');
     }
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, sky(v.x).darkness > 0.12);
+    // the animal's bite or claws on the explorer: red slashes, for a moment
+    const cp = (now - this.blows.hurt) / 320;
+    if (cp >= 0 && cp < 1) this.claws(ex, ey - 22 * v.zoom / START_ZOOM, cp, v.zoom);
     if (f) this.lifeBar(ex, ey - 40 * v.zoom / START_ZOOM, s.hp / s.maxHp, 'you');
     this.drawFloats(screen, now);
     // the clouds pass over the explorer (they fade out as the view zooms in under them)
@@ -491,6 +516,40 @@ export class Overlay {
    * planet they jump by its circumference, so each point is unwrapped next to the previous one,
    * and the whole path is placed so that it ends at the explorer.
    */
+  /** When the last blows were thrown and taken (performance.now ms), for the fight's animations. */
+  private readonly blows = { you: -1e9, foe: -1e9, struck: -1e9, hurt: -1e9, landed: false };
+
+  /** A blow in the fight: who threw it, and whether it landed (from the map's fight events). */
+  blow(who: 'you' | 'foe', landed: boolean): void {
+    const now = performance.now();
+    if (who === 'you') {
+      this.blows.you = now;
+      // the staff comes down a moment after the swing starts: the impact then
+      if (landed) { this.blows.struck = now + STRIKE_MS * 0.45; this.blows.landed = true; } else this.blows.landed = false;
+    } else {
+      this.blows.foe = now;
+      if (landed) this.blows.hurt = now + LUNGE_MS * 0.45;
+    }
+  }
+
+  /** Ink strokes bursting from where a blow lands. */
+  private burst(x: number, y: number, p: number, z: number): void {
+    const { ctx } = this, r0 = (3 + p * 8) * z, r1 = r0 + (4 - p * 2) * z;
+    ctx.globalAlpha = 1 - p; ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let k = 0; k < 7; k++) { const a = k * 0.9 + 0.3; ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  /** Claw marks: three red slashes drawn across the explorer, then fading. */
+  private claws(x: number, y: number, p: number, z: number): void {
+    const { ctx } = this, s = Math.min(1.4, z) * 1.2, grow = Math.min(1, p * 4);
+    ctx.globalAlpha = p < 0.5 ? 1 : (1 - p) * 2; ctx.strokeStyle = 'rgb(168,40,32)'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let k = -1; k <= 1; k++) { const ox = k * 3.5 * s; ctx.moveTo(x + ox - 5 * s, y - 6 * s); ctx.quadraticCurveTo(x + ox, y - 1 * s, x + ox - 5 * s + 10 * s * grow, y - 6 * s + 12 * s * grow); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
   /** Numbers and words rising over a fight: damage, misses, meat. */
   private floats: { x: number; y: number; text: string; kind: 'you' | 'foe' | 'loot'; t0: number }[] = [];
 
@@ -535,9 +594,14 @@ export class Overlay {
   /** The explorer: wide-brimmed hat, travelling coat, pack with a bedroll, staff, boots. */
   private explorer(atX: number, atY: number, walking: boolean, now: number, scale: number, torch = false): void {
     const { ctx } = this;
+    // a blow of the staff: raised over the head, then brought down on the animal (STRIKE_MS);
+    // and the flinch when the animal's blow lands
+    const sp = (now - this.blows.you) / STRIKE_MS, striking = sp >= 0 && sp < 1;
+    const hp = (now - this.blows.hurt) / HURT_MS, hurt = hp >= 0 && hp < 1 ? Math.sin(Math.PI * hp) : 0;
     // Drawn at a fixed size in the world: it shrinks when zooming out, like everything else.
     ctx.save();
-    ctx.translate(atX, atY); ctx.scale(scale, scale);
+    ctx.translate(atX - this.facing * hurt * 3 * scale, atY); ctx.scale(scale, scale);
+    if (striking) walking = false;
     const x = 0, y = 0, u = 1.7, f = this.facing;
     const swing = walking ? Math.sin(now / 110) : 0, j = swing * 2.4, bob = walking ? Math.abs(Math.cos(now / 110)) * 0.6 : 0;
     const X = (dx: number): number => x + dx * u * f; // dx measured towards the facing side
@@ -562,11 +626,28 @@ export class Overlay {
     ctx.beginPath(); ctx.moveTo(X(-1.7), Y(-13)); ctx.lineTo(X(1.7), Y(-13)); ctx.lineTo(X(2.4), Y(-5.6)); ctx.lineTo(X(-2.4), Y(-5.6)); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(X(-2), Y(-8.6)); ctx.lineTo(X(2.1), Y(-8.6)); ctx.stroke(); // belt
     // staff, held ahead, and the arm holding it
-    const sx = X(3.6) + j * 0.3 * f;
-    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
-    ctx.beginPath(); ctx.moveTo(sx, Y(-16)); ctx.lineTo(sx + j * 0.15, y + 0.5); ctx.stroke();
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
-    ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(sx, Y(-9.5)); ctx.stroke();
+    if (striking) {
+      // the swing: from upright, back over the shoulder, then down onto the animal
+      const a = sp < 0.35 ? -90 - (sp / 0.35) * 70 : sp < 0.55 ? -160 + ((sp - 0.35) / 0.2) * 190 : 30 - ((sp - 0.55) / 0.45) * 120;
+      const r = a * Math.PI / 180, dx = Math.cos(r) * f, dy = Math.sin(r), hx = X(2.2), hy = Y(-11);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(hx, hy); ctx.stroke(); // the arm, raised
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
+      ctx.beginPath(); ctx.moveTo(hx - dx * 5 * u, hy - dy * 5 * u); ctx.lineTo(hx + dx * 11 * u, hy + dy * 11 * u); ctx.stroke();
+      if (sp > 0.35 && sp < 0.6) { // the whoosh of the blow
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = INK; ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        for (let k = 0; k <= 8; k++) { const q = (-160 + (a + 160) * k / 8) * Math.PI / 180, px = hx + Math.cos(q) * f * 12 * u, py = hy + Math.sin(q) * 12 * u; if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    } else {
+      const sx = X(3.6) + j * 0.3 * f;
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(90,62,38)';
+      ctx.beginPath(); ctx.moveTo(sx, Y(-16)); ctx.lineTo(sx + j * 0.15, y + 0.5); ctx.stroke();
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(X(1.2), Y(-12)); ctx.lineTo(sx, Y(-9.5)); ctx.stroke();
+    }
     // head
     ctx.lineWidth = 0.9; ctx.fillStyle = 'rgb(230,200,165)';
     ctx.beginPath(); ctx.arc(X(0.2), Y(-15), 1.7 * u, 0, 6.3); ctx.fill(); ctx.stroke();

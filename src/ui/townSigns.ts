@@ -161,10 +161,10 @@ let ribbons = 0;
  * starts and ends (x0, x1, at the height yEnd) and how high it rises in the centre (yMid). The name is
  * written along that curve, as a sign painter would.
  */
-const BAND: Record<string, [number, number, number, number]> = {
-  'inn-village': [0.15, 0.89, 0.42, 0.375], 'inn-city': [0.14, 0.89, 0.43, 0.385],
-  'shop-village': [0.13, 0.87, 0.44, 0.405], 'shop-city': [0.14, 0.89, 0.43, 0.385],
-  smith: [0.14, 0.87, 0.435, 0.39], tavern: [0.16, 0.88, 0.43, 0.395],
+const BAND: Record<string, [number, number, number, number]> = { // centred on each board (measured on its outline)
+  'inn-village': [0.136, 0.876, 0.42, 0.375], 'inn-city': [0.132, 0.882, 0.43, 0.385],
+  'shop-village': [0.127, 0.867, 0.44, 0.405], 'shop-city': [0.127, 0.877, 0.43, 0.385],
+  smith: [0.136, 0.866, 0.435, 0.39], tavern: [0.141, 0.861, 0.43, 0.395],
 };
 
 /** A place's sign with its name: the hanging board if drawn, else the emblem over a ribbon. */

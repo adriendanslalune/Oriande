@@ -223,6 +223,8 @@ export function ribbon(title: string): string {
   // a long name is pressed a little rather than shrunk too small to read
   const id = 'rib' + ++ribbons, size = Math.min(23, Math.round(420 / Math.max(10, title.length)));
   const fit = title.length * (size * 0.58 + 1) > 206 ? ' textLength="206" lengthAdjust="spacingAndGlyphs"' : '';
+  // a short name is spread out, so that it runs along the ribbon's curve instead of sitting flat on its top
+  const spread = fit ? 1 : Math.max(1, Math.min(9, (150 - title.length * size * 0.62) / title.length));
   return `<svg class="ribbon" viewBox="0 0 300 66" aria-hidden="true">
     <path d="M6 28H50V56H6L18 42Z" fill="#dcc89c" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
     <path d="M294 28H250V56H294L282 42Z" fill="#dcc89c" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
@@ -230,6 +232,6 @@ export function ribbon(title: string): string {
     <path d="M38 18Q150 2 262 18V46Q150 30 38 46Z" fill="#f6eed8" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
     <path d="M46 22Q150 7 254 22M46 42Q150 27 254 42" fill="none" stroke="${INK}" stroke-width=".6"/>
     <path id="${id}" d="M44 37Q150 21 256 37" fill="none"/>
-    <text font-family="'IM Fell English SC', serif" font-size="${size}" letter-spacing="1" fill="${INK}"><textPath href="#${id}" startOffset="50%" text-anchor="middle"${fit}>${esc(title)}</textPath></text>
+    <text font-family="'IM Fell English SC', serif" font-size="${size}" letter-spacing="${spread.toFixed(1)}" fill="${INK}"><textPath href="#${id}" startOffset="50%" text-anchor="middle"${fit}>${esc(title)}</textPath></text>
   </svg>`;
 }

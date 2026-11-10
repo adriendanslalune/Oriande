@@ -120,6 +120,18 @@ Règles qui restent :
    l'overlay ; la gravure de `render/monuments.ts` reste en repli) ;
    **merveilles** illustrées (`world/wonders.ts`, 6 types), au plus une par cellule de
    8×8 tuiles (CHANCE = 0,45), repérées à 500 unités, fiche prioritaire.
+4 bis. **Contrées fabuleuses** (demande d'Adrien : des lieux hors du commun, chacun **unique sur la planète**) :
+   `world/realms.ts`, 15 contrées (champignons géants, forêt de cristal, désert de verre, mer de nuages, monts
+   flottants, lac pétrifié, forêt d'os, marais aux lucioles, jardin des statues, arbres-colonnes, banquise aux aurores,
+   cratère de l'étoile tombée, fleuve qui remonte, dunes chantantes, pierres levées), chacune sur son climat
+   (`RULES`), de 9 à 15 lieues de rayon, à plus de 175 lieues l'une de l'autre. Leurs places sont **figées dans
+   `PLACED`** (la recherche, `searchRealms`, prend des secondes ; un test vérifie qu'elle redonne les mêmes : à
+   refaire si le monde change). Bord irrégulier (`realmDepth`). Dessin (`render/realms.ts`) : teinte du sol, leurs
+   propres « plantes » à la place de la végétation (`drawRealmPlant`), et pour certaines un tracé d'ensemble (rebord
+   et éjectas du cratère, spirale de menhirs, fleuve en spirale vers le sommet) ; nuages et fleuve par-dessus les
+   montagnes. Pas de bourg dedans. Découverte en y entrant (`named` « r<kind> », note), nom en capitales espacées
+   sur la carte, losange dans l'atlas (toutes visibles avec « Afficher toute la carte »). **Pas encore d'effet** sur
+   le jeu (à décider avec Adrien : ressources rares, dangers, indices sur Oriande).
 5. Pas de traversée d'eau en phase 1 : le **tour du monde** viendra avec bateau/montgolfière.
 6. **Rivières** (`world/rivers.ts`) : sources dans les collines (altitude 0,22–1,1, une
    candidate par carré de 512), descente de plus grande pente sur une grille de 64 le long de

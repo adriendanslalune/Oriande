@@ -2,6 +2,7 @@ import { hash2 } from './noise';
 import { properName } from './names';
 import { TILE, TILES_AROUND, altitude } from './terrain';
 import { wrapIndex } from './planet';
+import { realmAt } from './realms';
 
 export interface Settlement {
   x: number;
@@ -35,7 +36,8 @@ export function settlement(ti: number, tj: number): Settlement | null {
     const v = altitude(x, y);
     // on low dry land, and not in the shadow of the mountains (peaks are drawn around v >= 0.6)
     const clear = (): boolean => { for (let a = 0; a < 6.28; a += 0.785) if (altitude(x + Math.cos(a) * 40, y + Math.sin(a) * 40) >= 0.55) return false; return true; };
-    if (v > 0.04 && v < 0.45 && clear()) {
+    // no town in a fabulous land: it stands alone, wild (see realms.ts)
+    if (v > 0.04 && v < 0.45 && clear() && !realmAt(x, y)) {
       const city = r < 0.035;
       const name = properName(wi + 500, tj - 300) + (city ? '' : hash2(wi, tj * 2) < 0.3 ? '-les-Bains' : '');
       b = { x, y, city, name, key: wi + ',' + tj, rkey, ti, wi, tj };

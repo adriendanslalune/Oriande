@@ -626,6 +626,7 @@ export class MapScene extends Phaser.Scene {
 
   private onEvent(e: TravelEvent): void {
     if (e.type === 'shore') this.hud.showNote(t('shore.title'), t('shore.text'));
+    else if (e.type === 'realm') this.hud.showNote(t('realm.heading') + ' · ' + t(`realm.${e.realm.kind}.name`), t(`realm.${e.realm.kind}.text`), 16000, true);
     else if (e.type === 'wonder') this.hud.showNote(t('wonder.heading') + ' · ' + t(`wonder.${e.wonder.kind}.name`, { n: e.wonder.name }), t(`wonder.${e.wonder.kind}.text`), 14000, true);
     else if (e.type === 'monument') this.hud.showNote(t('monument.heading') + ' · ' + t(`monument.${e.monument.kind}.name`, { n: e.monument.name }), t(`monument.${e.monument.kind}.text`), 10000, true);
     else if (e.type === 'landmark') this.hud.showNote(t(`landmark.${e.landmark.kind}.name`, { n: e.landmark.name }), t(`landmark.${e.landmark.kind}.text`));

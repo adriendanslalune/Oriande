@@ -29,6 +29,7 @@ import { t, tn } from '../i18n';
 import type { TileArt } from './tiles';
 import { cityRadius } from './towns';
 import { WeatherLayer } from './weather';
+import { realms, realmsNear } from '../world/realms';
 import { sky } from '../world/weather';
 import { LANDMARK_ART, MONUMENT_ART, WONDER_ART, landmarkImage, monumentImage, wonderImage } from './wonderArt';
 import { INK, PAPER } from './palette';
@@ -240,6 +241,13 @@ export class Overlay {
       if (x < -80 || x > v.W + 80 || y < -40 || y > v.H + 40) continue;
       ctx.font = (L.water ? 'italic ' : '') + Math.round(11 + v.zoom * 2) + "px 'IM Fell English" + (L.water ? '' : ' SC') + "', serif";
       this.label(t(`landmark.${L.kind}.name`, { n: L.name }), x, y + 10 + v.zoom * 12);
+    }
+    // the fabulous lands discovered: their name across them, in spaced capitals like a region of an atlas
+    for (const R of realmsNear(ax, ay, bx, by)) {
+      if (!s.named.includes(R.key) && !devView.all) continue;
+      const [x, y] = screen(R.x, R.y);
+      ctx.font = 'italic ' + Math.round(15 + v.zoom * 4) + "px 'IM Fell English SC', serif";
+      this.label(t(`realm.${R.kind}.name`).split('').join(' '), x, y - R.radius * 0.35 * v.zoom);
     }
     for (const m of monumentsNear(ax, ay, bx, by, 90)) {
       if (!isSeen(s, m.x, m.y)) continue;
@@ -1019,6 +1027,15 @@ export class Overlay {
       if (!b || !b.city || !isSeen(s, b.x, b.y)) continue;
       const [x, y] = screen(b.x, b.y);
       ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillText(b.name.toUpperCase(), x, y - 6);
+    }
+    // the fabulous lands: a small diamond with their name (all of them on the developers' whole map)
+    ctx.font = "italic 12px 'IM Fell English SC', serif";
+    for (const R of realms()) {
+      if (!s.named.includes(R.key) && !devView.all) continue;
+      const [x, y] = screen(nearestCopy(R.x, v.x), R.y);
+      if (x < -100 || x > v.W + 100 || y < -20 || y > v.H + 20) continue;
+      ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 4, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 4, y); ctx.closePath(); ctx.fill();
+      ctx.fillText(t(`realm.${R.kind}.name`), x, y - 8);
     }
     // discovered wonders: a small star with their name
     ctx.font = "italic 11px 'IM Fell English', serif";

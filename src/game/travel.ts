@@ -8,6 +8,7 @@ import { firstNeighbour } from '../world/roads';
 import { landmark, type Landmark } from '../world/landmarks';
 import { WONDER_SIGHT, wondersNear, type Wonder } from '../world/wonders';
 import { MONUMENT_SIGHT, monumentsNear, type Monument } from '../world/monuments';
+import { realmsNear, realmDepth, type Realm } from '../world/realms';
 import type { GameState } from './state';
 import { alongPath, pathLength, planRoute } from './route';
 import { START_HP, START_ITEMS } from './combat';
@@ -154,6 +155,7 @@ export function startJourney(s: GameState, x: number, y: number, pace = 1): bool
 }
 
 export type TravelEvent =
+  | { type: 'realm'; realm: Realm }
   | { type: 'wonder'; wonder: Wonder }
   | { type: 'monument'; monument: Monument }
   | { type: 'landmark'; landmark: Landmark }
@@ -163,6 +165,12 @@ export type TravelEvent =
 /** Places newly discovered from (x, y). */
 export function discover(s: GameState, x: number, y: number, out: TravelEvent[]): void {
   const ti = Math.floor(x / TILE), tj = Math.floor(y / TILE);
+  // A fabulous land is discovered on setting foot in it.
+  for (const R of realmsNear(x, y, x, y)) {
+    if (s.named.includes(R.key) || realmDepth(R, x, y) <= 0) continue;
+    s.named.push(R.key);
+    out.push({ type: 'realm', realm: R });
+  }
   // Wonders tower over the land: they are noticed from afar, and the ground around them shows.
   for (const w of wondersNear(x - WONDER_SIGHT, y - WONDER_SIGHT, x + WONDER_SIGHT, y + WONDER_SIGHT, 0)) {
     if (s.named.includes('w' + w.key) || Math.hypot(w.x - x, w.y - y) > WONDER_SIGHT) continue;

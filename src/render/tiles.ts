@@ -20,6 +20,8 @@ import { WONDER_CLEARING, wondersNear } from '../world/wonders';
 import { MONUMENT_CLEARING, monumentsNear } from '../world/monuments';
 import { drawMonument } from './monuments';
 import { INK } from './palette';
+import { realmsNear, realmDepth } from '../world/realms';
+import { OVER_RELIEF, drawRealmFeature, drawRealmPlants, realmHere, realmWash } from './realms';
 
 /** Pixels per world unit in a tile texture. */
 export const TILE_RES = 2;
@@ -73,6 +75,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   const x0 = ti * T, y0 = tj * T, N = T / STEP + 1, H = new Float32Array(N * N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) H[j * N + i] = altitude(x0 + i * STEP, y0 + j * STEP);
   const h = (i: number, j: number): number => H[j * N + i];
+  // the fabulous lands that reach this tile (see world/realms.ts)
+  const lands = realmsNear(x0 - 20, y0 - 20, x0 + T + 20, y0 + T + 20);
 
   // The wash: one colour per sample, shaded by relief (light from the north-west), smoothly enlarged.
   const NL = N + 2, lav = createCanvas();
@@ -82,6 +86,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   for (let jj = 0; jj < NL; jj++) for (let ii = 0; ii < NL; ii++) {
     const i = ii - 1, j = jj - 1, v = hv(i, j), X = x0 + i * STEP, Y = y0 + j * STEP;
     let c = terrainColour(v, X, Y);
+    if (lands.length && (v >= 0) !== lands.some((r) => r.kind === 'aurora')) c = realmWash(c, lands, X, Y);
     if (v >= 0) {
       const gx = hv(i + 1, j) - hv(i - 1, j), gy = hv(i, j + 1) - hv(i, j - 1), shade = Math.max(-1, Math.min(1, (gx + gy) * 9));
       c = c.map((a) => a * (1 - shade * 0.14));
@@ -158,6 +163,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     const wg = wrapIndex(gx, CIRCUMFERENCE / 10); // the planet wraps: draw lots with the wrapped index
     const X = gx * 10 + 5 + (hash2(wg * 3 + 11, gy) - 0.5) * 7, Y = gy * 10 + 5 + (hash2(wg, gy * 3 - 7) - 0.5) * 7, jx = X - x0, jy = Y - y0, v = altitude(X, Y);
     if (v < 0.02 || v > 0.6) continue;
+    if (lands.length && realmHere(lands, X, Y, hash2(wg * 5 + 3, gy * 9 + 1))) continue; // a fabulous land's own plants instead
     const hu = humidity(X, Y), r = hash2(wg * 7 + 1, gy * 13 + 2);
     if (cleared(X, Y) || water(X, Y) || onRoad(X, Y)) continue; // fields and gardens around towns; rivers and lakes; roads
     const t = temperature(X, Y, v), cold = coldness(t) > 0.5;
@@ -206,17 +212,27 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
   }
 
 
+  // The fabulous lands: their own plants (mushrooms, crystal, glass...), the crater and the standing stones
+  const plain = (X: number, Y: number): boolean => cleared(X, Y) || water(X, Y) || onRoad(X, Y);
+  drawRealmPlants(g, lands, (k) => !OVER_RELIEF.includes(k), x0, y0, T, plain);
+  for (const R of lands) if (R.kind === 'crater' || R.kind === 'menhirs') drawRealmFeature(g, R, x0, y0, T);
+  const inLand = (X: number, Y: number): boolean => lands.some((R) => realmDepth(R, X, Y) > 0.2);
+
   // where a river crosses a range, the peaks step aside: a valley (every 4th point is enough)
   const valleys = rivers.map((r) => r.points.filter((_, k) => k % 4 === 0 || k === r.points.length - 1).map(([x, y]) => ({ x, y })));
 
   // Climates: dune fields in the deserts, ice floes on the frozen seas.
-  drawDunes(g, x0, y0, (X, Y) => cleared(X, Y) || water(X, Y) || onRoad(X, Y));
+  drawDunes(g, x0, y0, (X, Y) => plain(X, Y) || inLand(X, Y));
   drawIce(g, x0, y0);
 
   // Mountains: engraved peaks, back to front.
   // no peak over a wonder: its clearing counts as an obstacle like a road
   const wonderGround = [...wonders, ...monuments].map((w) => [{ x: w.x - 30, y: w.y - 10 }, { x: w.x + 30, y: w.y - 10 }]);
   drawMountains(g, x0, y0, terrainColour, [...roads.map((r) => r.points), ...wonderGround, ...valleys]);
+  g.strokeStyle = INK; g.fillStyle = INK;
+  // above the peaks: the sea of clouds, the river climbing the summit; on the ice: the aurora's ice
+  drawRealmPlants(g, lands, (k) => OVER_RELIEF.includes(k), x0, y0, T, (X, Y) => cleared(X, Y));
+  for (const R of lands) if (R.kind === 'upriver') drawRealmFeature(g, R, x0, y0, T);
   g.strokeStyle = INK; g.fillStyle = INK;
 
   // The strange place of this tile, if any.
@@ -237,7 +253,7 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
     const wx = wrapX(x0 + x);
     const X = x0 + x + (hash2(wx, y0 + y * 2) - 0.5) * 12, Y = y0 + y + (hash2(wx + x, y0 + y) - 0.5) * 12, v = altitude(X, Y);
     if (v < -0.04) { if (coldness(temperature(X, Y, v)) < 0.5) waves.push([X, Y, hash2(wx + 3, Y | 0) * 6.28]); } // no waves on the ice
-    else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55 && !cleared(X, Y)) trees.push([X, Y]); // no leaves off fields
+    else if (v > 0.02 && v < 0.45 && humidity(X, Y) > 0.55 && !cleared(X, Y) && !inLand(X, Y)) trees.push([X, Y]); // no leaves off fields
   }
   return { canvas: cv, waves, trees };
 }

@@ -373,7 +373,7 @@ sur le téléphone de Doudou via GitLab Pages.
    (la rumeur sur un parchemin déroulé, et une **carte des plats** : ragoût, pain et fromage, bière, mangés sur
    place, `eatDish`, `dishes` dans `towns.json`). **Village ≠ ville aussi dans les mots** (demande d'Adrien :
    rustique et boueux au village, plus propre en ville) : auberge et marchand ont leur version de village (`inn-village`,
-   `shop-village` : « Auberge », la carriole du marchand) et de ville (`inn-city` « Hôtel des Voyageurs », `shop-city`
+   `shop-village` : « Auberge », la carriole du marchand) et de ville (`inn-city` « Auberge » aussi, demande d'Adrien, `shop-city`
    « Boutique »), avec leur réplique. **Plus d'illustrations dans les bourgs** (essayées en Moebius puis en gravure : elles cassaient l'esprit du jeu, Adrien ne
    les garde que pour les objets).
 6. **Reporté** (Adrien : les donjons viendront avec le lore, qui n'existe pas encore ; priorité à la survie).

@@ -1,4 +1,6 @@
-# Build, test and publish to GitLab Pages on every push to the default branch.
+# Tests run once per change, on its merge request; the default branch then only builds and
+# publishes to GitLab Pages (what lands there was tested in its merge request). Pushes to other
+# branches run nothing, to spare the CI minutes (asked by Adrien).
 image: node:22
 
 cache:
@@ -16,13 +18,11 @@ test:
     - npm run build
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
 
 pages:
   stage: deploy
   script:
     - npm ci --cache .npm --prefer-offline
-    - npm test
     - npm run build
   pages:
     publish: dist

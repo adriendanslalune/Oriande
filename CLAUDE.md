@@ -434,6 +434,10 @@ Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand 
   Textes joueur uniquement via i18n.
 - Commits petits, messages en anglais, conventionnels (`feat:`, `fix:`…).
 - Chaque étape de la tranche jouable = une merge request ou un commit tagué `phase1-stepN`.
+- **CI économe** (demande d'Adrien, le quota de minutes a été épuisé) : les tests ne tournent **qu'une fois**, dans
+  le pipeline de la merge request (`merge_request_event`) ; un push de branche ne lance rien ; main ne fait que
+  construire et publier. Attendre le pipeline par son **sha** (sa ref est `refs/merge-requests/<n>/head`). Regrouper
+  les petites corrections en une seule MR.
 - Claude merge lui-même ses merge requests dès que le pipeline est vert, sans attendre
   d'approbation (accord donné par Adrien).
 - Avant de proposer une fonctionnalité hors liste : demander.

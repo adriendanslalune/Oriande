@@ -157,27 +157,27 @@ export const emblem = (key: string, size = 64): string =>
 let ribbons = 0;
 
 /**
- * The empty band on each board, read on the pictures (shares of their size): where its middle line
- * starts and ends (x0, x1, at the height yEnd) and how high it rises in the centre (yMid). The name is
- * written along that curve, as a sign painter would.
+ * The empty space on each board, measured on the pictures (shares of their size): its left and right
+ * inner edges, and the top and bottom of the blank space above the shop's symbol. The name is written
+ * straight in its middle, in the player's language.
  */
-const BAND: Record<string, [number, number, number, number]> = { // centred on each board (measured on its outline)
-  'inn-village': [0.136, 0.876, 0.42, 0.375], 'inn-city': [0.132, 0.882, 0.43, 0.385],
-  'shop-village': [0.127, 0.867, 0.44, 0.405], 'shop-city': [0.127, 0.877, 0.43, 0.385],
-  smith: [0.136, 0.866, 0.435, 0.39], tavern: [0.141, 0.861, 0.43, 0.395],
+const BLANK: Record<string, [number, number, number, number]> = {
+  'inn-village': [0.044, 0.956, 0.219, 0.734], 'inn-city': [0.057, 0.942, 0.248, 0.736],
+  'shop-village': [0.031, 0.968, 0.199, 0.624], 'shop-city': [0.060, 0.938, 0.266, 0.625],
+  smith: [0.051, 0.946, 0.266, 0.633], tavern: [0.047, 0.950, 0.251, 0.610],
 };
+/** The pictures' shape (height / width). */
+const RATIO = 0.68;
 
-/** A place's sign with its name: the hanging board if drawn, else the emblem over a ribbon. */
+/** A place's sign with its name: the board if drawn, else the emblem over a ribbon. */
 export function shopSign(sign: string, key: string, title: string, size: number): string {
   const url = SIGNS.get(sign);
   if (!url) return emblem(key, size) + ribbon(title);
-  const S = 512, [x0, x1, yEnd, yMid] = BAND[sign] ?? [0.14, 0.88, 0.43, 0.39], id = 'sg' + ++ribbons;
-  const yc = 2 * yMid - yEnd; // the control point that makes the curve pass through yMid in its middle
-  const room = (x1 - x0) * S * 0.92, px = Math.min(40, Math.floor(room / (title.length * 0.55))); // a long name, smaller
-  const fit = title.length * px * 0.58 > room ? ` textLength="${Math.round(room)}" lengthAdjust="spacingAndGlyphs"` : '';
-  return `<div class="shopsign" style="width:${Math.round(size * 2.9)}px"><img src="${url}" alt="">
-    <svg viewBox="0 0 ${S} ${S}" aria-hidden="true"><path id="${id}" d="M${x0 * S} ${yEnd * S}Q${S * (x0 + x1) / 2} ${yc * S} ${x1 * S} ${yEnd * S}" fill="none"/>
-    <text font-family="'IM Fell English SC', serif" font-size="${px}" letter-spacing="1" fill="#3a2a1a" dominant-baseline="middle"><textPath href="#${id}" startOffset="50%" text-anchor="middle"${fit}>${esc(title)}</textPath></text></svg></div>`;
+  const W = 720, H = Math.round(W * RATIO), [x0, x1, y0, y1] = BLANK[sign] ?? [0.05, 0.95, 0.25, 0.65];
+  const room = (x1 - x0) * W * 0.8, px = Math.min(H * (y1 - y0) * 0.5, Math.floor(room / (title.length * 0.6))); // a long name, smaller
+  return `<div class="shopsign" style="width:${Math.round(size * 3.1)}px"><img src="${url}" alt="">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><text x="${W * (x0 + x1) / 2}" y="${H * (y0 + y1) / 2}" text-anchor="middle" dominant-baseline="central"
+    font-family="'IM Fell English SC', serif" font-size="${Math.round(px)}" letter-spacing="2" fill="#2b2117">${esc(title)}</text></svg></div>`;
 }
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

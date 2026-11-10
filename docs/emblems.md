@@ -2,39 +2,41 @@
 
 ## Enseignes des lieux
 
-Chaque lieu d'un bourg a son **enseigne suspendue** (demande d'Adrien : comme une enseigne de boutique,
-pas une banderole) : une potence de fer forgé, une planche de bois qui pend à deux anneaux, le symbole
-du lieu gravé dessus, et un **bandeau vide** où le jeu écrit le nom dans la langue du joueur (pas de
-texte dans l'image : le jeu est en français et en anglais). Au village l'enseigne est rustique, en ville
-plus soignée. Fichiers : `src/assets/signs/<clé>.webp` ; en attendant, un petit emblème sur une banderole.
-Le fond blanc disparaît dans la page, pas besoin de détourer. Je règle la place du nom quand je reçois les images.
-
-Une conversation, ce bloc d'abord :
+Chaque lieu d'un bourg a son **panneau d'enseigne** (demande d'Adrien : d'une seule encre comme la silhouette
+du bourg, orné, sans potence ni chaînes) : le symbole du lieu en bas, et un **grand vide** au milieu où le jeu
+écrit le nom dans la langue du joueur. Fichiers : `src/assets/signs/<clé>.webp` (PNG transparent reçu,
+recadré). Si une image change, remesurer son vide (`BLANK` dans `ui/townSigns.ts`).
 
 ```
-I am making hanging shop signs for an adventure game set in 1873, drawn like the engravings in
-Jules Verne's original illustrated editions.
-Every picture shows the same thing, square format:
-- a small wrought-iron bracket at the top left, from which a wooden signboard hangs by two rings;
-- the board is shaped like a shield or a cartouche, with a carved border;
-- across the UPPER third of the board, an EMPTY smooth band, left blank for lettering;
-- below it, the symbol of the shop, carved into the wood;
-- brown-black ink line, fine hatching only in the shadows, at most a very light sepia wash,
-  no other colour;
-- plain pure white background, no wall, no ground, no cast shadow;
+I am making shop signboards for an adventure game set in 1873. The game's look is dark-brown ink
+on cream paper, like a 19th-century shop-sign engraving printed in one colour.
+Every picture shows the same thing, landscape format 3:2:
+- ONLY the signboard, seen straight from the front, filling the picture: no bracket, no chains,
+  no pole, no wall;
+- an ornate Victorian cartouche board: notched corners, a double border with a fine inner line,
+  small decorative scrolls and curls at the four corners, a carved crest or pediment of
+  wrought-iron-like scrollwork on top, a smaller matching flourish under the bottom edge;
+- a few light wood-grain strokes along the board's edges only;
+- the centre of the board is completely EMPTY and flat, a wide blank space left for lettering
+  (about the middle half of the board's height, no ornament there);
+- under that empty space, a small symbol of the shop in solid ink, flanked by two short
+  flourished lines;
+- ONE colour only: dark brown ink (#2b2117), crisp outlines and solid flat fills, like a
+  woodcut stamp or a vector illustration; no gradient, no grey, no shading, no 3D;
+- plain pure white background;
 - absolutely no text, no letters, no numbers anywhere.
-Keep exactly the same line, size and layout from one picture to the next.
+Keep exactly the same style and level of detail from one picture to the next.
 Reply "ready" and wait for the subjects.
 ```
 
-| clé | Lieu | Sujet à demander (anglais) |
-|---|---|---|
-| `inn-village` | l'auberge du village | a rough, slightly crooked plank, nails and a crack; symbol: a simple bed with a pillow |
-| `inn-city` | l'hôtel des voyageurs | a neat carved board with scrolls and a crown-like crest; symbol: a fine bed with a pillow and a blanket |
-| `shop-village` | le marchand du village | a rough plank hanging a little askew; symbol: a simple balance scale |
-| `shop-city` | la boutique | a neat carved board with scrolls; symbol: a brass balance scale with two pans |
-| `smith` | la forge (ville) | a sturdy board with iron studs; symbol: an anvil with a hammer resting on it |
-| `tavern` | la taverne (ville) | a carved board with a rope border; symbol: a wooden beer tankard with foam |
+| clé | Sujet |
+|---|---|
+| `inn-village` | rustic version: a slightly irregular board with simpler scrolls and a few nail heads; symbol: a small bed |
+| `inn-city` | elegant version: rich symmetrical scrollwork and a tall crest; symbol: a small bed |
+| `shop-village` | rustic version: a slightly irregular board with simpler scrolls and a few nail heads; symbol: a small balance scale |
+| `shop-city` | elegant version: rich symmetrical scrollwork and a tall crest; symbol: a small balance scale |
+| `smith` | sturdy version: square corners with iron studs and heavy scrolls; symbol: a small anvil with a hammer |
+| `tavern` | a board with a rope-twist border and scrolls; symbol: a small beer tankard |
 
 ## Silhouettes des bourgs
 

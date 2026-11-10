@@ -364,9 +364,9 @@ sur le téléphone de Doudou via GitLab Pages.
    planche que le sac (`Sheet.showTownSquare`, `showTownPlace`). **Arrivée** : la **silhouette du bourg d'un seul trait** (`ui/townSigns.ts`, `skyline`, propre à chaque bourg,
    demande d'Adrien : discret, laisse place à l'imagination ; silhouettes ChatGPT reçues, 3 par type,
    `src/assets/skylines/<village|city>-<n>.webp`, une tirée par bourg ; la silhouette codée en repli), nom sur une **banderole vintage** (`ribbon`, texte sur la courbe), « Village · des bois tempérés » (région d'après le biome, `regionOf`), une phrase d'ambiance parmi 5
-   (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem`) sur sa banderole en repli ; **enseignes suspendues** ChatGPT reçues (`shopSign`,
+   (`flavourOf`, la même à chaque retour), les **lieux** en cartes : un **gros emblème gravé** (lit, balance, enclume et marteau, chope : `emblem`) sur sa banderole en repli ; **panneaux d'enseigne** ChatGPT reçus (d'une seule encre, ornés, sans potence, demande d'Adrien ; `shopSign`,
    `docs/emblems.md`, `src/assets/signs/<inn-village|inn-city|shop-village|shop-city|smith|tavern>.webp`, nom écrit par
-   le jeu le long de la courbe du bandeau vide de la planche (SVG `textPath`), pour l'i18n : `BAND` donne la courbe sur chaque image ; noms sans article, demande d'Adrien : « Auberge », « Marchand ») (ce qu'un village n'a pas, forge et
+   le jeu, droit, au milieu du vide du panneau, pour l'i18n : `BLANK` donne ce vide sur chaque image ; noms sans article, demande d'Adrien : « Auberge », « Marchand ») (ce qu'un village n'a pas, forge et
    taverne, n'y apparaît pas du tout), « Reprendre la route ». **Chaque lieu** : son emblème et sa banderole, la réplique de
    celui qui le tient (pas de visage, demande d'Adrien : il en faudrait un par bourg), puis : auberge (dormir), marchand (onglets Acheter /
    Vendre, boîtes avec étiquette de prix rouge si trop cher, fiche avec le bouton), forge (lames), **taverne**

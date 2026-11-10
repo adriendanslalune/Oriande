@@ -8,7 +8,7 @@ import { START_HP, START_ITEMS, speciesById } from './combat';
 export const SAVE_KEY = 'oriande.save';
 /** Where an unreadable save is moved, so a bug never silently destroys a player's game. */
 export const BROKEN_KEY = 'oriande.save.broken';
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 /** The JSON stored under SAVE_KEY. */
 export interface SaveFile {
@@ -210,7 +210,10 @@ export function migrate(raw: Record<string, unknown>): Record<string, unknown> |
     save.equip = { ...(save.equip as object), feet: null };
     save.v = 10;
   }
-  // next: if (save.v === 10) { ...; save.v = 11; }
+  // v11: the planet was remade into three continents (asked by Adrien): the places of a v10 game are
+  // gone (it might stand in mid-ocean), so it is left aside and a new game starts at the new start
+  if (save.v === 10) return null;
+  // next: if (save.v === 11) { ...; save.v = 12; }
   return save;
 }
 
@@ -249,7 +252,7 @@ export function fromSaveFile(json: string): GameState {
   const okSlot = (v: unknown): boolean => v === null || (typeof v === 'string' && (items as Record<string, number>)[v] > 0);
   if (!eq || typeof eq !== 'object' || !okSlot(eq.hand) || !okSlot(eq.off) || !okSlot(eq.body) || !okSlot(eq.feet)) throw new Error('bad equipment');
   return {
-    version: 10, equip: { hand: eq.hand, off: eq.off, body: eq.body, feet: eq.feet }, work: work ? { ...work } : null, carcasses: carcasses.map((c) => ({ ...c })),
+    version: 11, equip: { hand: eq.hand, off: eq.off, body: eq.body, feet: eq.feet }, work: work ? { ...work } : null, carcasses: carcasses.map((c) => ({ ...c })),
     food: Math.max(0, Math.min(100, f.food as number)), camp: camp ? { ...camp } : null,
     hp: Math.max(1, f.hp as number), maxHp: f.maxHp as number, gold: f.gold as number,
     items: items as Record<string, number>, seed: (f.seed as number) >>> 0, calmUntil: f.calmUntil as number,

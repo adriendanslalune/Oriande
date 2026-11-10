@@ -3,6 +3,7 @@ import { MONUMENT_KINDS, monument } from './monuments';
 import { LANDMARK_KINDS, landmark } from './landmarks';
 import { settlement } from './settlements';
 import { altitude, TILE } from './terrain';
+import { EQUATOR_Y } from './planet';
 import { setLang, t } from '../i18n';
 import { showPlaces } from './features';
 
@@ -30,7 +31,8 @@ describe('monuments and strange places', () => {
 
   it('strange places: a real variety (most kinds met over a large region), none up in the mountains', () => {
     const count = new Map<string, number>();
-    for (let tj = -150; tj < 150; tj++) for (let ti = -200; ti < 200; ti += 1) {
+    const EQ = Math.round(EQUATOR_Y / TILE); // a large region about the equator, on the Old Continent
+    for (let tj = EQ - 150; tj < EQ + 150; tj++) for (let ti = -200; ti < 200; ti += 1) {
       const L = landmark(ti, tj);
       if (!L) continue;
       count.set(L.kind, (count.get(L.kind) ?? 0) + 1);

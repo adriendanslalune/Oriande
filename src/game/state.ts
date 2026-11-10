@@ -49,7 +49,7 @@ export interface Work {
 }
 
 export interface GameState {
-  version: 10;
+  version: 11;
   x: number;
   y: number;
   /** leagues walked */

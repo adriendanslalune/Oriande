@@ -41,15 +41,16 @@ le monde a été régénéré, il n'est **plus** identique au proto (plus de tes
   identité `key` (ramenée, pour les découvertes) et une position brute (`rkey`, pour les
   mémos et le dessin). La brume est indexée par cases ramenées (`cellKey`, CELL = 50).
   Ne jamais ajouter de `hash2(gx, ...)` sur un index brut.
-- Terrain (`world/terrain.ts`) : une échelle continentale (~1 300 lieues) décide terre/mer
-  (~39 % de terres, une douzaine de grandes masses, la plus grande ≈ 40 % des terres,
-  intérieurs pleins sans essaim de lacs), le relief local décide des montagnes (~12 %). Climat (`world/climate.ts`) par **latitude** : tropiques
+- Terrain (`world/terrain.ts`) : **trois continents** (demande d'Adrien : pas d'effet « gruyère », de grands
+  océans entre eux), chacun quelques lobes (`CONTINENTS`, en degrés) aux côtes découpées par le bruit (baies, caps,
+  péninsules) ; intérieur en plateau (`PLATEAU` = 0,22), quelques archipels au large. Le **Vieux Continent** est
+  à cheval sur l'équateur à 0° (on y commence), l'Est et l'Ouest de part et d'autre. ~25 % de terres ; le relief
+  local décide des montagnes (~12 %). `continent` est calculé sur une grille de 64 (cache) et interpolé. Climat (`world/climate.ts`) par **latitude** : tropiques
   chauds (désert/savane/jungle selon l'humidité), tempéré, toundra et banquise au-delà de ~60°.
-- Départ (`startPosition`) : le même pour tous, un village tempéré au cœur du grand
-  continent, au plus près de 0° de longitude vers 45-55° N (≈ 49,7° N, 4,3° O).
-  Le continent de départ : ~5 000 × 4 800 lieues, ~1 250 h de marche pour tout voir.
-- Échelle des sauvegardes : v10 (v3 à v9 migrées : vie, écus, sac, dés, combat sur la carte, travail, carcasses, faim et feu, équipement, pieds) ; les sauvegardes v1/v2
-  (monde plat) sont mises de côté.
+- Départ (`startPosition`) : le même pour tous, un village avec une route au plus près de **0°, 0°** (au milieu de
+  la carte, sur l'équateur, demande d'Adrien) : savane, ≈ 0,2° N, 0,2° E.
+- Échelle des sauvegardes : **v11** (le monde refait en trois continents) : les sauvegardes v1 à v10 sont mises de
+  côté, une nouvelle partie commence au nouveau départ.
 
 Règles qui restent :
 0. **Rendu WebGL** (demande d'Adrien, pour tourner comme un vrai jeu) : Phaser en `AUTO` (WebGL, repli
@@ -139,14 +140,16 @@ Règles qui restent :
    suite sous 0 ; lissage et méandres l'emmenaient au large, parfois en travers d'une baie), dernier point posé
    sur le rivage, bout droit au dessin (pas de bout arrondi sablé dans la mer) ; nœuds, lacs et chutes au-delà
    retirés. **Lacs trouvés partout** : un lac déborde de l'emprise de la rivière qui l'a fait (jusqu'à ~100 de
-   son centre) ; `lakesNear` cherche donc les rivières 100 plus loin (`LAKE_REACH`), les tuiles aussi (sinon ~11 %
+   son centre) ; `lakesNear` cherche donc les rivières 200 plus loin (`LAKE_REACH`), les tuiles aussi (sinon ~11 %
    de l'eau des lacs n'était ni pêchable ni contournée). **Jamais dans la mer** (vu par Adrien) : `makeLake` rétrécit un lac dont la rive atteindrait la mer. **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
    deux rivières qui se rencontrent partagent leurs nœuds ; la plus petite (moins d'eau écoulée
    au nœud) devient affluent et s'arrête au milieu de la plus grande (`cut`, `join`), même entre
    cellules : jamais deux rivières dans le même lit. **Croisements sans nœud commun** (`uncross`, vu par Adrien : un pas en diagonale
    par-dessus une autre rivière, ou des méandres qui la chevauchent) : là où l'eau d'une rivière touche celle d'une autre
    (nœuds voisins seulement, rivières nouvelles du lot seulement), celle qui finit là la rejoint, sinon la plus petite
-   s'arrête ; la coupe s'arrête au milieu de l'autre, même si elle le franchit entre deux points. Au dessin, les berges de chacune sont
+   s'arrête ; la coupe s'arrête au milieu de l'autre, même si elle le franchit entre deux points. Une rivière déjà calculée n'est **jamais recoupée** par un lot suivant (sinon
+   la pêche, la marche et le dessin dépendraient de l'ordre de visite) ; deux rivières qui finiraient l'une sur l'autre :
+   la plus grande reprend son cours (`hangers`). Au dessin, les berges de chacune sont
    découpées dans l'eau de l'autre (clip), l'embouchure s'ouvre. La rive d'un lac s'ouvre où une rivière
    entre. Rivières et lacs sont dessinés **avant** la végétation, qui les évite (`waterMask`)
    et déborde sur les berges. Animation du courant : reflets fins et lents qui scintillent. Les bourgs évitent les abords

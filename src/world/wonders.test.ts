@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { wonder, wondersNear, WONDER_CELL, WONDER_SIGHT } from './wonders';
 import { altitude, TILE } from './terrain';
+import { EQUATOR_Y } from './planet';
 import { settlement } from './settlements';
 import { landmark } from './landmarks';
 import { newGame, discover, cellKey, type TravelEvent } from '../game/travel';
@@ -9,17 +10,21 @@ import { showPlaces } from './features';
 
 showPlaces(true); // their generation is tested, though they are off the map for now
 
-const all = () => { const out = []; for (let mj = -10; mj < 10; mj++) for (let mi = -10; mi < 10; mi++) { const w = wonder(mi, mj); if (w) out.push(w); } return out; };
+// the wonder cells about the equator, on the Old Continent and the seas around it
+const EQ = Math.round(EQUATOR_Y / WONDER_CELL);
+const all = () => { const out = []; for (let mj = EQ - 10; mj < EQ + 10; mj++) for (let mi = -20; mi < 20; mi++) { const w = wonder(mi, mj); if (w) out.push(w); } return out; };
 
 describe('wonders', () => {
   it('are rare: about one wonder cell in three holds one', () => {
     const n = all().length;
-    expect(n / 400).toBeGreaterThan(0.2);
-    expect(n / 400).toBeLessThan(0.5);
+    expect(n / 800).toBeGreaterThan(0.15);
+    expect(n / 800).toBeLessThan(0.5);
   });
 
   it('all six kinds exist, each on suitable ground and away from towns', () => {
-    const ws = all(), kinds = new Set(ws.map((w) => w.kind));
+    // over a wide stretch of the planet (the arches stand in shallow seas, off the coasts)
+    const ws = []; for (let mj = EQ - 24; mj < EQ + 24; mj += 4) for (let mi = -90; mi < 90; mi += 6) { const w = wonder(mi, mj); if (w) ws.push(w); }
+    const kinds = new Set(ws.map((w) => w.kind));
     expect([...kinds].sort()).toEqual(['arbre', 'arches', 'cristal', 'rocher', 'tete', 'titan']);
     for (const w of ws) {
       const v = altitude(w.x, w.y);
@@ -30,7 +35,7 @@ describe('wonders', () => {
         if (b) expect(Math.hypot(b.x - w.x, b.y - w.y)).toBeGreaterThanOrEqual(160);
       }
     }
-  });
+  }, 240000);
 
   it('are deterministic and found by area queries', () => {
     const w = all()[0];

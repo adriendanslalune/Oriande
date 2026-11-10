@@ -61,12 +61,12 @@ describe('rivers', () => {
 
 describe('lakes and towns', () => {
   it('no town stands in a lake, no lake covers a road, no town in the mountains', async () => {
-    const { inLake } = await import('./rivers');
+    const { inLake, lakesNear } = await import('./rivers');
     const { settlement } = await import('./settlements');
     const { roadsAround } = await import('./roads');
     const { TILE, MOUNTAIN_ALTITUDE } = await import('./terrain');
-    const lakes = [];
-    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) for (const r of riversOfCell(ci + di, cj + dj)) lakes.push(...r.lakes);
+    // the lakes as drawn (a lake on a stretch of river cut off at a confluence is gone)
+    const lakes = lakesNear((ci - 1) * RIVER_CELL, (cj - 1) * RIVER_CELL, (ci + 2) * RIVER_CELL, (cj + 2) * RIVER_CELL);
     expect(lakes.length).toBeGreaterThan(10);
     const ti0 = Math.floor(s.x / TILE), tj0 = Math.floor(s.y / TILE);
     let towns = 0;

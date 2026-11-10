@@ -282,8 +282,12 @@ export function riversOfCell(ci: number, cj: number): River[] {
   return out;
 }
 
-/** How far a lake reaches from its centre at most (its radius is at most 70, its shore up to ×1.36). */
-const LAKE_REACH = 100;
+/**
+ * How far a lake reaches from the river that made it, at most: its centre may lie up to 1.4 × its
+ * radius from the river's points (a lake at a river's end), its shore up to ~1.4 × its radius from
+ * its centre, and its radius is at most 70.
+ */
+export const LAKE_REACH = 200;
 
 /** Lakes that may reach into the box [x0, x1] x [y0, y1]. */
 export function lakesNear(x0: number, y0: number, x1: number, y1: number): Lake[] {
@@ -353,8 +357,49 @@ function network(all: River[]): River[] {
   });
   // 3. two rivers whose beds cross without sharing a node (a diagonal step across another one, or
   // meanders pushing one over the other): the smaller one ends there, on the bigger one
-  if (fresh.length) uncross(all, res, new Set(fresh));
+  if (fresh.length) {
+    const before = res.slice();
+    uncross(all, res, new Set(fresh));
+    hangers(all, res, before, new Set(fresh));
+  }
   return all.map((a) => joined.get(a)!);
+}
+
+/**
+ * A tributary must end on another river. Two rivers can end on each other's last point (each one cut
+ * onto the other where they meet): then neither goes on. The one carrying more water gets its course
+ * back (as it was before the crossings were settled, or whole), and the other ends on it again.
+ */
+function hangers(all: River[], current: River[], before: River[], fresh: Set<River>): void {
+  for (let pass = 0; pass < 4; pass++) {
+    const at = new Map<string, [number, number][]>(); // the points of every river's own part, by 16-unit square
+    const key = (x: number, y: number): string => Math.floor(x / 16) + ',' + Math.floor(y / 16);
+    current.forEach((r, ri) => { for (let m = 0; m <= own(r); m++) { const k = key(r.points[m][0], r.points[m][1]); const c = at.get(k); if (c) c.push([ri, m]); else at.set(k, [[ri, m]]); } });
+    // a tributary hangs when another river passes right there but not through its last point
+    // (a river it joins that lies outside this batch is not a hanging end)
+    const hanging: [number, number][] = []; // [river, the river passing by]
+    current.forEach((r, ri) => {
+      if (r.join < 0 || !fresh.has(all[ri])) return; // settled rivers stay as they are
+      const [x, y] = r.points[r.points.length - 1];
+      let on = false, by = -1, byD = 15;
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) for (const [o, m] of at.get((Math.floor(x / 16) + di) + ',' + (Math.floor(y / 16) + dj)) ?? []) {
+        if (o === ri) continue;
+        const d = Math.hypot(current[o].points[m][0] - x, current[o].points[m][1] - y);
+        if (d < 1) on = true; else if (d < byD) { byD = d; by = o; }
+      }
+      if (!on && by >= 0) hanging.push([ri, by]);
+    });
+    if (!hanging.length) return;
+    const flow = (i: number): number => all[i].lengths[all[i].lengths.length - 1];
+    hanging.sort((p, q) => flow(q[0]) - flow(p[0]));
+    const done = new Set<number>();
+    for (const [i, by] of hanging) {
+      if (done.has(by)) continue; // the river it hangs by got its course back: it ends on it again
+      current[i] = before[i] !== current[i] ? before[i] : all[i];
+      joined.set(all[i], current[i]);
+      done.add(i);
+    }
+  }
 }
 
 /** The part of a river drawn with its own banks (a tributary's last points run inside the other). */
@@ -377,7 +422,9 @@ function uncross(all: River[], current: River[], fresh: Set<River>): void {
     let changed = false;
     current.forEach((a, ai) => {
       const A = all[ai], aNew = fresh.has(A);
-      if (!aNew && (a.maxX < fx0 - 80 || a.minX > fx1 + 80 || a.maxY < fy0 - 80 || a.minY > fy1 + 80)) return; // far from all the new ones
+      // a river settled in an earlier batch is never cut again: what the map, the fishing and the
+      // walking know of it must not depend on the order the land was visited in
+      if (!aNew) return;
       const last = a.join >= 0 ? own(a) - 8 : own(a); // a tributary's mouth, on the river it joins, is fine
       let best = -1, bestN = -1, onto: River | null = null;
       for (let k = 0; k < A.nodes.length && best < 0; k++) {

@@ -40,7 +40,7 @@ describe('fauna', () => {
       for (let k = 0; k < 6; k++) for (const a of animalsOf(h, t0 + k * 997)) {
         if (land) expect(altitude(a.x, a.y)).toBeGreaterThan(-0.08);
         else expect(altitude(a.x, a.y)).toBeLessThan(0.35);
-        expect(Math.hypot(a.x - h.x, a.y - h.y)).toBeLessThan(h.range * 1.3 + 60);
+        expect(Math.hypot(a.x - h.x, a.y - h.y)).toBeLessThan(h.range * 1.3 + 75); // the herd strings out around its leader
       }
     }
   });

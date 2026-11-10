@@ -11,13 +11,14 @@ describe('climates', () => {
       n[b] = (n[b] || 0) + 1;
       if (v >= 0) land++;
     }
-    // the atlas projection shows the polar lands as wide as the equator: a third of the map
-    expect(n.tundra / land).toBeGreaterThan(0.15);
-    expect(n.tundra / land).toBeLessThan(0.5);
+    // the three continents lie mostly between 50°N and 50°S (asked by Adrien): little tundra
+    expect(n.tundra / land).toBeGreaterThan(0.02);
+    expect(n.tundra / land).toBeLessThan(0.3);
+    expect(n.temperate / land).toBeGreaterThan(0.3);
     // hot lands split into desert, savanna and jungle
     const hot = n.desert + n.savanna + n.jungle;
-    expect(hot / land).toBeGreaterThan(0.08);
-    expect(hot / land).toBeLessThan(0.3);
+    expect(hot / land).toBeGreaterThan(0.25);
+    expect(hot / land).toBeLessThan(0.65);
     for (const b of ['desert', 'savanna', 'jungle']) expect(n[b] / hot).toBeGreaterThan(0.15);
     expect(n.ice).toBeGreaterThan(50);
   });

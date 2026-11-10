@@ -169,22 +169,12 @@ describe('saving', () => {
     expect(roll(back)).toBe(roll(s));
   });
 
-  it('older saves are carried over: v3 gets life and an empty pack, v4 drops its monster fight', () => {
+  it('saves from before the three continents are left aside: a new game starts', () => {
+    // the planet was remade (v11): an older game's places are gone, whatever its version
     const v3 = { v: 3, at: '', x: 10, y: 20, leagues: 5, zoom: 1, named: [], journey: null, seen: '', trace: [10, 20] };
-    expect(migrate(v3)!.v).toBe(10);
-    const s = fromSaveFile(JSON.stringify(v3));
-    expect(s.hp).toBe(START_HP);
-    expect(s.items).toEqual({}); // nothing at all, as a new game
-    expect(s.work).toBeNull();
-    expect(s.carcasses).toEqual([]);
-    expect(s.food).toBe(100);
-    expect(s.camp).toBeNull();
-    expect(s.equip).toEqual({ hand: null, off: null, body: null, feet: null });
-    expect(s.fight).toBeNull();
-    const v4 = { ...v3, v: 4, hp: 7, maxHp: 20, gold: 3, items: {}, seed: 1, calmUntil: 9, rest: [1, 2], battle: { monster: 'rodeur', hp: 4 } };
-    const s4 = fromSaveFile(JSON.stringify(v4));
-    expect(s4.hp).toBe(7);
-    expect(s4.fight).toBeNull();
-    expect('battle' in s4).toBe(false);
+    expect(migrate(v3)).toBeNull();
+    expect(migrate({ ...v3, v: 10 })).toBeNull();
+    expect(() => fromSaveFile(JSON.stringify(v3))).toThrow();
+    void START_HP;
   });
 });

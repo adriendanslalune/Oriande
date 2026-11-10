@@ -1,6 +1,6 @@
 // Walking and the fog of war. Pure rules, ported from the proto, no Phaser.
 import { altitude, continent, humidity, TILE } from '../world/terrain';
-import { CIRCUMFERENCE, wrapIndex } from '../world/planet';
+import { CIRCUMFERENCE, EQUATOR_Y, wrapIndex } from '../world/planet';
 import { biome } from '../world/climate';
 import { sky, visibilityAt } from '../world/weather';
 import { settlement, type Settlement } from '../world/settlements';
@@ -74,20 +74,30 @@ export function revealCircle(s: GameState, x: number, y: number, sight: number):
 }
 
 /**
- * Where a new game starts: just outside a village that has a road, in temperate lands, well
- * inside a large continent (so that there is a whole continent to explore on foot), as near
- * as possible to longitude 0 at about 45°N. Deterministic: every player starts there.
+ * Where a new game starts: just outside a village that has a road, well inside the Old Continent
+ * (so that there is a whole continent to explore on foot), as near as possible to longitude 0 on the
+ * equator, in the middle of the map (asked by Adrien). Deterministic: every player starts there.
  */
+/** The row of tiles on the equator. */
+const EQ_TILE = Math.floor(EQUATOR_Y / TILE);
+
+let startMemo: { x: number; y: number } | null = null;
 export function startPosition(): { x: number; y: number } {
+  if (startMemo) return { ...startMemo };
+  startMemo = findStart();
+  return { ...startMemo };
+}
+
+function findStart(): { x: number; y: number } {
   let start: Settlement | null = null;
   for (let r = 0; r < 260 && !start; r++)
     for (let dj = -r; dj <= r && !start; dj++)
       for (let di = -r; di <= r && !start; di++) {
         if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
-        const cx = (di + 0.5) * TILE, cy = (dj + 0.5) * TILE;
-        if (continent(cx, cy) < 0.45) continue; // cheap test first: deep inland only
-        const b = settlement(di, dj);
-        if (!b || b.city || biome(b.x, b.y, altitude(b.x, b.y), humidity(b.x, b.y)) !== 'temperate' || !firstNeighbour(b)) continue;
+        const cx = (di + 0.5) * TILE, cy = (dj + EQ_TILE + 0.5) * TILE;
+        if (continent(cx, cy) < 0.18) continue; // cheap test first: well inland only (the plateau is at 0.22)
+        const b = settlement(di, dj + EQ_TILE);
+        if (!b || b.city || altitude(b.x, b.y) > 0.45 || !firstNeighbour(b)) continue;
         start = b;
       }
   if (start) {
@@ -116,7 +126,7 @@ export function wrapPosition(s: GameState): number {
 export function newGame(): GameState {
   const { x, y } = startPosition();
   const s: GameState = {
-    version: 10, x, y, leagues: 0,
+    version: 11, x, y, leagues: 0,
     trace: [[Math.round(x) + 0, Math.round(y) + 0]],
     seen: new Set(), named: [], journey: null, zoom: START_ZOOM,
     hp: START_HP, maxHp: START_HP, gold: 0, items: { ...START_ITEMS },

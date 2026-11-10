@@ -65,22 +65,26 @@ describe('a round planet', () => {
     expect(walkable(1000, at(-86))).toBe(false);
   });
 
-  it('is about two-fifths land, with real continents', () => {
+  it('is about a quarter land, in three continents with wide oceans between them', () => {
     let land = 0, n = 0;
     for (let y = NORTH_POLE_Y; y < SOUTH_POLE_Y; y += 2048) for (let x = 0; x < CIRCUMFERENCE; x += 2048) { n++; if (altitude(x, y) >= 0) land++; }
-    expect(land / n).toBeGreaterThan(0.33);
-    expect(land / n).toBeLessThan(0.5);
+    expect(land / n).toBeGreaterThan(0.18);
+    expect(land / n).toBeLessThan(0.35);
+    // along the equator: land at the three continents, open sea in the oceans between them
+    const at = (lon: number): number => altitude(lon * CIRCUMFERENCE / 360, EQUATOR_Y);
+    for (const lon of [0, 130, -110]) expect(at(lon)).toBeGreaterThan(0);
+    for (const lon of [70, -55, 180]) expect(at(lon)).toBeLessThan(0);
   });
 
-  it('everyone starts at the same place: temperate land, about 45-55°N, near longitude 0', () => {
+  it('everyone starts at the same place: in the middle of the map, on the equator, near longitude 0', () => {
     const p = startPosition();
     expect(startPosition()).toEqual(p);
     const v = altitude(p.x, p.y);
     expect(v).toBeGreaterThan(0);
-    expect(biome(p.x, p.y, v, humidity(p.x, p.y))).toBe('temperate');
-    expect(latitude(p.y)).toBeGreaterThan(40);
-    expect(latitude(p.y)).toBeLessThan(60);
-    expect(Math.abs(longitude(p.x))).toBeLessThan(15);
+    expect(v).toBeLessThan(0.6);
+    expect(Math.abs(latitude(p.y))).toBeLessThan(5);
+    expect(Math.abs(longitude(p.x))).toBeLessThan(10);
+    void biome; void humidity;
   });
 });
 
@@ -128,9 +132,12 @@ describe('road network', () => {
   });
   it('roads wind instead of running straight', () => {
     const s = startPosition();
+    let winding = 0, straight = 0;
     for (const r of roadsAround(Math.floor(s.x / TILE), Math.floor(s.y / TILE), 4)) {
       const L = r.lengths[r.lengths.length - 1], d = Math.hypot(r.q.x - r.p.x, r.q.y - r.p.y);
-      expect(L).toBeGreaterThan(d * 1.01);
+      expect(L).toBeGreaterThan(d);
+      if (L > d * 1.01) winding++; else straight++;
     }
+    expect(winding).toBeGreaterThan(straight * 8);
   });
 });

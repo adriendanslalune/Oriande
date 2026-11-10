@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DAY_SECONDS, localHour, sky, visibilityAt, weatherAt, worldTime } from './weather';
 import { CIRCUMFERENCE, EQUATOR_Y } from './planet';
 import { startPosition } from '../game/travel';
+import { altitude, humidity } from './terrain';
+import { biome } from './climate';
 
 const s = startPosition(), T = worldTime();
 
@@ -28,10 +30,16 @@ describe('weather and the hour', () => {
     expect(sky(s.x, T + DAY_SECONDS / 2).darkness).toBeGreaterThan(0.9);
   });
 
-  it('changes over minutes: rain comes and goes, about one tenth of the time at the start', () => {
+  it('changes over minutes: rain comes and goes, about one tenth of the time in temperate lands', () => {
+    // the first temperate land north of the start (the start itself is in the savanna)
+    let p = { x: s.x, y: s.y };
+    for (let lat = 25; lat < 50; lat += 0.5) {
+      const y = EQUATOR_Y - lat * CIRCUMFERENCE / 360, v = altitude(s.x, y);
+      if (v > 0 && v < 0.5 && biome(s.x, y, v, humidity(s.x, y)) === 'temperate') { p = { x: s.x, y }; break; }
+    }
     let rain = 0, changes = 0, last = '';
     for (let k = 0; k < 3000; k++) {
-      const w = weatherAt(s.x, s.y, T + k * 20).kind;
+      const w = weatherAt(p.x, p.y, T + k * 20).kind;
       if (w === 'rain' || w === 'storm') rain++;
       if (w !== last) changes++;
       last = w;

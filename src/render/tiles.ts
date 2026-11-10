@@ -7,7 +7,7 @@ import { TILE, altitude, humidity } from '../world/terrain';
 import { DESERT_HUMIDITY, JUNGLE_HUMIDITY, coldness, heat, temperature } from '../world/climate';
 import { drawDunes, drawIce, drawJungle, drawSavanna } from './climate';
 import { drawBridges, drawRivers, waterMask } from './rivers';
-import { riversNear } from '../world/rivers';
+import { riversNear, LAKE_REACH } from '../world/rivers';
 import { settlement, type Settlement } from '../world/settlements';
 import { roadsAround } from '../world/roads';
 import { landmark } from '../world/landmarks';
@@ -127,8 +127,8 @@ export function drawTile(ti: number, tj: number, createCanvas: CanvasFactory = d
 
   // Rivers and lakes first: plants are drawn after them (never in the water), so trees on the
   // banks lean over the water.
-  // wide enough for the lakes too: a lake can reach a tile ~100 units away from the river that made it
-  const rivers = riversNear(x0 - 110, y0 - 110, x0 + T + 110, y0 + T + 110);
+  // wide enough for the lakes too: a lake can reach a tile up to LAKE_REACH away from the river that made it
+  const rivers = riversNear(x0 - LAKE_REACH, y0 - LAKE_REACH, x0 + T + LAKE_REACH, y0 + T + LAKE_REACH);
   drawRivers(g, x0, y0, rivers);
   const water = waterMask(x0, y0, rivers);
 

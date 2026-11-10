@@ -27,7 +27,7 @@ export type HungerEvent = { kind: 'hungry' } | { kind: 'starving' } | { kind: 'f
 export function stepHunger(s: GameState, dt: number, walking: boolean): HungerEvent[] {
   const out: HungerEvent[] = [];
   const before = s.food;
-  if (walking) s.food = Math.max(0, s.food - (dt / HUNGER_SECONDS) * (s.equip.feet === 'bottes' ? BOOTS : 1));
+  if (walking) s.food = Math.max(0, s.food - (dt / HUNGER_SECONDS) * (s.equip.feet === 'bottes' || s.equip.feet === 'djaaz' ? BOOTS : 1));
   if (before >= HUNGRY && s.food < HUNGRY) out.push({ kind: 'hungry' });
   if (s.food <= 0 && roll(s) < dt / STARVE_SECONDS) {
     s.hp -= 1;

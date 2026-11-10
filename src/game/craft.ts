@@ -37,7 +37,7 @@ export const weaponOf = (s: GameState): Weapon => WEAPONS.find((w) => w.id === s
 
 export type EquipSlot = 'hand' | 'off' | 'body' | 'feet';
 /** Where each thing is carried or worn. */
-export const SLOT_OF: Record<string, EquipSlot> = { baton: 'hand', lance: 'hand', coutelas: 'hand', sabre: 'hand', torche: 'off', veste: 'body', bottes: 'feet' };
+export const SLOT_OF: Record<string, EquipSlot> = { baton: 'hand', lance: 'hand', coutelas: 'hand', sabre: 'hand', torche: 'off', veste: 'body', bottes: 'feet', djaaz: 'feet' };
 export const slotOf = (id: string): EquipSlot | null => SLOT_OF[id] ?? null;
 
 /** Take this in hand (or put it on); taking what is already there puts it back in the pack. */
@@ -51,7 +51,7 @@ export function equip(s: GameState, id: string): boolean {
 /** The best of what a pack holds, carried: the strongest weapon, the torch, the jacket. */
 export function bestEquip(items: Record<string, number>): { hand: string | null; off: string | null; body: string | null; feet: string | null } {
   const owned = (id: string): boolean => (items[id] ?? 0) > 0;
-  return { hand: WEAPONS.find((w) => w.id !== 'poings' && owned(w.id))?.id ?? null, off: owned('torche') ? 'torche' : null, body: owned('veste') ? 'veste' : null, feet: owned('bottes') ? 'bottes' : null };
+  return { hand: WEAPONS.find((w) => w.id !== 'poings' && owned(w.id))?.id ?? null, off: owned('torche') ? 'torche' : null, body: owned('veste') ? 'veste' : null, feet: owned('djaaz') ? 'djaaz' : owned('bottes') ? 'bottes' : null };
 }
 
 /** Something new to carry: into its slot if that hand is free (or the new weapon is better). */

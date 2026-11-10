@@ -177,6 +177,13 @@
       "use": "voyage"
     },
     {
+      "id": "djaaz",
+      "kind": "tool",
+      "heal": 0,
+      "price": 0,
+      "use": "voyage"
+    },
+    {
       "id": "coutelas",
       "kind": "tool",
       "heal": 0,

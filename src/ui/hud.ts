@@ -59,7 +59,7 @@ const CSS = `
 .hud-walk.pack .head { display: flex; align-items: center; gap: 6px; }
 .hud-buttons button.bag { color: #2a241d; }
 .hud-buttons button.bag .ico { vertical-align: middle; }
-.hud-version { position: fixed; left: 14px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
+.hud-version { position: fixed; left: 24px; bottom: calc(3px + env(safe-area-inset-bottom, 0px)); font: italic 10px "IM Fell English", serif;
   color: #6a5f4f; opacity: .75; pointer-events: none; z-index: 2; }
 .hud-buttons { position: fixed; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; z-index: 2; }
 .hud-buttons button { width: 46px; height: 46px; padding: 0; font: 700 20px "Old Standard TT", serif; color: #2a241d;

@@ -424,5 +424,8 @@ Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand 
 - Avant de proposer une fonctionnalité hors liste : demander.
 - Toujours terminer une session en vérifiant que `npm run build` passe et que
   le pipeline GitLab Pages est vert.
+- **Coin des développeurs** (demande d'Adrien, `ui/dev.ts`) : petit bouton ⚙ en bas à gauche, mot de passe
+  (`djaaz1873`, seulement son SHA-256 dans le code ; retenu pour la session) : **Djaaz Bot** (bottes d'or ailées,
+  objet `djaaz` aux pieds, marche ×5, `DJAAZ` dans `travel.ts`) et **Remise à zéro** (confirmée, nouvelle partie).
 - **Version** affichée en bas à gauche du jeu (`v<package> · <commit> · <date>`, posée au build par
   `vite.config.ts`) : pour savoir d’un coup d’œil si un téléphone a la dernière version.

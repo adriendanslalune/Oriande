@@ -27,6 +27,7 @@ import { TileSource, type ReadyTile } from '../render/tileSource';
 import { Overlay, Z_ATLAS, type View } from '../render/overlay';
 import { GLPainter } from '../render/glPainter';
 import { Hud } from '../ui/hud';
+import { DevPanel } from '../ui/dev';
 import { DPR, DPR_FORCED, setDPR } from '../ui/screen';
 
 const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
@@ -133,6 +134,15 @@ export class MapScene extends Phaser.Scene {
       almanac: () => this.openAlmanac(),
     });
     this.sheet = new Sheet(() => { /* closed */ });
+    // the developers' corner: the Djaaz Bot, and a reset of the game (asked by Adrien)
+    const dev = new DevPanel({
+      boots: () => {
+        const s = this.state;
+        s.items.djaaz = Math.max(1, s.items.djaaz ?? 0); s.equip.feet = 'djaaz';
+        saveGame(s); this.hud.showNote(t('item.djaaz.name'), t('dev.bootsGot'), 3000);
+      },
+      reset: () => { this.state = newGame(); saveGame(this.state); location.reload(); }, // a fresh game is what any last save will write
+    });
     this.game.canvas.setAttribute('aria-label', t('ui.map'));
     this.setupInput();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
@@ -147,6 +157,7 @@ export class MapScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
       this.hud.destroy();
       this.sheet.destroy();
+      dev.destroy();
     });
   }
 

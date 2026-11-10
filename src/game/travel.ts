@@ -35,6 +35,8 @@ export function sightRadius(x: number, y: number): number {
 export const CELL = 50; // divides the circumference
 /** Walking speed, world units per second (a league in a bit less than 6 s). */
 export const SPEED = 7;
+/** The Djaaz Bot, golden winged boots for the developers: five times as fast. */
+export const DJAAZ = 5;
 /** World units per league. */
 export const LEAGUE = 40;
 /** Map zoom of a new game. */
@@ -134,7 +136,8 @@ export function startJourney(s: GameState, x: number, y: number, pace = 1): bool
   if (!route) return false;
   const L = pathLength(route.path);
   if (L < 1) return false;
-  s.journey = { path: route.path, elapsed: 0, duration: (L / (SPEED * pace)) * 1000, revealed: 0, shore: !route.reached };
+  const boots = s.equip.feet === 'djaaz' ? DJAAZ : 1;
+  s.journey = { path: route.path, elapsed: 0, duration: (L / (SPEED * pace * boots)) * 1000, revealed: 0, shore: !route.reached };
   return true;
 }
 

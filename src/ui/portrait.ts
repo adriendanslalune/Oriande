@@ -32,7 +32,9 @@ export function portrait(c: Carried, size = 150): string {
   const seams = jacket
     ? `<path ${L} fill="none" stroke-dasharray="2 3" d="M50 84 L46 150 M70 84 L74 150"/><path ${L} fill="${coatShade}" d="M52 70 l8 14 l8 -14"/>` // stitches, the collar
     : `<path ${L} fill="none" stroke-width="1.4" d="M60 72 v18 M57 78 h0.1 M57 86 h0.1"/>`; // the shirt's opening and buttons
-  const feet = c.feet === 'bottes'
+  const feet = c.feet === 'djaaz' // golden boots with little wings at the heels
+    ? `<path ${L} fill="#d9a53a" d="M44 172 h12 v14 h1 v6 h-17 v-6 z M76 172 h-12 v14 h-1 v6 h17 v-6 z"/><path ${L} stroke-width="1.2" fill="#fbf3dc" d="M44 176 q-9 -5 -14 -2 q5 1 6 3 q-5 0 -7 3 q6 0 9 2 q-3 2 -3 4 q5 -2 9 -3 M76 176 q9 -5 14 -2 q-5 1 -6 3 q5 0 7 3 q-6 0 -9 2 q3 2 3 4 q-5 -2 -9 -3"/><path stroke="#fff3c4" stroke-width="1.2" d="M47 176 v8 M73 176 v8"/>`
+    : c.feet === 'bottes'
     ? `<path ${L} fill="#5a3e26" d="M44 172 h12 v14 h1 v6 h-17 v-6 z M76 172 h-12 v14 h-1 v6 h17 v-6 z"/>`
     : `<path ${L} fill="#e6c8a5" d="M45 184 q-4 6 2 8 h9 v-8 z M75 184 q4 6 -2 8 h-9 v-8 z"/>`; // bare feet
   const hand = c.hand ? '' : `<circle ${L} fill="#e6c8a5" cx="92" cy="118" r="5"/>`; // a bare fist

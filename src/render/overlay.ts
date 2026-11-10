@@ -52,6 +52,8 @@ interface Gear {
   jacket?: boolean;
   /** leather boots instead of bare feet */
   boots?: boolean;
+  /** the Djaaz Bot: golden boots with little wings */
+  golden?: boolean;
   /** work in hand: its kind, what is gathered, where on screen (the float), how far along (0..1) */
   work: { kind: 'harvest' | 'fish'; res: string | null; at: [number, number]; done: number } | null;
 }
@@ -331,7 +333,7 @@ export class Overlay {
     if (w && Math.abs(w.x - s.x) > 1) this.facing = w.x > s.x ? 1 : -1;
     const [wx, wy] = w ? screen(w.x, w.y) : [0, 0];
     this.explorer(ex, ey, walking, now, v.zoom / START_ZOOM, s.equip.off === 'torche', {
-      weapon: weaponOf(s).id, lit: sky(v.x).darkness > 0.12, jacket: s.equip.body === 'veste', boots: s.equip.feet === 'bottes',
+      weapon: weaponOf(s).id, lit: sky(v.x).darkness > 0.12, jacket: s.equip.body === 'veste', boots: s.equip.feet === 'bottes' || s.equip.feet === 'djaaz', golden: s.equip.feet === 'djaaz',
       work: w ? { kind: w.kind, res: w.res, at: [wx, wy], done: 1 - (w.left ?? 0) / (w.kind === 'fish' ? FISH_SECONDS : workSeconds(s, w.res)) } : null,
     });
     // the animal's bite or claws on the explorer: red slashes, for a moment
@@ -813,8 +815,14 @@ export class Overlay {
     // legs and boots
     ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.moveTo(X(-0.5), Y(-6)); ctx.lineTo(x - j, y - 1); ctx.moveTo(X(0.5), Y(-6)); ctx.lineTo(x + j, y - 1); ctx.stroke();
-    ctx.fillStyle = gear.boots ? 'rgb(70,48,30)' : 'rgb(230,200,165)'; // boots, or bare feet
-    for (const fx of [x - j, x + j]) { ctx.beginPath(); ctx.ellipse(fx + f * 0.9, y - 0.6, 1.8, 1, 0, 0, 6.3); ctx.fill(); if (!gear.boots) { ctx.lineWidth = 0.6; ctx.stroke(); } }
+    ctx.fillStyle = gear.golden ? 'rgb(217,165,58)' : gear.boots ? 'rgb(70,48,30)' : 'rgb(230,200,165)'; // boots, or bare feet
+    for (const fx of [x - j, x + j]) {
+      ctx.beginPath(); ctx.ellipse(fx + f * 0.9, y - 0.6, 1.8, 1, 0, 0, 6.3); ctx.fill(); if (!gear.boots || gear.golden) { ctx.lineWidth = 0.6; ctx.stroke(); }
+      if (gear.golden) { // a little white wing at the heel
+        ctx.fillStyle = 'rgb(251,243,220)'; ctx.beginPath(); ctx.moveTo(fx - f * 0.8, y - 1.2); ctx.quadraticCurveTo(fx - f * 3.4, y - 3.6, fx - f * 3.8, y - 1.6); ctx.quadraticCurveTo(fx - f * 2.4, y - 1.4, fx - f * 0.8, y - 0.6); ctx.closePath(); ctx.fill(); ctx.lineWidth = 0.5; ctx.stroke();
+        ctx.fillStyle = 'rgb(217,165,58)';
+      }
+    }
     // pack on the back, bedroll on top
     ctx.lineWidth = 1;
     ctx.fillStyle = 'rgb(120,88,58)';

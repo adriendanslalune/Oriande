@@ -180,6 +180,39 @@ export function shopSign(sign: string, key: string, title: string, size: number)
     font-family="'IM Fell English SC', serif" font-size="${Math.round(px)}" letter-spacing="2" fill="#2b2117">${esc(title)}</text></svg></div>`;
 }
 
+// The heads of the satchel and the codex (asked by Adrien: like the towns' outlines): a one-line drawing
+// from ChatGPT in src/assets/headers/<besace|codex>.webp (see docs/emblems.md); until then, a coded one.
+const headUrls = import.meta.glob('../assets/headers/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const HEADS = new Map(Object.entries(headUrls).map(([path, url]) => [path.split('/').pop()!.replace('.webp', ''), url]));
+const LINE_G = `fill="none" stroke="${INK}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"`;
+const HEAD_LINES: Record<string, string> = {
+  besace: `<svg viewBox="0 0 360 96" class="line"><g ${LINE_G}>
+  <path d="M0 88 Q40 86 70 88 H360"/>
+  <path d="M70 88 V22 M66 22 h8"/>
+  <path d="M92 88 V50 Q92 38 104 38 H126 Q138 38 138 50 V88"/><path d="M93 54 Q115 66 137 54"/><path d="M102 68 h26 v14 h-26 z"/><path d="M108 38 q7 -9 14 0"/>
+  <path d="M152 61 H180 a13.5 13.5 0 0 1 0 27 H152 a13.5 13.5 0 0 1 0 -27 z"/><circle cx="152" cy="74.5" r="6"/><path d="M164 61 v27 M174 61 v27"/>
+  <ellipse cx="222" cy="84" rx="20" ry="4"/><ellipse cx="222" cy="80" rx="17" ry="3.5"/><ellipse cx="222" cy="76" rx="14" ry="3"/>
+  <path d="M256 88 h20 M258 88 V66 h16 v22 M258 66 L274 88 M274 66 L258 88 M256 66 l10 -8 l10 8"/><circle cx="266" cy="55" r="3"/>
+  <path d="M288 88 V76 h12 v12 M300 79 q5 0 5 4 q0 4 -5 4"/>
+  <path d="M312 88 L330 56 L348 88 M330 56 V88"/>
+</g></svg>`,
+  codex: `<svg viewBox="0 0 360 96" class="line"><g ${LINE_G}>
+  <path d="M0 88 H360"/>
+  <path d="M58 88 V58 h10 v30 M63 58 q-4 -6 0 -12 q4 6 0 12"/>
+  <path d="M86 86 Q108 79 130 86 Q152 79 174 86 V60 Q152 53 130 60 Q108 53 86 60 Z M130 60 V86"/>
+  <path d="M188 70 h36 q-2 18 -18 18 q-16 0 -18 -18 M198 88 h16 M212 70 L228 44"/>
+  <path d="M240 88 V68 h18 v20 M249 68 L242 38 M249 68 L249 34 M249 68 L256 40 M244 48 l-5 -2 M249 44 l5 -3 M253 52 l5 -1"/>
+  <path d="M270 88 l8 -10 l7 10 M286 88 l6 -7 l6 7"/>
+  <circle cx="318" cy="80" r="8"/><path d="M318 74 L320 80 L318 86 L316 80 Z M318 72 v-3"/>
+</g></svg>`,
+};
+
+/** The one-line drawing at the head of the satchel or the codex. */
+export const headLine = (key: string): string => {
+  const url = HEADS.get(key);
+  return url ? `<img class="line" src="${url}" alt="">` : HEAD_LINES[key] ?? '';
+};
+
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /**

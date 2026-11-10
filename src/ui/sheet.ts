@@ -7,7 +7,7 @@
 import { t } from '../i18n';
 import { itemPicture } from './itemArt';
 import { portrait, type Carried } from './portrait';
-import { ribbon, shopSign, skyline } from './townSigns';
+import { headLine, ribbon, shopSign, skyline } from './townSigns';
 
 const INK = '#2b2117';
 
@@ -21,15 +21,12 @@ const CSS = `
   border: 2px solid ${INK}; padding: 7px; }
 .sheet-page::before { content: ''; position: absolute; inset: 4px; border: 1px solid ${INK}; pointer-events: none; }
 .sheet .fleuron { position: absolute; width: 26px; height: 26px; pointer-events: none; z-index: 2; }
-.sheet-head { position: relative; flex: none; margin: 4px 4px 0; height: 104px; border: 1.5px solid ${INK}; overflow: hidden;
-  background: linear-gradient(#b8d0d2 0%, #e9dcb7 64%, #d9b98a 64.5%, #e6c99a 100%); }
-.sheet-head svg.land { position: absolute; left: 0; bottom: 0; width: 100%; height: 56px; }
-.sheet-head .banner { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: min(86%, 380px); height: 46px; }
-.sheet-head .banner svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.sheet-head h2 { position: absolute; inset: 0; margin: 0; font: 20px/46px "IM Fell English SC", serif; letter-spacing: .05em; text-align: center; white-space: nowrap; }
-.sheet-head .sub { position: absolute; left: 0; right: 0; top: 60px; font: italic 14px "IM Fell English", serif; text-align: center; }
-.sheet-head .sub span { background: rgba(243,233,207,.85); padding: 1px 8px; border: 1px solid rgba(43,33,23,.5); }
-.sheet-head .close { position: absolute; right: 2px; top: 2px; width: 34px; height: 34px; border: 0; background: none; font: 24px/34px serif; color: ${INK}; cursor: pointer; z-index: 3; }
+.sheet-head { position: relative; flex: none; margin: 4px 4px 0; padding: 10px 0 2px; display: flex; flex-direction: column; align-items: center; }
+.sheet-head .line { display: block; width: 100%; height: 84px; object-fit: contain; object-position: 50% 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.sheet-head .ribbon { width: min(80%, 320px); height: auto; margin-top: -4px; }
+.sheet-head .sub { margin-top: 2px; font: italic 14px "IM Fell English", serif; text-align: center; color: #5a4a36; }
+.sheet-head .close { position: absolute; right: 4px; top: 4px; width: 32px; height: 32px; border: 1.5px solid ${INK}; background: #f3e9cf; font: 20px/28px serif; color: ${INK}; cursor: pointer; z-index: 3; }
 .sheet-tabs { display: flex; margin: 8px 4px 0; border-bottom: 1.5px solid ${INK}; flex: none; }
 .sheet-tabs button { flex: 1; font: 14px "IM Fell English SC", serif; letter-spacing: .05em; color: #6d5c46; background: #e4d4ae; border: 1.5px solid ${INK};
   border-bottom: 0; margin-right: -1.5px; padding: 7px 2px 5px; cursor: pointer; touch-action: manipulation; }
@@ -155,14 +152,6 @@ const PLACE_TINT = ['#d8c9a4', '#f0cf8c', '#c79e78', '#bfae8c'];
 
 /** A fleuron for the corners of the engraved frame. */
 const FLEURON = `<svg viewBox="0 0 26 26"><path d="M2 24 V2 H24" fill="none" stroke="${INK}" stroke-width="1.5"/><path d="M5 5 q9 1 11 11 q-9 -2 -11 -11z M5 5 l6 6" fill="${INK}"/><circle cx="19" cy="5" r="1.4" fill="${INK}"/><circle cx="5" cy="19" r="1.4" fill="${INK}"/></svg>`;
-/** The ribbon banner the title sits in. */
-const BANNER = `<svg viewBox="0 0 300 46" preserveAspectRatio="none"><path d="M2 12 H24 L18 23 L24 34 H2 L10 23 Z" fill="#dcc89c" stroke="${INK}" stroke-width="1.5"/>
-  <path d="M298 12 H276 L282 23 L276 34 H298 L290 23 Z" fill="#dcc89c" stroke="${INK}" stroke-width="1.5"/><path d="M18 6 H282 L272 23 L282 40 H18 L28 23 Z" fill="#f3e9cf" stroke="${INK}" stroke-width="1.5"/>
-  <path d="M30 10 H270" stroke="${INK}" stroke-width=".6"/><path d="M30 36 H270" stroke="${INK}" stroke-width=".6"/></svg>`;
-/** The little landscape at the head of the page: dunes, far mountains, the sun. */
-const LAND = `<svg class="land" viewBox="0 0 380 56" preserveAspectRatio="none"><path d="M248 32 l14 -20 l10 14 l9 -9 l13 15" fill="#cfd8d4" stroke="${INK}" stroke-width="1.2"/>
-  <circle cx="330" cy="20" r="8" fill="#f6d77e" stroke="${INK}" stroke-width="1.2"/><path d="M0 40 Q60 22 110 34 T220 30 T380 36 V56 H0Z" fill="#d6b07a" stroke="${INK}" stroke-width="1.2"/>
-  <path d="M0 48 Q80 38 170 46 T380 44" fill="none" stroke="${INK}" stroke-width=".7" stroke-dasharray="3 4"/></svg>`;
 
 /** A slot in the pack: a thing, how many, its picture; tapping it shows its card below. */
 export interface Slot { id: string; name: string; count: number; worn?: boolean }
@@ -203,7 +192,7 @@ export class Sheet {
   hide(): void { if (!this.shown) return; this.root.classList.remove('on'); document.body.classList.remove('sheet-open'); this.shown = null; this.onClose(); }
 
   /** A new page: the engraved frame, the landscape with the title in its banner, the body. */
-  private page(title: string, sub: string): { page: HTMLElement; body: HTMLElement } {
+  private page(title: string, sub: string, art: 'besace' | 'codex'): { page: HTMLElement; body: HTMLElement } {
     const page = document.createElement('div'); page.className = 'sheet-page';
     const header = document.querySelector('.hud-header') as HTMLElement | null; // the page starts under the header
     page.style.top = (header ? header.offsetHeight : 90) + 8 + 'px';
@@ -211,13 +200,13 @@ export class Sheet {
       const f = document.createElement('span'); f.className = 'fleuron'; f.style.cssText = pos + (tf ? ';transform:' + tf : ''); f.innerHTML = FLEURON; page.append(f);
     }
     const head = document.createElement('div'); head.className = 'sheet-head';
-    head.innerHTML = LAND;
-    const banner = document.createElement('div'); banner.className = 'banner'; banner.innerHTML = BANNER;
-    const h = document.createElement('h2'); h.textContent = title; banner.append(h);
-    const p = document.createElement('div'); p.className = 'sub'; const ps = document.createElement('span'); ps.textContent = sub; p.append(ps);
+    // a one-line drawing (asked by Adrien, like the towns' outlines), the title on a ribbon, a line under it
+    head.innerHTML = headLine(art) + ribbon(title);
+    const h = document.createElement('h2'); h.className = 'vh'; h.textContent = title; head.append(h);
+    const p = document.createElement('div'); p.className = 'sub'; p.textContent = sub;
     const x = document.createElement('button'); x.className = 'close'; x.textContent = '×'; x.setAttribute('aria-label', t('walk.cancel'));
     x.addEventListener('click', () => this.hide());
-    head.append(banner, p, x);
+    head.append(p, x);
     const body = document.createElement('div'); body.className = 'sheet-body';
     page.append(head, body);
     this.root.replaceChildren(page);
@@ -269,7 +258,7 @@ export class Sheet {
     const sameTab = this.shown === 'sac' && this.root.dataset.tab === m.tab;
     this.shown = 'sac'; this.root.dataset.tab = m.tab;
     this.root.classList.add('tabbed'); this.root.classList.remove('book', 'town');
-    const { page, body } = this.page(m.title, m.sub);
+    const { page, body } = this.page(m.title, m.sub, 'besace');
     const tabs = document.createElement('div'); tabs.className = 'sheet-tabs'; tabs.setAttribute('role', 'tablist');
     for (const tb of m.tabs) {
       const b = document.createElement('button'); b.textContent = tb.label; b.setAttribute('role', 'tab');
@@ -328,7 +317,7 @@ export class Sheet {
     const scroll = same ? this.root.querySelector('.sheet-body')?.scrollTop ?? 0 : 0;
     this.shown = 'almanac'; this.root.dataset.tab = open;
     this.root.classList.remove('tabbed', 'town'); this.root.classList.add('book');
-    const { page, body } = this.page(title, sub);
+    const { page, body } = this.page(title, sub, 'codex');
     // thumb tabs on the edge of the book, one by use, with how many recipes are ready there
     const thumbs = document.createElement('div'); thumbs.className = 'thumbs'; thumbs.setAttribute('role', 'tablist');
     for (const g of groups) {

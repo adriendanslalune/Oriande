@@ -69,3 +69,14 @@ Reply "ready" and wait for the subjects.
 | `city-1` | a walled town: ramparts with battlements, round towers, tall houses, a cathedral spire |
 | `city-2` | a prosperous town: tall houses with chimneys, a clock tower with a dome, two steeples |
 | `city-3` | a harbour town: houses, a church tower, a lighthouse, the masts of a few ships |
+
+## En-têtes de la besace et du codex
+
+En haut de la besace et du codex : un dessin **d'un seul trait**, comme les silhouettes des bourgs, puis le
+titre sur la banderole (demande d'Adrien). Fichiers : `src/assets/headers/besace.webp`, `codex.webp` ; en
+attendant, un dessin codé. Même conversation que les silhouettes (même bloc de style), puis :
+
+| clé | Sujet à demander (anglais) |
+|---|---|
+| `besace` | an explorer's kit laid on the ground, seen from the side: a walking staff planted upright, a leather satchel with its flap and strap, a rolled blanket, a coil of rope, a small lantern, a tin cup, a little tent at the end |
+| `codex` | a naturalist's work table seen from the side, its top as the ground line: a candle, an open book, a mortar with its pestle, a bunch of herbs in a jar, a few flint stones, a pocket compass |

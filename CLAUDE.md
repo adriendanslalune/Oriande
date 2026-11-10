@@ -347,7 +347,7 @@ sur le téléphone de Doudou via GitLab Pages.
    qu'il faut, en rouge ce qui manque) ; celles qu'on peut faire sont en tête, en vert, « Fabriquer » d'un tap.
    **Illustrations des objets** : à faire avec ChatGPT (`docs/items.md` : bloc de style, liste des 27 objets) ;
    une image déposée dans `src/assets/items/<id>.webp` remplace d'elle-même le « ? » qui l'attend
-   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). **Pas d'illustrations** dans les en-têtes (le petit paysage peint reste). Les vies et coups des animaux
+   (`ui/itemArt.ts` ; pas de dessins provisoires, demande d'Adrien). Plus de pictos dans les titres de compartiments (sac, bourgs). **En-têtes** (demande d'Adrien) : la **Besace** (ex-« Sac de l'explorateur ») et le **Codex** (ex-« Almanach des recettes ») ont en tête un dessin d'un seul trait (paquetage ; table de naturaliste) et leur titre sur la banderole des bourgs (`headLine`, `ribbon` ; images ChatGPT `src/assets/headers/<besace|codex>.webp`, dessin codé en attendant ; prompts dans `docs/emblems.md`). Les vies et coups des animaux
    combattants sont dans `data/animals.json` (`hp`, `damage`).)
 5. **Ville-menu** : entrer dans un bourg ouvre une page d'atlas : auberge
    (soigner), marchand (3 objets), taverne (une rumeur tirée de `towns.json`).

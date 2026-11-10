@@ -426,6 +426,8 @@ Notés à la demande d'Adrien ; à reprendre après la tranche jouable ou quand 
   le pipeline GitLab Pages est vert.
 - **Coin des développeurs** (demande d'Adrien, `ui/dev.ts`) : petit bouton ⚙ en bas à gauche, mot de passe
   (`djaaz1873`, seulement son SHA-256 dans le code ; retenu pour la session) : **Djaaz Bot** (bottes d'or ailées,
-  objet `djaaz` aux pieds, marche ×5, `DJAAZ` dans `travel.ts`) et **Remise à zéro** (confirmée, nouvelle partie).
+  objet `djaaz` aux pieds, marche ×5, `DJAAZ` dans `travel.ts`) **Afficher toute la carte** (`devView.all` dans `travel.ts`, retenu sur l'appareil, hors sauvegarde : plus de brume,
+  `isSeen` toujours vrai ; l'atlas peint toute la planète par climat, `wholeMap`, et on peut dézoomer jusqu'à la voir
+  en entier, `ZMIN_DEV`) et **Remise à zéro** (confirmée, nouvelle partie).
 - **Version** affichée en bas à gauche du jeu (`v<package> · <commit> · <date>`, posée au build par
   `vite.config.ts`) : pour savoir d’un coup d’œil si un téléphone a la dernière version.

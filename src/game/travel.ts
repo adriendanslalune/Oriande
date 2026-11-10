@@ -50,7 +50,9 @@ export const TRACE_MAX = 6000;
 const CELLS_AROUND = CIRCUMFERENCE / CELL;
 /** The fog cell of (x, y), brought back around the planet: seen once, seen on every lap. */
 export const cellKey = (x: number, y: number): string => wrapIndex(Math.round(x / CELL), CELLS_AROUND) + ',' + Math.round(y / CELL);
-export const isSeen = (s: GameState, x: number, y: number): boolean => s.seen.has(cellKey(x, y));
+/** A developers' switch (not saved with the game): the whole map shown, no fog. */
+export const devView = { all: false };
+export const isSeen = (s: GameState, x: number, y: number): boolean => devView.all || s.seen.has(cellKey(x, y));
 
 /** Share of the sight lost in the dark of the night when the explorer has no torch. */
 export const NO_TORCH = 0.5;

@@ -1,4 +1,6 @@
 {
+  "dev.reveal": "Show the whole map",
+  "dev.fog": "Bring the fog back",
   "item.djaaz.name": "Djaaz Bot",
   "item.djaaz.text": "Golden winged boots: you walk five times as fast.",
   "dev.button": "Developer tools",

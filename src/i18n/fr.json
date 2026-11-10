@@ -1,4 +1,6 @@
 {
+  "dev.reveal": "Afficher toute la carte",
+  "dev.fog": "Remettre la brume",
   "item.djaaz.name": "Djaaz Bot",
   "item.djaaz.text": "Bottes d’or ailées : on marche cinq fois plus vite.",
   "dev.button": "Outils du développeur",

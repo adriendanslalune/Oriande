@@ -1,5 +1,5 @@
 // The developers' corner (asked by Adrien): a small button by the version, a password, then the
-// Djaaz Bot (golden winged boots, five times as fast) and a reset of the whole game, confirmed first.
+// Djaaz Bot (golden winged boots, five times as fast), the whole map without fog, and a reset of the whole game, confirmed first.
 // The password only keeps players out of it by accident: anyone reading the code could get round it.
 import { t } from '../i18n';
 
@@ -40,7 +40,7 @@ export class DevPanel {
   private readonly veil: HTMLElement;
   private readonly box: HTMLElement;
 
-  constructor(private readonly act: { boots(): void; reset(): void }) {
+  constructor(private readonly act: { boots(): void; reset(): void; reveal(): boolean; revealed(): boolean }) {
     const style = document.createElement('style'); style.textContent = CSS;
     const btn = document.createElement('button'); btn.className = 'dev-btn'; btn.textContent = '⚙';
     btn.setAttribute('aria-label', t('dev.button'));
@@ -83,6 +83,7 @@ export class DevPanel {
     const h = document.createElement('h3'); h.textContent = t('dev.title');
     this.box.replaceChildren(h,
       this.button(t('dev.boots'), 'gold', () => { this.act.boots(); this.close(); }),
+      this.button(t(this.act.revealed() ? 'dev.fog' : 'dev.reveal'), '', () => { this.act.reveal(); this.close(); }),
       this.button(t('dev.reset'), 'danger', () => this.confirmReset()),
       this.button(t('dev.close'), 'plain', () => this.close()));
   }

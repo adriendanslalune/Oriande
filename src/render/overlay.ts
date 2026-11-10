@@ -2,7 +2,8 @@
 // fog, life (waves, leaves, smoke, travellers, birds), names, explorer, compass, scale, and the
 // atlas overview. Ported from the proto's dessiner()/animer()/apercuGeneral().
 import { hash2 } from '../world/noise';
-import { TILE, altitude } from '../world/terrain';
+import { TILE, altitude, humidity } from '../world/terrain';
+import { biome, type Biome } from '../world/climate';
 import { settlement, knownSettlement } from '../world/settlements';
 import { roadsAround, pointOnRoad } from '../world/roads';
 import { landmark } from '../world/landmarks';
@@ -18,8 +19,8 @@ import { DPR } from '../ui/screen';
 import { isGL } from './glPainter';
 import { worldTime } from '../world/weather';
 import { SEA_CELL, seaLabel } from '../world/names';
-import { CELL, LEAGUE, START_ZOOM, isSeen, routeAhead } from '../game/travel';
-import { CIRCUMFERENCE, nearestCopy, wrapIndex } from '../world/planet';
+import { CELL, LEAGUE, START_ZOOM, isSeen, devView, routeAhead } from '../game/travel';
+import { CIRCUMFERENCE, latitude, nearestCopy, wrapIndex } from '../world/planet';
 
 /** Fog cells around the planet. */
 const CELLS_AROUND = CIRCUMFERENCE / CELL;
@@ -84,6 +85,10 @@ function attackMotion(kind: Attack, p: number): { dx: number; turn: number; away
 
 /** Below this zoom the map turns into the atlas overview. */
 export const Z_ATLAS = 0.3;
+/** The colours of the whole map (developers' view), by climate. */
+const WHOLE: Partial<Record<Biome, string>> = {
+  sea: '#a9c1c4', ice: '#eef1ee', tundra: '#c9c7b2', desert: '#e3cf9a', savanna: '#d4c78a', jungle: '#7f9a62', temperate: '#b5c48e',
+};
 
 export interface View {
   /** camera centre, world units */
@@ -139,6 +144,8 @@ export class Overlay {
   private leafTimer = 0;
   /** altitude of each seen fog cell, for the atlas */
   private readonly atlasCache = new Map<string, number>();
+  /** the whole map's samples (developers' view), by grid size and position */
+  private readonly wholeCache = new Map<string, string>();
 
   constructor(private readonly ctx: CanvasRenderingContext2D) {
     // on the GPU, the fog canvas is a texture uploaded again each frame (it is small)
@@ -192,7 +199,8 @@ export class Overlay {
     // The fog: paper everywhere, holes punched (at quarter resolution) where the explorer has seen.
     const fg = this.fg, fog = this.fog;
     fg.globalCompositeOperation = 'source-over'; fg.clearRect(0, 0, fog.width, fog.height);
-    fg.fillStyle = PAPER; fg.fillRect(0, 0, fog.width, fog.height); fg.globalCompositeOperation = 'destination-out';
+    if (!devView.all) { fg.fillStyle = PAPER; fg.fillRect(0, 0, fog.width, fog.height); } // the developers can lift the fog
+    fg.globalCompositeOperation = 'destination-out';
     const ci0 = Math.floor(ax / CELL) - 1, ci1 = Math.ceil(bx / CELL) + 1, cj0 = Math.floor(ay / CELL) - 1, cj1 = Math.ceil(by / CELL) + 1, rr = CELL * v.zoom / 4 * 1.05;
     // newly seen cells fade in over a moment instead of popping up, so the land unveils itself
     // smoothly at the explorer's pace (cells already seen when the game opened show at once)
@@ -200,7 +208,7 @@ export class Overlay {
     const stamp = this.fogStamp(rr);
     for (let cj = cj0; cj <= cj1; cj++) for (let ci = ci0; ci <= ci1; ci++) {
       const key = wrapIndex(ci, CELLS_AROUND) + ',' + cj;
-      if (!s.seen.has(key)) continue;
+      if (devView.all || !s.seen.has(key)) continue;
       let at = this.seenAt.get(key);
       if (at === undefined) { at = now; this.seenAt.set(key, at); }
       const a = Math.min(1, (now - at) / 900);
@@ -964,11 +972,38 @@ export class Overlay {
     ctx.restore();
   }
 
+  /**
+   * The whole planet, for the developers (no fog): its land coloured by climate, sampled on a grid
+   * of about 4 screen pixels, each sample kept (by grid size) so that panning stays smooth; at most a
+   * few thousand new samples a frame, the rest filled in over the next frames.
+   */
+  private wholeMap(v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number): void {
+    const { ctx } = this;
+    const g = Math.pow(2, Math.ceil(Math.log2(4 / v.zoom))); // world units per sample, a power of 2
+    let budget = 4000;
+    if (this.wholeCache.size > 400_000) this.wholeCache.clear();
+    const c = g * v.zoom + 0.6;
+    for (let j = Math.floor(ay / g); j <= Math.ceil(by / g); j++) for (let i = Math.floor(ax / g); i <= Math.ceil(bx / g); i++) {
+      const X = i * g, Y = j * g, key = g + ':' + wrapIndex(i, Math.round(CIRCUMFERENCE / g)) + ',' + j;
+      if (Math.abs(latitude(Y)) > 90) continue; // beyond the poles: nothing, plain paper
+      let col = this.wholeCache.get(key);
+      if (col === undefined) {
+        if (budget-- <= 0) continue;
+        const h = altitude(X, Y), b: Biome = biome(X, Y, h, humidity(X, Y));
+        col = h >= 0.6 ? '#9c8a6c' : WHOLE[b] ?? '#cfd8b4';
+        this.wholeCache.set(key, col);
+      }
+      const [x, y] = screen(X, Y);
+      ctx.fillStyle = col; ctx.fillRect(x - c / 2, y - c / 2, c, c);
+    }
+  }
+
   /** Overview of everything discovered, small, like an atlas page. */
   private atlas(s: GameState, v: View, screen: (x: number, y: number) => [number, number], ax: number, ay: number, bx: number, by: number): void {
     const { ctx } = this;
     const c = Math.max(1, CELL * v.zoom);
-    for (const k of s.seen) {
+    if (devView.all) this.wholeMap(v, screen, ax, ay, bx, by);
+    else for (const k of s.seen) {
       const [ci, cj] = k.split(',').map(Number), X = nearestCopy(ci * CELL, v.x), Y = cj * CELL;
       if (X < ax - CELL || X > bx + CELL || Y < ay - CELL || Y > by + CELL) continue;
       let h = this.atlasCache.get(k);
@@ -980,7 +1015,7 @@ export class Overlay {
     ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.font = "700 11px 'Old Standard TT', serif";
     const tilesInView = (Math.floor(bx / TILE) - Math.floor(ax / TILE) + 1) * (Math.floor(by / TILE) - Math.floor(ay / TILE) + 1);
     if (tilesInView < 25_000) for (let tj = Math.floor(ay / TILE); tj <= Math.floor(by / TILE); tj++) for (let ti = Math.floor(ax / TILE); ti <= Math.floor(bx / TILE); ti++) {
-      const b = knownSettlement(ti, tj);
+      const b = devView.all && tilesInView < 3000 ? settlement(ti, tj) : knownSettlement(ti, tj);
       if (!b || !b.city || !isSeen(s, b.x, b.y)) continue;
       const [x, y] = screen(b.x, b.y);
       ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillText(b.name.toUpperCase(), x, y - 6);

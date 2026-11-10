@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { num, t, tn } from '../i18n';
 import { TILE } from '../world/terrain';
-import { newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type TravelEvent } from '../game/travel';
+import { devView, newGame, advance, startJourney, wrapPosition, LEAGUE, START_ZOOM, type TravelEvent } from '../game/travel';
 import { pathLength, planRoute, prefetchWays } from '../game/route';
 import { CONTACT, HUNT_RUN, ITEMS, REGROUP, beastsNear, end, hunt, stepFight, type Beast } from '../game/combat';
 import { SLEEP_FOOD, canCook, canSleepByFire, cook, eat, sleepByFire, stepHunger } from '../game/survival';
@@ -30,7 +30,12 @@ import { Hud } from '../ui/hud';
 import { DevPanel } from '../ui/dev';
 import { DPR, DPR_FORCED, setDPR } from '../ui/screen';
 
-const ZMIN = 0.008, ZMAX = 3; // the atlas can show ~1,300 leagues across: a planet needs it
+/** Where the developers' whole-map switch is kept (this device only, not in the save). */
+const REVEAL_KEY = 'oriande.dev.reveal';
+try { devView.all = localStorage.getItem(REVEAL_KEY) === '1'; } catch { /* private mode */ }
+const ZMIN = 0.008, ZMAX = 3;
+/** With the whole map shown, the developers can step back to see the planet all round. */
+const ZMIN_DEV = 0.001; // the atlas can show ~1,300 leagues across: a planet needs it
 /** Autosave period while playing, ms. The game is also saved whenever the page is hidden. */
 const SAVE_EVERY = 2500;
 /** Memory for tile pictures, bytes (more if the screen needs it). */
@@ -141,6 +146,14 @@ export class MapScene extends Phaser.Scene {
         s.items.djaaz = Math.max(1, s.items.djaaz ?? 0); s.equip.feet = 'djaaz';
         saveGame(s); this.hud.showNote(t('item.djaaz.name'), t('dev.bootsGot'), 3000);
       },
+      // the whole map without fog, to see distances and the lay of the land (kept on this device only)
+      revealed: () => devView.all,
+      reveal: () => {
+        devView.all = !devView.all;
+        try { localStorage.setItem(REVEAL_KEY, devView.all ? '1' : ''); } catch { /* private mode */ }
+        if (devView.all) { this.follow = false; this.setZoom(0.02); } else this.setZoom(START_ZOOM);
+        return devView.all;
+      },
       reset: () => { this.state = newGame(); saveGame(this.state); location.reload(); }, // a fresh game is what any last save will write
     });
     this.game.canvas.setAttribute('aria-label', t('ui.map'));
@@ -171,7 +184,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private setZoom(z: number): void {
-    this.view.zoom = this.state.zoom = Math.max(ZMIN, Math.min(ZMAX, z));
+    this.view.zoom = this.state.zoom = Math.max(devView.all ? ZMIN_DEV : ZMIN, Math.min(ZMAX, z));
   }
 
   private setupInput(): void {

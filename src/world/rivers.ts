@@ -70,6 +70,12 @@ function makeLake(x: number, y: number, cells: number): Lake | null {
     const b = settlement(ti + di, tj + dj);
     if (b) r = Math.min(r, (Math.hypot(b.x - x, (b.y - y) / 0.75) - (b.city ? 60 : 30)) / 1.4);
   }
+  // a lake never spills into the sea (seen by Adrien: a lake drawn over the coast): it shrinks to stay
+  // on land, looking all around as far as its shore can reach (1.4 × its radius, flattened like the map)
+  for (let k = 0; k < 16 && r >= 9; k++) {
+    const a = k * Math.PI / 8, cx = Math.cos(a), cy = Math.sin(a) * 0.75;
+    for (let d = 6; d <= r * 1.4 + 4; d += 5) if (altitude(x + cx * d, y + cy * d) < 0.01) { r = Math.min(r, (d - 6) / 1.4); break; }
+  }
   if (r < 9) return null;
   return { x, y, r, seed: hash2(wrapIndex(Math.round(x), CIRCUMFERENCE), Math.round(y)) * 100 };
 }

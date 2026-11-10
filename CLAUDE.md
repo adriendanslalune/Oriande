@@ -140,7 +140,7 @@ Règles qui restent :
    sur le rivage, bout droit au dessin (pas de bout arrondi sablé dans la mer) ; nœuds, lacs et chutes au-delà
    retirés. **Lacs trouvés partout** : un lac déborde de l'emprise de la rivière qui l'a fait (jusqu'à ~100 de
    son centre) ; `lakesNear` cherche donc les rivières 100 plus loin (`LAKE_REACH`), les tuiles aussi (sinon ~11 %
-   de l'eau des lacs n'était ni pêchable ni contournée). **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
+   de l'eau des lacs n'était ni pêchable ni contournée). **Jamais dans la mer** (vu par Adrien) : `makeLake` rétrécit un lac dont la rive atteindrait la mer. **Ponts** en pierre là où une route croise une rivière. **Réseau** (`network` dans `riversNear`) :
    deux rivières qui se rencontrent partagent leurs nœuds ; la plus petite (moins d'eau écoulée
    au nœud) devient affluent et s'arrête au milieu de la plus grande (`cut`, `join`), même entre
    cellules : jamais deux rivières dans le même lit. **Croisements sans nœud commun** (`uncross`, vu par Adrien : un pas en diagonale
